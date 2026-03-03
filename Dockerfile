@@ -18,12 +18,8 @@ COPY --from=builder /app/node_modules ./node_modules
 # App-Dateien kopieren
 COPY . .
 
-# Daten-Verzeichnis für die SQLite-Datenbank anlegen
-RUN mkdir -p /data
-
 ENV NODE_ENV=production \
-    PORT=3000 \
-    DATA_DIR=/data
+    PORT=3000
 
 EXPOSE 3000
 
