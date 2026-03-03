@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm install)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(where npm)"
+      "Bash(where npm)",
+      "Bash(dir /B /O-D \"C:\\\\Users\\\\erik\\\\AppData\\\\Local\\\\Temp\")",
+      "Bash(findstr /i \".png .jpg .jpeg .webp\")",
+      "Bash(ls -t /c/Users/erik/.claude/projects/D--source-AniGa/*.jsonl)",
+      "Bash(node -e \":*)"
     ]
   }
 }

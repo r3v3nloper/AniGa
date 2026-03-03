@@ -226,7 +226,7 @@ function renderShell() {
   return `
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-icon">AG</div>
+        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo"/>
         <span class="logo-text">AniGa</span>
       </div>
       <nav class="sidebar-nav">
@@ -248,7 +248,7 @@ function renderShell() {
     <header class="mobile-header">
       <button class="btn-menu" id="btn-menu">${IC.menu}</button>
       <div class="mobile-logo">
-        <div class="logo-icon" style="width:30px;height:30px;font-size:.95rem">AG</div>
+        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo" style="width:30px;height:30px;"/>
         <span class="logo-text">AniGa</span>
       </div>
       <div style="width:34px"></div>
@@ -344,7 +344,7 @@ function renderAuthView() {
   return `<div class="auth-wrap">
     <div class="auth-box">
       <div class="auth-logo">
-        <div class="logo-icon" style="width:56px;height:56px;font-size:1.5rem;margin:0 auto 10px">AG</div>
+        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo" style="width:56px;height:56px;margin:0 auto 10px;display:block;"/>
         <h1>AniGa</h1>
         <p>Dein persönlicher Anime &amp; Manga Tracker</p>
       </div>
@@ -1091,6 +1091,18 @@ function showTrackModal(media, existingEntry) {
     }
     if (isAnime) bindNum('ep-m','ep-p','track-ep',0,maxEp);
     else { bindNum('ch-m','ch-p','track-ch',0,maxCh); bindNum('pg-m','pg-p','track-pg'); }
+
+    // Auto-fill auf Maximum wenn Status → Abgeschlossen
+    $('#track-status')?.addEventListener('change', () => {
+      if ($('#track-status').value !== 'completed') return;
+      if (isAnime && maxEp < 99999) {
+        const epInp = $('#track-ep');
+        if (epInp) epInp.value = maxEp;
+      } else if (!isAnime && maxCh < 99999) {
+        const chInp = $('#track-ch');
+        if (chInp) chInp.value = maxCh;
+      }
+    });
 
     // Star rating
     const stars = $$('.star-btn', $('#star-rating'));

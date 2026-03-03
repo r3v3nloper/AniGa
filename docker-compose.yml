@@ -1,0 +1,17 @@
+services:
+  aniga:
+    build: .
+    container_name: aniga
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - aniga-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - JWT_SECRET=${JWT_SECRET:-bitte-aendern-langer-zufaelliger-string}
+
+volumes:
+  aniga-data:
+    driver: local
