@@ -49,6 +49,15 @@ const API = (() => {
       remove: (id) => req('DELETE', `/list/${id}`)
     },
 
+    users: {
+      getAll:      ()     => req('GET',    '/users'),
+      getProfile:  (id)   => req('GET',    `/users/${id}/profile`),
+      getList:     (id, type) => req('GET', `/users/${id}/list${type ? '?type=' + type : ''}`),
+      follow:      (id)   => req('POST',   `/users/${id}/follow`),
+      unfollow:    (id)   => req('DELETE', `/users/${id}/follow`),
+      getFollowing: ()    => req('GET',    '/users/following'),
+    },
+
     search: {
       anime: (q, page) => req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
       manga: (q, page) => req('GET', `/search/manga?q=${encodeURIComponent(q)}&page=${page || 1}`),
