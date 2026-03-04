@@ -88,6 +88,55 @@ router.get('/:id/list', (req, res) => {
   res.json(rows);
 });
 
+/* ── GET /api/users/:id/compare ──────────────────────────── */
+router.get('/:id/compare', (req, res) => {
+  const myId     = req.userId;
+  const theirId  = +req.params.id;
+  const type     = req.query.type || 'anime';
+
+  const fetchList = (userId) => db.prepare(`
+    SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode,
+           ul.current_chapter, ul.user_score,
+           me.mal_id, me.title, me.image_url, me.episodes, me.chapters, me.type
+    FROM user_list ul
+    JOIN media_entries me ON ul.media_id = me.id
+    WHERE ul.user_id = ? AND me.type = ?
+  `).all(userId, type);
+
+  const myList    = fetchList(myId);
+  const theirList = fetchList(theirId);
+
+  const myMap    = new Map(myList.map(e => [e.media_id, e]));
+  const theirMap = new Map(theirList.map(e => [e.media_id, e]));
+
+  const both    = [];
+  const onlyMe  = [];
+  const onlyThem = [];
+
+  for (const [mediaId, mine] of myMap) {
+    const theirs = theirMap.get(mediaId);
+    if (theirs) {
+      both.push({
+        media: { id: mine.media_id, mal_id: mine.mal_id, title: mine.title,
+                 image_url: mine.image_url, episodes: mine.episodes, chapters: mine.chapters },
+        me:   { status: mine.list_status,   episode: mine.current_episode,   chapter: mine.current_chapter,   score: mine.user_score },
+        them: { status: theirs.list_status, episode: theirs.current_episode, chapter: theirs.current_chapter, score: theirs.user_score }
+      });
+    } else {
+      onlyMe.push(mine);
+    }
+  }
+  for (const [mediaId, theirs] of theirMap) {
+    if (!myMap.has(mediaId)) onlyThem.push(theirs);
+  }
+
+  both.sort((a, b) => a.media.title.localeCompare(b.media.title));
+  onlyMe.sort((a, b) => a.title.localeCompare(b.title));
+  onlyThem.sort((a, b) => a.title.localeCompare(b.title));
+
+  res.json({ both, onlyMe, onlyThem });
+});
+
 /* ── POST /api/users/:id/follow ───────────────────────────── */
 router.post('/:id/follow', (req, res) => {
   const targetId = +req.params.id;

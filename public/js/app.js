@@ -60,6 +60,9 @@ const S = {
   userListType: 'anime',
   userListStatus: 'all',
   userListView: 'grid',
+  compareData: null,
+  compareType: 'anime',
+  compareTab: 'both',
 };
 
 /* ---- HELPERS ---- */
@@ -1707,6 +1710,7 @@ function renderUserListView() {
         <div class="user-list-header-name">${esc(u.username)}</div>
         <div class="user-list-header-sub">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
       </div>
+      <button class="btn btn-primary btn-sm" id="btn-compare-user" style="margin-left:auto;flex-shrink:0">⚖️ Vergleichen</button>
     </div>
 
     <div class="type-toggle" style="margin-bottom:16px">
@@ -1785,6 +1789,7 @@ function renderUserListCard(e) {
 
 function bindUserListView() {
   $('#btn-back-users')?.addEventListener('click', () => navigate('users'));
+  $('#btn-compare-user')?.addEventListener('click', () => showCompareView(S.viewingUser));
 
   $$('.type-btn[data-utype]').forEach(b => {
     b.addEventListener('click', async () => {
@@ -1842,6 +1847,187 @@ function bindUserEntryCards() {
       const entryId = +card.dataset.entryId;
       const entry = S.viewingUserList.find(e => e.id === entryId);
       if (entry) showUserInfoModal(entry);
+    });
+  });
+}
+
+/* ================================================================
+   COMPARE VIEW
+   ================================================================ */
+async function showCompareView(user) {
+  S.compareType = 'anime';
+  S.compareTab  = 'both';
+  const main = $('#main-content');
+  main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  try {
+    S.compareData = await API.users.compare(user.id, 'anime');
+    main.innerHTML = renderCompareView();
+    bindCompareView();
+  } catch (e) {
+    main.innerHTML = `<div class="empty-state">
+      <div class="empty-state-emoji">⚠️</div>
+      <h3>Fehler beim Laden</h3><p>${esc(e.message)}</p>
+      <button class="btn btn-primary" onclick="showUserList(S.viewingUser)">Zurück</button>
+    </div>`;
+  }
+}
+
+function renderCompareView() {
+  const u    = S.viewingUser;
+  const me   = S.user;
+  const d    = S.compareData || { both: [], onlyMe: [], onlyThem: [] };
+  const type = S.compareType;
+  const tab  = S.compareTab;
+
+  const tabs = [
+    { id: 'both',   label: `⚖️ Beide`,          count: d.both.length },
+    { id: 'onlyMe', label: `👤 Nur ich`,         count: d.onlyMe.length },
+    { id: 'onlyThem', label: `👤 Nur ${esc(u.username)}`, count: d.onlyThem.length },
+  ];
+
+  return `
+    <div class="page-header">
+      <div class="page-title-row">
+        <button class="btn btn-ghost btn-sm" id="btn-back-compare">${IC.chevL} Zurück</button>
+        <div>
+          <div class="page-title">Vergleich</div>
+          <div class="page-sub">${esc(me.username)} vs. ${esc(u.username)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="type-toggle" style="margin-bottom:16px">
+      <button class="type-btn${type==='anime'?' active':''}" data-ctype="anime">🎬 Anime</button>
+      <button class="type-btn${type==='manga'?' active':''}" data-ctype="manga">📚 Manga</button>
+    </div>
+
+    <div class="compare-summary">
+      <div class="compare-summary-item">
+        <div class="compare-summary-num">${d.both.length}</div>
+        <div class="compare-summary-label">Gemeinsam</div>
+      </div>
+      <div class="compare-summary-sep">·</div>
+      <div class="compare-summary-item">
+        <div class="compare-summary-num">${d.onlyMe.length}</div>
+        <div class="compare-summary-label">Nur du</div>
+      </div>
+      <div class="compare-summary-sep">·</div>
+      <div class="compare-summary-item">
+        <div class="compare-summary-num">${d.onlyThem.length}</div>
+        <div class="compare-summary-label">Nur ${esc(u.username)}</div>
+      </div>
+    </div>
+
+    <div class="status-tabs" style="margin-bottom:16px">
+      ${tabs.map(t => `
+        <button class="status-tab${tab===t.id?' active':''}" data-ctab="${t.id}">
+          ${t.label}<span class="cnt">${t.count}</span>
+        </button>`).join('')}
+    </div>
+
+    <div id="compare-content">${renderCompareContent()}</div>`;
+}
+
+function renderCompareContent() {
+  const d    = S.compareData || { both: [], onlyMe: [], onlyThem: [] };
+  const tab  = S.compareTab;
+  const type = S.compareType;
+  const u    = S.viewingUser;
+  const me   = S.user;
+
+  if (tab === 'both') {
+    if (!d.both.length) return `<div class="empty-state"><div class="empty-state-emoji">🤝</div><h3>Noch nichts gemeinsam</h3><p>Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.</p></div>`;
+    return `<div class="compare-list">${d.both.map(item => renderCompareCard(item, type, me.username, u.username)).join('')}</div>`;
+  }
+  if (tab === 'onlyMe') {
+    if (!d.onlyMe.length) return `<div class="empty-state"><div class="empty-state-emoji">📋</div><h3>Nichts exklusiv bei dir</h3><p>Alles was du hast, hat ${esc(u.username)} auch.</p></div>`;
+    return `<div class="compare-list">${d.onlyMe.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
+  }
+  // onlyThem
+  if (!d.onlyThem.length) return `<div class="empty-state"><div class="empty-state-emoji">📋</div><h3>Nichts exklusiv bei ${esc(u.username)}</h3><p>Alles was ${esc(u.username)} hat, hast du auch.</p></div>`;
+  return `<div class="compare-list">${d.onlyThem.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
+}
+
+function renderCompareCard(item, type, myName, theirName) {
+  const { media, me, them } = item;
+  const total   = type === 'anime' ? media.episodes : media.chapters;
+  const myProg  = type === 'anime' ? me.episode  : me.chapter;
+  const thProg  = type === 'anime' ? them.episode : them.chapter;
+  const myPct   = total ? Math.round((myProg  / total) * 100) : 0;
+  const thPct   = total ? Math.round((thProg  / total) * 100) : 0;
+  const progLabel = type === 'anime' ? 'Ep.' : 'Kap.';
+  const totalTxt  = total ? `/${total}` : '';
+
+  const sideHtml = (name, status, prog, pct, score) => `
+    <div class="compare-side">
+      <div class="compare-side-name">${esc(name)}</div>
+      <span class="status-badge ${STATUS_CSS[status]||'status-default'}">${STATUS_LABELS[status]||status}</span>
+      <div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>
+      ${score ? `<div class="compare-side-score">${IC.star} ${score}.0</div>` : ''}
+      ${total ? `<div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+    </div>`;
+
+  return `
+    <div class="compare-card">
+      <div class="compare-card-cover">${coverImg(media.image_url, media.title)}</div>
+      <div class="compare-card-body">
+        <div class="compare-card-title" title="${esc(media.title)}">${esc(media.title)}</div>
+        <div class="compare-sides">
+          ${sideHtml(myName,    me.status,   myProg, myPct, me.score)}
+          <div class="compare-vs">vs</div>
+          ${sideHtml(theirName, them.status, thProg, thPct, them.score)}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderCompareSimpleCard(e, type) {
+  const total = type === 'anime' ? e.episodes : e.chapters;
+  const prog  = type === 'anime' ? e.current_episode : e.current_chapter;
+  const pct   = total ? Math.round((prog / total) * 100) : 0;
+  return `
+    <div class="compare-card">
+      <div class="compare-card-cover">${coverImg(e.image_url, e.title)}</div>
+      <div class="compare-card-body">
+        <div class="compare-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
+        <div class="compare-sides" style="justify-content:flex-start;gap:0">
+          <div class="compare-side" style="flex:unset;min-width:0">
+            <span class="status-badge ${STATUS_CSS[e.list_status]||'status-default'}">${STATUS_LABELS[e.list_status]||e.list_status}</span>
+            <div class="compare-side-prog">${type==='anime'?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>
+            ${e.user_score ? `<div class="compare-side-score">${IC.star} ${e.user_score}.0</div>` : ''}
+            ${total ? `<div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function bindCompareView() {
+  $('#btn-back-compare')?.addEventListener('click', () => {
+    const main = $('#main-content');
+    main.innerHTML = renderUserListView();
+    bindUserListView();
+  });
+
+  $$('.type-btn[data-ctype]').forEach(b => {
+    b.addEventListener('click', async () => {
+      S.compareType = b.dataset.ctype;
+      S.compareTab  = 'both';
+      const main = $('#main-content');
+      main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+      try {
+        S.compareData = await API.users.compare(S.viewingUser.id, S.compareType);
+        main.innerHTML = renderCompareView();
+        bindCompareView();
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  });
+
+  $$('.status-tab[data-ctab]').forEach(t => {
+    t.addEventListener('click', () => {
+      S.compareTab = t.dataset.ctab;
+      $$('.status-tab[data-ctab]').forEach(x => x.classList.toggle('active', x === t));
+      $('#compare-content').innerHTML = renderCompareContent();
     });
   });
 }

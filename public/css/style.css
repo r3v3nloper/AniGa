@@ -832,3 +832,53 @@ select.form-input {
 .user-list-header-info { flex: 1; min-width: 0; }
 .user-list-header-name { font-size: 1.1rem; font-weight: 700; }
 .user-list-header-sub { font-size: .78rem; color: var(--text2); margin-top: 2px; }
+
+/* ===== COMPARE VIEW ===== */
+.compare-summary {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 20px; margin-bottom: 16px;
+}
+.compare-summary-item { text-align: center; }
+.compare-summary-num  { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+.compare-summary-label { font-size: .72rem; color: var(--text2); margin-top: 3px; }
+.compare-summary-sep  { font-size: 1.4rem; color: var(--border); }
+
+.compare-list { display: flex; flex-direction: column; gap: 10px; }
+
+.compare-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); display: flex; gap: 12px;
+  padding: 12px; overflow: hidden;
+}
+.compare-card-cover {
+  width: 52px; height: 74px; border-radius: 6px;
+  overflow: hidden; flex-shrink: 0;
+}
+.compare-card-cover img { width: 100%; height: 100%; object-fit: cover; }
+.compare-card-cover .cover-placeholder { width: 100%; height: 100%; border-radius: 6px; font-size: .6rem; }
+.compare-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.compare-card-title {
+  font-size: .88rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.compare-sides {
+  display: flex; gap: 10px; align-items: flex-start; flex: 1;
+}
+.compare-side {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+}
+.compare-side-name {
+  font-size: .7rem; font-weight: 700; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px;
+}
+.compare-side-prog  { font-size: .78rem; color: var(--text2); }
+.compare-side-score { font-size: .78rem; color: var(--star); display: flex; align-items: center; gap: 2px; }
+.compare-side-score svg { width: 11px; height: 11px; }
+
+.compare-vs {
+  flex-shrink: 0; font-size: .7rem; font-weight: 700;
+  color: var(--text3, var(--text2)); padding-top: 20px;
+  opacity: .5;
+}

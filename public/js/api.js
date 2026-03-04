@@ -57,6 +57,7 @@ const API = (() => {
       follow:      (id)   => req('POST',   `/users/${id}/follow`),
       unfollow:    (id)   => req('DELETE', `/users/${id}/follow`),
       getFollowing: ()    => req('GET',    '/users/following'),
+      compare:     (id, type) => req('GET', `/users/${id}/compare${type ? '?type=' + type : ''}`),
     },
 
     admin: {
