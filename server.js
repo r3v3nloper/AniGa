@@ -8,6 +8,7 @@ const listRoutes = require('./routes/list');
 const searchRoutes = require('./routes/search');
 const usersRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
+const recommendRoutes = require('./routes/recommendations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +22,7 @@ app.use('/api/list', listRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/recommendations', recommendRoutes);
 
 // SPA fallback
 app.get('*', (req, res) => {

@@ -66,6 +66,10 @@ const API = (() => {
       changePassword: (id, pw) => req('PUT',    `/admin/users/${id}/password`, { password: pw }),
     },
 
+    recommendations: {
+      get: (type) => req('GET', `/recommendations${type ? '?type=' + type : ''}`)
+    },
+
     search: {
       anime: (q, page) => req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
       manga: (q, page) => req('GET', `/search/manga?q=${encodeURIComponent(q)}&page=${page || 1}`),

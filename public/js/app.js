@@ -63,6 +63,8 @@ const S = {
   compareData: null,
   compareType: 'anime',
   compareTab: 'both',
+  recommendations: null,
+  recommendType: 'anime',
 };
 
 /* ---- HELPERS ---- */
@@ -300,7 +302,10 @@ async function navigate(view) {
     switch (view) {
       case 'home':
         await Promise.all([loadAllLists(), loadStats()]);
-        main.innerHTML = renderHome(); bindHome(); break;
+        main.innerHTML = renderHome(); bindHome();
+        // Load recommendations lazily in background (don't block render)
+        if (!S.recommendations) loadRecommendations();
+        break;
       case 'search':
         main.innerHTML = renderSearch(); bindSearch();
         if (!S.topAnime.length) loadTopContent(); break;
@@ -542,6 +547,20 @@ function renderHome() {
       <div class="media-grid">${reading.map(e=>renderMediaCardFromEntry(e)).join('')}</div>
     </div>` : ''}
 
+    <div class="section" id="rec-section">
+      <div class="section-head">
+        <div class="section-title">✨ Empfohlen für dich</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="type-toggle" style="margin:0">
+            <button class="type-btn${S.recommendType==='anime'?' active':''}" id="rec-btn-anime">Anime</button>
+            <button class="type-btn${S.recommendType==='manga'?' active':''}" id="rec-btn-manga">Manga</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="rec-refresh" title="Neu laden">↺</button>
+        </div>
+      </div>
+      <div id="rec-content">${renderRecommendationContent()}</div>
+    </div>
+
     <div class="section">
       <div class="section-head">
         <div class="section-title">${IC.clock} Zuletzt aktualisiert</div>
@@ -571,6 +590,35 @@ function renderHome() {
     </div>`;
 }
 
+function renderRecommendationContent() {
+  const r = S.recommendations;
+  if (!r) return `<div class="rec-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div> Wird geladen…</div>`;
+  if (!r.results.length) return `<div class="empty-state" style="padding:20px 0"><div class="empty-state-emoji">🔍</div><h3>Keine Empfehlungen</h3><p>Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.</p></div>`;
+
+  const badge = r.basedOn.length
+    ? `<div class="rec-based-on">Basiert auf: ${r.basedOn.map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}</div>`
+    : '';
+
+  return `
+    ${badge}
+    <div class="media-grid">${r.results.map(m => renderRecommendCard(m)).join('')}</div>`;
+}
+
+function renderRecommendCard(m) {
+  return `
+    <div class="media-card rec-card" data-mal-id="${m.mal_id}" data-type="${m.type}">
+      <div class="media-card-cover">
+        ${coverImg(m.image_url, m.title)}
+        ${m.api_score ? `<div class="media-card-score">${IC.star}${m.api_score.toFixed(1)}</div>` : ''}
+        <div class="media-card-overlay"><div class="media-card-title">${esc(m.title)}</div></div>
+      </div>
+      <div class="media-card-footer">
+        <span class="media-card-type">${m.type==='anime'?(m.episodes?`${m.episodes} Ep.`:'Anime'):(m.chapters?`${m.chapters} Kap.`:'Manga')}</span>
+        <button class="btn-add-rec" title="Hinzufügen">${IC.plus}</button>
+      </div>
+    </div>`;
+}
+
 function bindHome() {
   $$('[data-nav]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.nav)));
   $$('.recent-item').forEach(el => {
@@ -581,6 +629,77 @@ function bindHome() {
     });
   });
   $$('.media-card').forEach(c => bindMediaCard(c));
+
+  // Recommendation controls
+  $('#rec-btn-anime')?.addEventListener('click', () => {
+    if (S.recommendType === 'anime') return;
+    S.recommendType = 'anime'; S.recommendations = null;
+    $('#rec-btn-anime').classList.add('active');
+    $('#rec-btn-manga').classList.remove('active');
+    $('#rec-content').innerHTML = renderRecommendationContent();
+    loadRecommendations();
+  });
+  $('#rec-btn-manga')?.addEventListener('click', () => {
+    if (S.recommendType === 'manga') return;
+    S.recommendType = 'manga'; S.recommendations = null;
+    $('#rec-btn-manga').classList.add('active');
+    $('#rec-btn-anime').classList.remove('active');
+    $('#rec-content').innerHTML = renderRecommendationContent();
+    loadRecommendations();
+  });
+  $('#rec-refresh')?.addEventListener('click', () => {
+    S.recommendations = null;
+    $('#rec-content').innerHTML = renderRecommendationContent();
+    loadRecommendations();
+  });
+
+  // Recommendation cards click → track modal
+  $$('.rec-card').forEach(card => {
+    card.addEventListener('click', async e => {
+      if (e.target.closest('.btn-add-rec') || e.target.closest('button')) {
+        // Plus button: open track modal
+        const malId = +card.dataset.malId;
+        const type  = card.dataset.type;
+        try {
+          const media = type === 'anime'
+            ? await API.search.getAnime(malId)
+            : await API.search.getManga(malId);
+          const existing = await API.list.check(malId, type).catch(() => null);
+          showTrackModal(media, existing?.entry || null);
+        } catch(err) { toast(err.message, 'error'); }
+      }
+    });
+  });
+}
+
+async function loadRecommendations() {
+  try {
+    S.recommendations = await API.recommendations.get(S.recommendType);
+    const content = $('#rec-content');
+    if (content && S.view === 'home') {
+      content.innerHTML = renderRecommendationContent();
+      $$('.rec-card').forEach(card => {
+        card.addEventListener('click', async e => {
+          if (e.target.closest('.btn-add-rec') || e.target.closest('button')) {
+            const malId = +card.dataset.malId;
+            const type  = card.dataset.type;
+            try {
+              const media = type === 'anime'
+                ? await API.search.getAnime(malId)
+                : await API.search.getManga(malId);
+              const existing = await API.list.check(malId, type).catch(() => null);
+              showTrackModal(media, existing?.entry || null);
+            } catch(err) { toast(err.message, 'error'); }
+          }
+        });
+      });
+    }
+  } catch(e) {
+    const content = $('#rec-content');
+    if (content && S.view === 'home') {
+      content.innerHTML = `<div class="empty-state" style="padding:20px 0"><div class="empty-state-emoji">⚠️</div><p>${esc(e.message)}</p></div>`;
+    }
+  }
 }
 
 /* ================================================================
