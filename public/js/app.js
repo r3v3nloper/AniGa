@@ -846,7 +846,7 @@ function renderProfile() {
   const u = S.user || {};
   const a = S.stats?.anime || {};
   const m = S.stats?.manga || {};
-  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE') : '';
+  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
 
   return `
     <div class="page-header">
