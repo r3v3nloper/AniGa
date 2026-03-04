@@ -7,7 +7,12 @@
       "Bash(dir /B /O-D \"C:\\\\Users\\\\erik\\\\AppData\\\\Local\\\\Temp\")",
       "Bash(findstr /i \".png .jpg .jpeg .webp\")",
       "Bash(ls -t /c/Users/erik/.claude/projects/D--source-AniGa/*.jsonl)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(curl -s \"https://api.jikan.moe/v4/anime/38000\")",
+      "Bash(node -e \"const d=require\\(''fs''\\).readFileSync\\(''/dev/stdin'',''utf8''\\); const j=JSON.parse\\(d\\); console.log\\(JSON.stringify\\(j.data.streaming\\)\\);\")",
+      "Bash(node -e \"fetch\\(''https://api.jikan.moe/v4/anime/38000''\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\(JSON.stringify\\(d.data.streaming,null,2\\)\\)\\)\")",
+      "Bash(node -e \"fetch\\(''https://api.jikan.moe/v4/anime/38000/streaming''\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\(JSON.stringify\\(d,null,2\\)\\)\\)\")",
+      "Bash(node -e \"fetch\\(''https://api.jikan.moe/v4/anime/38000''\\).then\\(r=>r.json\\(\\)\\).then\\(d=>{ const keys=Object.keys\\(d.data\\); console.log\\(''Keys:'', keys.join\\('', ''\\)\\); console.log\\(''streaming:'', JSON.stringify\\(d.data.streaming\\)\\); }\\)\")"
     ]
   }
 }
