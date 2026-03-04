@@ -915,9 +915,9 @@ function bindProfile() {
 function showProfileEditModal() {
   const u = S.user || {};
   openModal(`
-    <div class="modal-header">
-      <h2 class="modal-title">${IC.edit} Profil bearbeiten</h2>
-      <button class="modal-close" id="modal-close-btn">${IC.x}</button>
+    <div class="modal-head">
+      <h2>${IC.edit} Profil bearbeiten</h2>
+      <button class="btn-modal-close" id="modal-close-btn">${IC.x}</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -944,7 +944,7 @@ function showProfileEditModal() {
       </div>
       <div id="pe-error" style="color:#ef5350;font-size:.85rem;margin-bottom:8px;display:none"></div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-foot">
       <button class="btn btn-ghost" id="modal-cancel-btn">Abbrechen</button>
       <button class="btn btn-primary" id="pe-save-btn">Speichern</button>
     </div>
