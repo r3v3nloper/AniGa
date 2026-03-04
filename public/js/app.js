@@ -28,6 +28,8 @@ const IC = {
   chevL: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
   warn: `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
   users: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  shield: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+  key: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
 };
 
 /* ---- STATE ---- */
@@ -51,6 +53,7 @@ const S = {
   listFilter: { anime: '', manga: '' },
   allUsers: [],
   following: [],
+  adminUsers: [],
   viewingUser: null,
   viewingUserList: [],
   userListFilter: '',
@@ -225,12 +228,13 @@ function renderShell() {
   const u = S.user || {};
   const initials = (u.username || '?').substring(0, 2).toUpperCase();
   const navItems = [
-    { id:'home', icon:IC.home, label:'Übersicht' },
-    { id:'search', icon:IC.search, label:'Suche' },
-    { id:'anime', icon:IC.tv, label:'Anime-Liste' },
-    { id:'manga', icon:IC.book, label:'Manga-Liste' },
-    { id:'users', icon:IC.users, label:'Nutzer' },
-    { id:'profile', icon:IC.user, label:'Profil' },
+    { id:'home',    icon:IC.home,   label:'Übersicht' },
+    { id:'search',  icon:IC.search, label:'Suche' },
+    { id:'anime',   icon:IC.tv,     label:'Anime-Liste' },
+    { id:'manga',   icon:IC.book,   label:'Manga-Liste' },
+    { id:'users',   icon:IC.users,  label:'Nutzer' },
+    { id:'profile', icon:IC.user,   label:'Profil' },
+    ...(S.user?.is_admin ? [{ id:'admin', icon:IC.shield, label:'Admin', admin:true }] : []),
   ];
 
   return `
@@ -241,7 +245,7 @@ function renderShell() {
       </div>
       <nav class="sidebar-nav">
         ${navItems.map(n=>`
-          <button class="nav-item${v===n.id?' active':''}" data-nav="${n.id}">
+          <button class="nav-item${v===n.id?' active':''}${n.admin?' nav-item-admin':''}" data-nav="${n.id}">
             ${n.icon}<span>${n.label}</span>
           </button>`).join('')}
       </nav>
@@ -306,6 +310,12 @@ async function navigate(view) {
       case 'profile':
         S.stats = await API.list.getStats();
         main.innerHTML = renderProfile(); bindProfile(); break;
+      case 'admin':
+        if (!S.user?.is_admin) { navigate('home'); return; }
+        S.adminUsers = await API.admin.getUsers();
+        main.innerHTML = renderAdminView();
+        bindAdminView();
+        break;
       case 'users':
         [S.allUsers, S.following] = await Promise.all([
           API.users.getAll(),
@@ -1318,6 +1328,150 @@ function showManualModal(type = 'anime') {
 }
 
 /* ================================================================
+   VIEW: ADMIN
+   ================================================================ */
+function renderAdminView() {
+  const users = S.adminUsers;
+  return `
+    <div class="page-header">
+      <div class="page-title-row">
+        <div class="page-icon admin-icon">${IC.shield}</div>
+        <div>
+          <div class="page-title">Administration</div>
+          <div class="page-sub">${users.length} registrierte Nutzer</div>
+        </div>
+      </div>
+    </div>
+
+    ${users.length ? `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Benutzer</th>
+              <th>E-Mail</th>
+              <th>Anime</th>
+              <th>Manga</th>
+              <th>Registriert</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(u => `
+              <tr data-uid="${u.id}">
+                <td>
+                  <div class="admin-user-cell">
+                    <div class="user-avatar" style="width:32px;height:32px;font-size:.75rem;flex-shrink:0">${u.username.substring(0,2).toUpperCase()}</div>
+                    <span class="admin-username">${esc(u.username)}</span>
+                  </div>
+                </td>
+                <td class="admin-email">${esc(u.email)}</td>
+                <td class="admin-count">${u.animeCount}</td>
+                <td class="admin-count">${u.mangaCount}</td>
+                <td class="admin-date">${new Date(u.created_at).toLocaleDateString('de-DE')}</td>
+                <td>
+                  <div class="admin-actions">
+                    <button class="btn btn-secondary btn-sm btn-admin-pw" data-uid="${u.id}" data-uname="${esc(u.username)}" title="Passwort ändern">
+                      ${IC.key} Passwort
+                    </button>
+                    <button class="btn btn-danger btn-sm btn-admin-del" data-uid="${u.id}" data-uname="${esc(u.username)}" title="Löschen">
+                      ${IC.trash}
+                    </button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : `
+      <div class="empty-state">
+        <div class="empty-state-emoji">👤</div>
+        <h3>Keine Benutzer</h3>
+        <p>Noch niemand hat sich registriert.</p>
+      </div>`}`;
+}
+
+function bindAdminView() {
+  $$('.btn-admin-pw').forEach(btn => {
+    btn.addEventListener('click', () => showAdminPasswordModal(+btn.dataset.uid, btn.dataset.uname));
+  });
+  $$('.btn-admin-del').forEach(btn => {
+    btn.addEventListener('click', () => confirmAdminDelete(+btn.dataset.uid, btn.dataset.uname));
+  });
+}
+
+function showAdminPasswordModal(uid, username) {
+  const html = `
+    <div class="modal-head">
+      <h2>Passwort ändern</h2>
+      <button class="btn-modal-close" id="modal-close">${IC.x}</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:.9rem;margin-bottom:16px">
+        Neues Passwort für <strong style="color:var(--text)">${esc(username)}</strong>:
+      </p>
+      <div class="form-group">
+        <label class="form-label">Neues Passwort</label>
+        <input class="form-input" type="password" id="new-password"
+          placeholder="Mindestens 6 Zeichen" minlength="6" autocomplete="new-password"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort bestätigen</label>
+        <input class="form-input" type="password" id="confirm-password"
+          placeholder="Passwort wiederholen" autocomplete="new-password"/>
+      </div>
+      <div class="form-error" id="pw-error"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" id="modal-cancel">Abbrechen</button>
+      <button class="btn btn-primary" id="btn-save-pw">${IC.key} Speichern</button>
+    </div>`;
+
+  openModal(html, () => {
+    $('#modal-close')?.addEventListener('click', closeModal);
+    $('#modal-cancel')?.addEventListener('click', closeModal);
+    $('#new-password')?.focus();
+
+    $('#btn-save-pw')?.addEventListener('click', async () => {
+      const pw = $('#new-password').value;
+      const confirm = $('#confirm-password').value;
+      const errEl = $('#pw-error');
+      errEl.classList.remove('show');
+
+      if (pw.length < 6) {
+        errEl.textContent = 'Mindestens 6 Zeichen erforderlich';
+        errEl.classList.add('show'); return;
+      }
+      if (pw !== confirm) {
+        errEl.textContent = 'Passwörter stimmen nicht überein';
+        errEl.classList.add('show'); return;
+      }
+
+      const btn = $('#btn-save-pw');
+      btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>`;
+      try {
+        await API.admin.changePassword(uid, pw);
+        toast(`Passwort für „${username}" geändert`, 'success');
+        closeModal();
+      } catch (e) {
+        errEl.textContent = e.message; errEl.classList.add('show');
+        btn.disabled = false; btn.innerHTML = `${IC.key} Speichern`;
+      }
+    });
+  });
+}
+
+async function confirmAdminDelete(uid, username) {
+  if (!confirm(`Benutzer „${username}" wirklich löschen?\n\nDadurch werden auch alle Listen-Einträge und Follows unwiderruflich entfernt.`)) return;
+  try {
+    await API.admin.deleteUser(uid);
+    S.adminUsers = S.adminUsers.filter(u => u.id !== uid);
+    toast(`Benutzer „${username}" gelöscht`, 'success');
+    const main = $('#main-content');
+    if (main) { main.innerHTML = renderAdminView(); bindAdminView(); }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ================================================================
    VIEW: USERS (Nutzerliste & Follow)
    ================================================================ */
 function renderUsersView() {
@@ -1711,7 +1865,7 @@ function logout() {
   S.token = null; S.user = null;
   S.animeList = []; S.mangaList = []; S.stats = null;
   S.topAnime = []; S.topManga = []; S.seasonal = [];
-  S.allUsers = []; S.following = []; S.viewingUser = null;
+  S.allUsers = []; S.following = []; S.viewingUser = null; S.adminUsers = [];
   S.viewingUserList = []; S.userListFilter = '';
   bindAuth();
 }

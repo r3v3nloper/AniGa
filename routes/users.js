@@ -31,7 +31,7 @@ router.get('/', (req, res) => {
        WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount,
       EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND following_id = u.id) AS isFollowing
     FROM users u
-    WHERE u.id != ?
+    WHERE u.id != ? AND u.is_admin = 0
     ORDER BY u.username COLLATE NOCASE
   `).all(req.userId, req.userId);
   res.json(rows.map(r => ({ ...r, isFollowing: !!r.isFollowing })));

@@ -1,4 +1,5 @@
 const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const db = new Database(path.join(process.env.DATA_DIR || __dirname, 'aniga.db'));
@@ -12,6 +13,7 @@ db.exec(`
     username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    is_admin INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -66,5 +68,17 @@ db.exec(`
     UNIQUE(follower_id, following_id)
   );
 `);
+
+// Migrate: add is_admin column for existing databases
+try { db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0'); } catch {}
+
+// Seed admin user if not exists
+const adminExists = db.prepare("SELECT id FROM users WHERE email = 'main@tech.de'").get();
+if (!adminExists) {
+  const hash = bcrypt.hashSync('IchBinEinAdmin!', 10);
+  db.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
+    .run('admin', 'main@tech.de', hash);
+  console.log('✅ Admin-Benutzer angelegt (main@tech.de)');
+}
 
 module.exports = db;

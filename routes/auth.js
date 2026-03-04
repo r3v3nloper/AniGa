@@ -47,16 +47,16 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, is_admin: !!user.is_admin } });
   } catch {
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
 
 router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, created_at FROM users WHERE id = ?').get(req.userId);
+  const user = db.prepare('SELECT id, username, email, created_at, is_admin FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
-  res.json(user);
+  res.json({ ...user, is_admin: !!user.is_admin });
 });
 
 module.exports = router;

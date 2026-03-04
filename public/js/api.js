@@ -58,6 +58,12 @@ const API = (() => {
       getFollowing: ()    => req('GET',    '/users/following'),
     },
 
+    admin: {
+      getUsers:       ()       => req('GET',    '/admin/users'),
+      deleteUser:     (id)     => req('DELETE', `/admin/users/${id}`),
+      changePassword: (id, pw) => req('PUT',    `/admin/users/${id}/password`, { password: pw }),
+    },
+
     search: {
       anime: (q, page) => req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
       manga: (q, page) => req('GET', `/search/manga?q=${encodeURIComponent(q)}&page=${page || 1}`),

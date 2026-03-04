@@ -106,6 +106,9 @@ input, select, textarea { font-family: inherit; }
 }
 .nav-item:hover { background: var(--bg-hover); color: var(--text); }
 .nav-item.active { background: var(--accent-glow); color: var(--accent); border-right-color: var(--accent); }
+.nav-item-admin { color: var(--error) !important; margin-top: 4px; border-top: 1px solid var(--border); }
+.nav-item-admin:hover { background: rgba(239,83,80,.08) !important; color: var(--error) !important; }
+.nav-item-admin.active { background: rgba(239,83,80,.12) !important; border-right-color: var(--error) !important; }
 .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
 
 .sidebar-user {
@@ -747,6 +750,43 @@ select.form-input {
 /* ===== SEARCH RESULT PAGINATION ===== */
 .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 24px; }
 .pagination .btn { min-width: 38px; padding: 7px 12px; }
+
+/* ===== ADMIN ===== */
+.admin-icon { background: rgba(239,83,80,.12) !important; }
+.admin-icon svg { color: var(--error) !important; }
+
+.admin-table-wrap {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+}
+.admin-table {
+  width: 100%; border-collapse: collapse; font-size: .88rem;
+}
+.admin-table thead th {
+  background: var(--bg2); padding: 12px 16px;
+  text-align: left; font-size: .75rem; font-weight: 600;
+  color: var(--text3); text-transform: uppercase; letter-spacing: .04em;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.admin-table tbody tr:last-child { border-bottom: none; }
+.admin-table tbody tr:hover { background: var(--bg-hover); }
+.admin-table td { padding: 12px 16px; vertical-align: middle; }
+
+.admin-user-cell { display: flex; align-items: center; gap: 10px; }
+.admin-username { font-weight: 600; }
+.admin-email { color: var(--text2); font-size: .82rem; }
+.admin-count { color: var(--text2); text-align: center; }
+.admin-date { color: var(--text3); font-size: .8rem; white-space: nowrap; }
+.admin-actions { display: flex; gap: 6px; }
+
+@media (max-width: 768px) {
+  .admin-table-wrap { overflow-x: auto; }
+  .admin-table { min-width: 560px; }
+}
 
 /* ===== USER LIST (Nutzer-Übersicht) ===== */
 .user-list { display: flex; flex-direction: column; gap: 10px; }
