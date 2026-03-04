@@ -78,6 +78,13 @@ router.get('/anime/:id', async (req, res) => {
   } catch { res.status(500).json({ error: 'Nicht gefunden' }); }
 });
 
+router.get('/anime/:id/streaming', async (req, res) => {
+  try {
+    const data = await jFetch(`${JIKAN}/anime/${req.params.id}/streaming`);
+    res.json(data.data || []);
+  } catch { res.json([]); }
+});
+
 router.get('/manga/:id', async (req, res) => {
   try {
     const data = await jFetch(`${JIKAN}/manga/${req.params.id}`);

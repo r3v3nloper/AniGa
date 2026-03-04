@@ -70,6 +70,7 @@ const API = (() => {
       anime: (q, page) => req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
       manga: (q, page) => req('GET', `/search/manga?q=${encodeURIComponent(q)}&page=${page || 1}`),
       getAnime: (id) => req('GET', `/search/anime/${id}`),
+      getStreaming: (id) => req('GET', `/search/anime/${id}/streaming`),
       getManga: (id) => req('GET', `/search/manga/${id}`),
       topAnime: () => req('GET', '/search/top/anime'),
       topManga: () => req('GET', '/search/top/manga'),

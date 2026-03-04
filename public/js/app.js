@@ -1121,6 +1121,11 @@ function showTrackModal(media, existingEntry) {
           ${synopsis.length>220?`<button class="btn-synopsis" id="btn-expand">Mehr anzeigen</button>`:''}
         </div>`:''}
 
+      ${isAnime && media.mal_id ? `
+        <div id="streaming-section" style="margin-bottom:14px">
+          <div class="streaming-loading">${IC.play} Streaming wird geladen…</div>
+        </div>` : ''}
+
       <div class="divider"></div>
       <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">Meine Liste</h3>
 
@@ -1194,6 +1199,33 @@ function showTrackModal(media, existingEntry) {
   openModal(html, () => {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
+
+    // Load streaming services for anime
+    if (isAnime && media.mal_id) {
+      API.search.getStreaming(media.mal_id).then(services => {
+        const sec = $('#streaming-section');
+        if (!sec) return;
+        if (!services.length) { sec.remove(); return; }
+        const COLORS = {
+          'Crunchyroll': '#f47521',
+          'Netflix':     '#e50914',
+          'Amazon Prime Video': '#00a8e0',
+          'Funimation':  '#410099',
+          'HIDIVE':      '#00baff',
+        };
+        sec.innerHTML = `
+          <div class="streaming-label">${IC.play} Verfügbar auf</div>
+          <div class="streaming-chips">
+            ${services.map(s => {
+              const col = COLORS[s.name] || 'var(--accent)';
+              return `<a class="streaming-chip" href="${esc(s.url)}" target="_blank" rel="noopener"
+                style="--sc:#${col.startsWith('#') ? col.slice(1) : ''}; border-color:${col}; color:${col}">
+                ${esc(s.name)}
+              </a>`;
+            }).join('')}
+          </div>`;
+      }).catch(() => { $('#streaming-section')?.remove(); });
+    }
 
     // Synopsis expand
     $('#btn-expand')?.addEventListener('click', () => {

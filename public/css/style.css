@@ -608,6 +608,20 @@ select.form-input {
 .btn-synopsis { background: none; border: none; color: var(--accent); font-size: .8rem; font-weight: 500; margin-top: 4px; cursor: pointer; padding: 0; }
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
+/* ===== STREAMING ===== */
+.streaming-loading { font-size: .8rem; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+.streaming-loading svg { width: 12px; height: 12px; opacity: .6; }
+.streaming-label { font-size: .75rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
+.streaming-label svg { width: 12px; height: 12px; }
+.streaming-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.streaming-chip {
+  display: inline-flex; align-items: center;
+  padding: 5px 13px; border-radius: 20px; font-size: .8rem; font-weight: 600;
+  border: 1.5px solid; text-decoration: none;
+  background: transparent; transition: opacity .15s, background .15s;
+}
+.streaming-chip:hover { opacity: .8; }
+
 /* ===== NUMBER INPUT ===== */
 .num-input-wrap {
   display: flex; background: var(--bg3); border: 1px solid var(--border);
