@@ -31,7 +31,8 @@ const API = (() => {
         req('POST', '/auth/register', { username, email, password }),
       login: (email, password) =>
         req('POST', '/auth/login', { email, password }),
-      me: () => req('GET', '/auth/me')
+      me: () => req('GET', '/auth/me'),
+      updateProfile: (data) => req('PUT', '/auth/profile', data)
     },
 
     list: {

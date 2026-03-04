@@ -59,4 +59,50 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json({ ...user, is_admin: !!user.is_admin });
 });
 
+router.put('/profile', authMiddleware, async (req, res) => {
+  const { username, email, currentPassword, newPassword } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+
+  if (newPassword) {
+    if (!currentPassword)
+      return res.status(400).json({ error: 'Aktuelles Passwort erforderlich' });
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return res.status(400).json({ error: 'Aktuelles Passwort ist falsch' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'Neues Passwort muss mindestens 6 Zeichen haben' });
+  }
+
+  const updates = {};
+  if (username && username.trim() !== user.username) {
+    if (username.trim().length < 3)
+      return res.status(400).json({ error: 'Benutzername muss mindestens 3 Zeichen lang sein' });
+    updates.username = username.trim();
+  }
+  if (email && email.toLowerCase().trim() !== user.email) {
+    updates.email = email.toLowerCase().trim();
+  }
+  if (newPassword) {
+    updates.password_hash = await bcrypt.hash(newPassword, 10);
+  }
+
+  if (!Object.keys(updates).length) {
+    return res.json({ user: { id: user.id, username: user.username, email: user.email, is_admin: !!user.is_admin } });
+  }
+
+  try {
+    const sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...Object.values(updates), req.userId);
+    const updated = db.prepare('SELECT id, username, email, is_admin FROM users WHERE id = ?').get(req.userId);
+    res.json({ user: { ...updated, is_admin: !!updated.is_admin } });
+  } catch (err) {
+    if (err.message.includes('UNIQUE')) {
+      if (err.message.includes('username'))
+        return res.status(400).json({ error: 'Benutzername bereits vergeben' });
+      return res.status(400).json({ error: 'E-Mail bereits registriert' });
+    }
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 module.exports = router;

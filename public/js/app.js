@@ -901,11 +901,98 @@ function renderProfile() {
       </div>
     </div>
 
-    <button class="btn btn-danger" id="btn-logout-profile">${IC.logout} Abmelden</button>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn-edit-profile">${IC.edit} Profil bearbeiten</button>
+      <button class="btn btn-danger" id="btn-logout-profile">${IC.logout} Abmelden</button>
+    </div>`;
 }
 
 function bindProfile() {
   $('#btn-logout-profile')?.addEventListener('click', logout);
+  $('#btn-edit-profile')?.addEventListener('click', showProfileEditModal);
+}
+
+function showProfileEditModal() {
+  const u = S.user || {};
+  openModal(`
+    <div class="modal-header">
+      <h2 class="modal-title">${IC.edit} Profil bearbeiten</h2>
+      <button class="modal-close" id="modal-close-btn">${IC.x}</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Benutzername</label>
+        <input class="form-input" id="pe-username" type="text" value="${esc(u.username||'')}" autocomplete="username"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-Mail</label>
+        <input class="form-input" id="pe-email" type="email" value="${esc(u.email||'')}" autocomplete="email"/>
+      </div>
+      <hr style="border-color:var(--border);margin:16px 0"/>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:12px">Passwort ändern (optional — nur ausfüllen wenn gewünscht)</p>
+      <div class="form-group">
+        <label class="form-label">Aktuelles Passwort</label>
+        <input class="form-input" id="pe-current-pw" type="password" autocomplete="current-password" placeholder="Aktuelles Passwort"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Neues Passwort</label>
+        <input class="form-input" id="pe-new-pw" type="password" autocomplete="new-password" placeholder="Mindestens 6 Zeichen"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Neues Passwort bestätigen</label>
+        <input class="form-input" id="pe-confirm-pw" type="password" autocomplete="new-password" placeholder="Wiederholen"/>
+      </div>
+      <div id="pe-error" style="color:#ef5350;font-size:.85rem;margin-bottom:8px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modal-cancel-btn">Abbrechen</button>
+      <button class="btn btn-primary" id="pe-save-btn">Speichern</button>
+    </div>
+  `);
+
+  $('#modal-close-btn')?.addEventListener('click', closeModal);
+  $('#modal-cancel-btn')?.addEventListener('click', closeModal);
+
+  $('#pe-save-btn')?.addEventListener('click', async () => {
+    const username = $('#pe-username').value.trim();
+    const email = $('#pe-email').value.trim();
+    const currentPassword = $('#pe-current-pw').value;
+    const newPassword = $('#pe-new-pw').value;
+    const confirmPassword = $('#pe-confirm-pw').value;
+
+    const errEl = $('#pe-error');
+    const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+    errEl.style.display = 'none';
+
+    if (newPassword && newPassword !== confirmPassword) {
+      return showErr('Die neuen Passwörter stimmen nicht überein.');
+    }
+
+    const saveBtn = $('#pe-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Speichert…';
+
+    try {
+      const body = { username, email };
+      if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
+      const { user } = await API.auth.updateProfile(body);
+      S.user = { ...S.user, ...user };
+      closeModal();
+      // Update sidebar in-place
+      const initials = (user.username || '?').substring(0, 2).toUpperCase();
+      document.querySelectorAll('.user-avatar').forEach(el => el.textContent = initials);
+      const nameEl = document.querySelector('.user-name');
+      if (nameEl) nameEl.textContent = user.username || '';
+      const emailEl = document.querySelector('.user-email');
+      if (emailEl) emailEl.textContent = user.email || '';
+      navigate('profile');
+      showToast('Profil gespeichert');
+    } catch (err) {
+      showErr(err.message);
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Speichern';
+    }
+  });
 }
 
 /* ================================================================
