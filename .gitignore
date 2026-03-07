@@ -13,17 +13,17 @@ node_modules/
 *.log
 logs/
 
-# Docker
-.dockerignore
-
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Editor
 .vscode/
 .idea/
 
-# Claude
+# Claude Code (lokale IDE-Konfiguration)
 .claude/
-nul
+
+# GitHub Actions (lokal nicht benötigt)
+.github/workflows/
