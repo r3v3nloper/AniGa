@@ -1067,8 +1067,8 @@ function showProfileEditModal() {
       <div id="pe-error" style="color:#ef5350;font-size:.85rem;margin-bottom:8px;display:none"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" id="modal-cancel-btn">Abbrechen</button>
-      <button class="btn btn-primary" id="pe-save-btn">Speichern</button>
+      <button class="btn btn-ghost" id="modal-cancel-btn" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
+      <button class="btn btn-primary" id="pe-save-btn" title="Speichern">${IC.check}<span class="btn-label"> Speichern</span></button>
     </div>
   `);
 
@@ -1112,7 +1112,7 @@ function showProfileEditModal() {
     } catch (err) {
       showErr(err.message);
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Speichern';
+      saveBtn.innerHTML = `${IC.check}<span class="btn-label"> Speichern</span>`;
     }
   });
 }
@@ -1309,10 +1309,10 @@ function showTrackModal(media, existingEntry) {
     </div>
 
     <div class="modal-foot">
-      ${existingEntry?`<button class="btn btn-danger btn-sm" id="btn-delete">${IC.trash} Entfernen</button>`:''}
+      ${existingEntry?`<button class="btn btn-danger btn-sm" id="btn-delete" title="Entfernen">${IC.trash}<span class="btn-label"> Entfernen</span></button>`:''}
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" id="modal-cancel">Abbrechen</button>
-      <button class="btn btn-primary" id="btn-save">${IC.check} Speichern</button>
+      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
+      <button class="btn btn-primary" id="btn-save" title="Speichern">${IC.check}<span class="btn-label"> Speichern</span></button>
     </div>`;
 
   openModal(html, () => {
@@ -1422,7 +1422,7 @@ function showTrackModal(media, existingEntry) {
         await refreshAfterSave(media.type);
       } catch (e) {
         toast(e.message, 'error', 'Fehler beim Speichern');
-        btn.disabled = false; btn.innerHTML = `${IC.check} Speichern`;
+        btn.disabled = false; btn.innerHTML = `${IC.check}<span class="btn-label"> Speichern</span>`;
       }
     });
 
@@ -1515,8 +1515,8 @@ function showManualModal(type = 'anime') {
       <div class="form-error" id="m-error"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" id="modal-cancel">Abbrechen</button>
-      <button class="btn btn-primary" id="btn-save-manual">${IC.plus} Hinzufügen</button>
+      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
+      <button class="btn btn-primary" id="btn-save-manual" title="Hinzufügen">${IC.plus}<span class="btn-label"> Hinzufügen</span></button>
     </div>`;
 
   openModal(html, () => {
@@ -1663,8 +1663,8 @@ function showAdminPasswordModal(uid, username) {
       <div class="form-error" id="pw-error"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" id="modal-cancel">Abbrechen</button>
-      <button class="btn btn-primary" id="btn-save-pw">${IC.key} Speichern</button>
+      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
+      <button class="btn btn-primary" id="btn-save-pw" title="Speichern">${IC.key}<span class="btn-label"> Speichern</span></button>
     </div>`;
 
   openModal(html, () => {
@@ -1695,7 +1695,7 @@ function showAdminPasswordModal(uid, username) {
         closeModal();
       } catch (e) {
         errEl.textContent = e.message; errEl.classList.add('show');
-        btn.disabled = false; btn.innerHTML = `${IC.key} Speichern`;
+        btn.disabled = false; btn.innerHTML = `${IC.key}<span class="btn-label"> Speichern</span>`;
       }
     });
   });

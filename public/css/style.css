@@ -31,13 +31,14 @@
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; scroll-behavior: smooth; }
+html { font-size: 16px; scroll-behavior: smooth; overflow-x: hidden; }
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--cyan); }
@@ -247,6 +248,9 @@ input, select, textarea { font-family: inherit; }
 .form-label { display: block; font-size: .83rem; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
 .form-input {
   width: 100%;
+  min-width: 0;        /* iOS: Input darf schrumpfen */
+  max-width: 100%;     /* iOS: Input überschreitet nie den Container */
+  box-sizing: border-box;
   background: var(--bg3); border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 11px 13px;
@@ -473,6 +477,10 @@ select.form-input {
   font-size: .78rem; font-weight: 500; white-space: nowrap;
   transition: all .2s; display: flex; align-items: center; gap: 5px;
 }
+@media (max-width: 430px) {
+  .status-tabs { flex-wrap: wrap; overflow-x: visible; gap: 5px; }
+  .status-tab  { padding: 6px 11px; font-size: .75rem; }
+}
 .status-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .status-tab .cnt {
   background: rgba(255,255,255,.18); padding: 0 5px; border-radius: 10px;
@@ -483,7 +491,7 @@ select.form-input {
 /* ===== FILTER BAR ===== */
 .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
 .filter-input {
-  flex: 1; min-width: 180px;
+  flex: 1; min-width: 0;
   background: var(--bg3); border: 1px solid var(--border);
   border-radius: var(--r-sm); padding: 9px 13px;
   color: var(--text); font-size: .88rem; outline: none;
@@ -564,7 +572,7 @@ select.form-input {
 }
 .btn-modal-close:hover { color: var(--text); background: var(--bg-hover); }
 .btn-modal-close svg { width: 20px; height: 20px; }
-.modal-body { padding: 22px; overflow-y: auto; flex: 1; }
+.modal-body { padding: 22px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .modal-foot {
   padding: 14px 22px; border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 8px;
@@ -759,7 +767,8 @@ select.form-input {
 
 /* ===== MANUAL ENTRY FORM ===== */
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+.form-row > * { min-width: 0; } /* Kinder dürfen schrumpfen */
+@media (max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
 
 /* ===== SEARCH RESULT PAGINATION ===== */
 .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 24px; }
@@ -923,3 +932,12 @@ select.form-input {
 }
 .btn-add-rec:hover { opacity: .85; transform: scale(1.1); }
 .btn-add-rec svg { width: 14px; height: 14px; }
+
+/* ===== RESPONSIVE MODAL BUTTONS ===== */
+/* Auf kleinen Screens (≤430px): Labels ausblenden, nur Icons zeigen */
+@media (max-width: 430px) {
+  .modal-foot { padding: 10px 12px; gap: 6px; }
+  .modal-foot .btn-label { display: none; }
+  .modal-foot .btn { padding: 9px 12px; min-width: 0; }
+  .modal-foot .btn svg { width: 18px; height: 18px; }
+}
