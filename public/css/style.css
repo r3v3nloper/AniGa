@@ -192,13 +192,12 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
-  .mobile-header { display: flex; }
   .bottom-nav { display: block; }
   .main-content {
     margin-left: 0;
     max-width: 100%;
     padding: 14px;
-    padding-top: calc(var(--header-h) + 14px);
+    padding-top: 14px;
     padding-bottom: calc(var(--nav-h) + 14px);
   }
   .sidebar-overlay {
