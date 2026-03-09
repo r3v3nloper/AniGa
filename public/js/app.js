@@ -1443,7 +1443,7 @@ async function refreshAfterSave(type) {
   if (type === 'anime') S.animeList = await API.list.getAll('anime');
   else S.mangaList = await API.list.getAll('manga');
   S.stats = await API.list.getStats();
-  if (S.view === 'home') { navigate('home'); return; }
+  if (S.view === 'home') { S.recommendations = null; navigate('home'); return; }
   if (S.view === type) { navigate(type); return; }
   // Update add-buttons in search view
   $$('.btn-add-to-list').forEach(btn => {
