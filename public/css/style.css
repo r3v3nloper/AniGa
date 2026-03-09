@@ -88,6 +88,7 @@ input, select, textarea { font-family: inherit; }
   object-fit: cover;
   flex-shrink: 0;
 }
+.logo-img-sm { width: 30px; height: 30px; }
 .logo-text {
   font-size: 1.35rem; font-weight: 800;
   background: linear-gradient(135deg, var(--accent), var(--cyan));

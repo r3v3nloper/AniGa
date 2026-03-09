@@ -84,76 +84,80 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Mediendaten erforderlich' });
 
   try {
-    let mediaId;
+    const mediaId = db.transaction(() => {
+      let mid;
 
-    if (mediaData.is_manual) {
-      const result = db.prepare(`
-        INSERT INTO media_entries (source, type, title, title_english, image_url, synopsis,
-          media_status, episodes, chapters, volumes, genres, year, is_manual)
-        VALUES ('manual', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `).run(
-        mediaData.type, mediaData.title, mediaData.title_english || null,
-        mediaData.image_url || null, mediaData.synopsis || null,
-        mediaData.media_status || null, mediaData.episodes || null,
-        mediaData.chapters || null, mediaData.volumes || null,
-        JSON.stringify(mediaData.genres || []), mediaData.year || null
-      );
-      mediaId = result.lastInsertRowid;
-    } else {
-      const existing = db.prepare('SELECT id FROM media_entries WHERE mal_id = ? AND type = ?')
-        .get(mediaData.mal_id, mediaData.type);
-      if (existing) {
-        mediaId = existing.id;
-        // Update API data in case it changed
-        db.prepare(`
-          UPDATE media_entries SET title=?, title_english=?, title_japanese=?, image_url=?,
-          synopsis=?, media_status=?, episodes=?, chapters=?, volumes=?, api_score=?,
-          genres=?, year=?, season=? WHERE id=?
-        `).run(
-          mediaData.title, mediaData.title_english || null, mediaData.title_japanese || null,
-          mediaData.image_url || null, mediaData.synopsis || null,
-          mediaData.media_status || null, mediaData.episodes || null,
-          mediaData.chapters || null, mediaData.volumes || null,
-          mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-          mediaData.year || null, mediaData.season || null, mediaId
-        );
-      } else {
+      if (mediaData.is_manual) {
         const result = db.prepare(`
-          INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
-            image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
-          VALUES (?, 'jikan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO media_entries (source, type, title, title_english, image_url, synopsis,
+            media_status, episodes, chapters, volumes, genres, year, is_manual)
+          VALUES ('manual', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         `).run(
-          mediaData.mal_id, mediaData.type, mediaData.title,
-          mediaData.title_english || null, mediaData.title_japanese || null,
+          mediaData.type, mediaData.title, mediaData.title_english || null,
           mediaData.image_url || null, mediaData.synopsis || null,
           mediaData.media_status || null, mediaData.episodes || null,
           mediaData.chapters || null, mediaData.volumes || null,
-          mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-          mediaData.year || null, mediaData.season || null
+          JSON.stringify(mediaData.genres || []), mediaData.year || null
         );
-        mediaId = result.lastInsertRowid;
+        mid = result.lastInsertRowid;
+      } else {
+        const existing = db.prepare('SELECT id FROM media_entries WHERE mal_id = ? AND type = ?')
+          .get(mediaData.mal_id, mediaData.type);
+        if (existing) {
+          mid = existing.id;
+          // Update API data in case it changed
+          db.prepare(`
+            UPDATE media_entries SET title=?, title_english=?, title_japanese=?, image_url=?,
+            synopsis=?, media_status=?, episodes=?, chapters=?, volumes=?, api_score=?,
+            genres=?, year=?, season=? WHERE id=?
+          `).run(
+            mediaData.title, mediaData.title_english || null, mediaData.title_japanese || null,
+            mediaData.image_url || null, mediaData.synopsis || null,
+            mediaData.media_status || null, mediaData.episodes || null,
+            mediaData.chapters || null, mediaData.volumes || null,
+            mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
+            mediaData.year || null, mediaData.season || null, mid
+          );
+        } else {
+          const result = db.prepare(`
+            INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
+              image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
+            VALUES (?, 'jikan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            mediaData.mal_id, mediaData.type, mediaData.title,
+            mediaData.title_english || null, mediaData.title_japanese || null,
+            mediaData.image_url || null, mediaData.synopsis || null,
+            mediaData.media_status || null, mediaData.episodes || null,
+            mediaData.chapters || null, mediaData.volumes || null,
+            mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
+            mediaData.year || null, mediaData.season || null
+          );
+          mid = result.lastInsertRowid;
+        }
       }
-    }
 
-    db.prepare(`
-      INSERT INTO user_list (user_id, media_id, list_status, current_episode, current_chapter,
-        current_page, user_score, notes, started_at, completed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id, media_id) DO UPDATE SET
-        list_status = excluded.list_status,
-        current_episode = excluded.current_episode,
-        current_chapter = excluded.current_chapter,
-        current_page = excluded.current_page,
-        user_score = excluded.user_score,
-        notes = excluded.notes,
-        started_at = excluded.started_at,
-        completed_at = excluded.completed_at,
-        updated_at = CURRENT_TIMESTAMP
-    `).run(
-      req.userId, mediaId, listStatus || (mediaData.type === 'anime' ? 'plan_to_watch' : 'plan_to_read'),
-      currentEpisode || 0, currentChapter || 0, currentPage || 0,
-      userScore || null, notes || null, startedAt || null, completedAt || null
-    );
+      db.prepare(`
+        INSERT INTO user_list (user_id, media_id, list_status, current_episode, current_chapter,
+          current_page, user_score, notes, started_at, completed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, media_id) DO UPDATE SET
+          list_status = excluded.list_status,
+          current_episode = excluded.current_episode,
+          current_chapter = excluded.current_chapter,
+          current_page = excluded.current_page,
+          user_score = excluded.user_score,
+          notes = excluded.notes,
+          started_at = excluded.started_at,
+          completed_at = excluded.completed_at,
+          updated_at = CURRENT_TIMESTAMP
+      `).run(
+        req.userId, mid, listStatus || (mediaData.type === 'anime' ? 'plan_to_watch' : 'plan_to_read'),
+        currentEpisode || 0, currentChapter || 0, currentPage || 0,
+        userScore || null, notes || null, startedAt || null, completedAt || null
+      );
+
+      return mid;
+    })();
 
     res.json({ success: true, mediaId });
   } catch (err) {

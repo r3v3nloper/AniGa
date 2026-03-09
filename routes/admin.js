@@ -6,14 +6,15 @@ const adminMiddleware = require('../middleware/admin');
 const router = express.Router();
 router.use(adminMiddleware);
 
+const ANIME_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount`;
+const MANGA_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount`;
+
 /* ── GET /api/admin/users ─────────────────────────────────── */
 router.get('/users', (req, res) => {
   const users = db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount
+      ${ANIME_COUNT_COL},
+      ${MANGA_COUNT_COL}
     FROM users u
     WHERE u.is_admin = 0
     ORDER BY u.created_at DESC
@@ -25,7 +26,7 @@ router.get('/users', (req, res) => {
 router.delete('/users/:id', (req, res) => {
   const targetId = +req.params.id;
   const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetId);
-  if (!target) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  if (!target) return res.status(404).json({ error: 'Nutzer nicht gefunden' });
   if (target.is_admin) return res.status(403).json({ error: 'Admin kann nicht gelöscht werden' });
 
   db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
@@ -40,7 +41,7 @@ router.put('/users/:id/password', async (req, res) => {
     return res.status(400).json({ error: 'Passwort muss mindestens 6 Zeichen haben' });
 
   const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetId);
-  if (!target) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  if (!target) return res.status(404).json({ error: 'Nutzer nicht gefunden' });
 
   const hash = await bcrypt.hash(password, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, targetId);

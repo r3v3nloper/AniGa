@@ -5,14 +5,15 @@ const authMiddleware = require('../middleware/auth');
 
 router.use(authMiddleware);
 
+const ANIME_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount`;
+const MANGA_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount`;
+
 /* ── GET /api/users/following ─────────────────────────────── */
 router.get('/following', (req, res) => {
   const rows = db.prepare(`
     SELECT u.id, u.username, u.created_at,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount
+      ${ANIME_COUNT_COL},
+      ${MANGA_COUNT_COL}
     FROM user_follows f
     JOIN users u ON u.id = f.following_id
     WHERE f.follower_id = ?
@@ -25,10 +26,8 @@ router.get('/following', (req, res) => {
 router.get('/', (req, res) => {
   const rows = db.prepare(`
     SELECT u.id, u.username, u.created_at,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount,
-      (SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-       WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount,
+      ${ANIME_COUNT_COL},
+      ${MANGA_COUNT_COL},
       EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND following_id = u.id) AS isFollowing
     FROM users u
     WHERE u.id != ? AND u.is_admin = 0

@@ -186,6 +186,36 @@ function entryToMedia(entry) {
   };
 }
 
+/* ---- HELPERS ---- */
+function renderEmptyState(emoji, title, msg, btn = '', wrapStyle = '') {
+  return `<div class="empty-state"${wrapStyle ? ` style="${wrapStyle}"` : ''}>
+    <div class="empty-state-emoji">${emoji}</div>
+    ${title ? `<h3>${title}</h3>` : ''}
+    ${msg ? `<p>${msg}</p>` : ''}
+    ${btn}
+  </div>`;
+}
+
+function bindStatusTabs(selector, dataKey, onChange) {
+  $$(selector).forEach(t => {
+    t.addEventListener('click', () => {
+      $$(selector).forEach(x => x.classList.toggle('active', x === t));
+      onChange(t.dataset[dataKey]);
+    });
+  });
+}
+
+function bindViewToggle(gridId, listId, onChange) {
+  $(gridId)?.addEventListener('click', () => {
+    $(gridId).classList.add('active'); $(listId).classList.remove('active');
+    onChange('grid');
+  });
+  $(listId)?.addEventListener('click', () => {
+    $(listId).classList.add('active'); $(gridId).classList.remove('active');
+    onChange('list');
+  });
+}
+
 /* ---- TOAST ---- */
 function toast(msg, type = 'info', title = '') {
   const iconMap = { success: IC.check, error: IC.x, warning: IC.warn, info: IC.info };
@@ -267,7 +297,7 @@ function renderShell() {
     <header class="mobile-header">
       <button class="btn-menu" id="btn-menu">${IC.menu}</button>
       <div class="mobile-logo">
-        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo" style="width:30px;height:30px;"/>
+        <img src="/icons/logo.jpeg" class="logo-img logo-img-sm" alt="AniGa Logo"/>
         <span class="logo-text">AniGa</span>
       </div>
       <div style="width:34px"></div>
@@ -336,11 +366,8 @@ async function navigate(view) {
         break;
     }
   } catch (e) {
-    main.innerHTML = `<div class="empty-state">
-      <div class="empty-state-emoji">⚠️</div>
-      <h3>Fehler beim Laden</h3><p>${esc(e.message)}</p>
-      <button class="btn btn-primary" onclick="navigate('${view}')">Nochmal versuchen</button>
-    </div>`;
+    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="navigate('${view}')">Nochmal versuchen</button>`);
   }
 }
 
@@ -580,20 +607,17 @@ function renderHome() {
               </div>
               <div class="recent-updated">${timeAgo(e.updated_at)}</div>
             </div>`).join('')}
-        </div>` : `
-        <div class="empty-state">
-          <div class="empty-state-emoji">🌸</div>
-          <h3>Noch nichts in deiner Liste</h3>
-          <p>Suche nach Animes und Mangas und starte deinen Tracker!</p>
-          <button class="btn btn-primary" data-nav="search">${IC.search} Jetzt suchen</button>
-        </div>`}
+        </div>` : renderEmptyState('🌸', 'Noch nichts in deiner Liste',
+          'Suche nach Animes und Mangas und starte deinen Tracker!',
+          `<button class="btn btn-primary" data-nav="search">${IC.search} Jetzt suchen</button>`)}
     </div>`;
 }
 
 function renderRecommendationContent() {
   const r = S.recommendations;
   if (!r) return `<div class="rec-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div> Wird geladen…</div>`;
-  if (!r.results.length) return `<div class="empty-state" style="padding:20px 0"><div class="empty-state-emoji">🔍</div><h3>Keine Empfehlungen</h3><p>Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.</p></div>`;
+  if (!r.results.length) return renderEmptyState('🔍', 'Keine Empfehlungen',
+    'Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.', '', 'padding:20px 0');
 
   const badge = r.basedOn.length
     ? `<div class="rec-based-on">Basiert auf: ${r.basedOn.map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}</div>`
@@ -697,7 +721,7 @@ async function loadRecommendations() {
   } catch(e) {
     const content = $('#rec-content');
     if (content && S.view === 'home') {
-      content.innerHTML = `<div class="empty-state" style="padding:20px 0"><div class="empty-state-emoji">⚠️</div><p>${esc(e.message)}</p></div>`;
+      content.innerHTML = renderEmptyState('⚠️', '', esc(e.message), '', 'padding:20px 0');
     }
   }
 }
@@ -763,12 +787,8 @@ function renderSearchResults() {
       <div class="section-title">Ergebnisse für „${esc(S.searchQ)}"</div>
       <span class="text-muted" style="font-size:.82rem">${S.searchResults.length} Treffer</span>
     </div>
-    ${S.searchResults.length ? `<div class="media-grid">${S.searchResults.map(renderMediaCard).join('')}</div>` : `
-      <div class="empty-state">
-        <div class="empty-state-emoji">🔍</div>
-        <h3>Keine Ergebnisse</h3>
-        <p>Versuche einen anderen Suchbegriff oder trage es manuell ein.</p>
-      </div>`}
+    ${S.searchResults.length ? `<div class="media-grid">${S.searchResults.map(renderMediaCard).join('')}</div>` :
+      renderEmptyState('🔍', 'Keine Ergebnisse', 'Versuche einen anderen Suchbegriff oder trage es manuell ein.')}
     ${(S.searchPage>1||pag?.has_next_page) ? `
       <div class="pagination">
         <button class="btn btn-secondary btn-sm" id="btn-prev"${S.searchPage<=1?' disabled':''}>
@@ -823,7 +843,7 @@ async function doSearch() {
     res.innerHTML = renderSearchResults();
     bindSearchResults();
   } catch (e) {
-    res.innerHTML = `<div class="empty-state"><div class="empty-state-emoji">⚠️</div><h3>Suche fehlgeschlagen</h3><p>${esc(e.message)}</p></div>`;
+    res.innerHTML = renderEmptyState('⚠️', 'Suche fehlgeschlagen', esc(e.message));
   }
 }
 
@@ -879,12 +899,12 @@ function renderList(type) {
 
 function renderListContent(filtered, curView, type) {
   if (!filtered.length) {
-    return `<div class="empty-state">
-      <div class="empty-state-emoji">${type==='anime'?'🎬':'📚'}</div>
-      <h3>Keine Einträge${S.listFilter[type]?' für diesen Filter':''}</h3>
-      <p>${S.listFilter[type]?'Probiere einen anderen Filter.':'Füge über die Suche neue Einträge hinzu!'}</p>
-      <button class="btn btn-primary" id="go-search-btn">${IC.search} Suche</button>
-    </div>`;
+    return renderEmptyState(
+      type==='anime'?'🎬':'📚',
+      `Keine Einträge${S.listFilter[type]?' für diesen Filter':''}`,
+      S.listFilter[type]?'Probiere einen anderen Filter.':'Füge über die Suche neue Einträge hinzu!',
+      `<button class="btn btn-primary" id="go-search-btn">${IC.search} Suche</button>`
+    );
   }
   return curView === 'grid'
     ? `<div class="media-grid">${filtered.map(e=>renderMediaCardFromEntry(e)).join('')}</div>`
@@ -909,13 +929,7 @@ function renderListCard(e) {
 }
 
 function bindList(type) {
-  $$('.status-tab').forEach(t => {
-    t.addEventListener('click', () => {
-      S.listStatus[type] = t.dataset.status;
-      $$('.status-tab').forEach(x => x.classList.toggle('active', x===t));
-      refreshListContent(type);
-    });
-  });
+  bindStatusTabs('.status-tab', 'status', v => { S.listStatus[type] = v; refreshListContent(type); });
 
   const filterInput = $('#list-filter');
   filterInput?.addEventListener('input', debounce(() => {
@@ -923,8 +937,7 @@ function bindList(type) {
     refreshListContent(type);
   }, 250));
 
-  $('#vgrid')?.addEventListener('click', () => { S.listView[type]='grid'; $('#vgrid').classList.add('active'); $('#vlist').classList.remove('active'); refreshListContent(type); });
-  $('#vlist')?.addEventListener('click', () => { S.listView[type]='list'; $('#vlist').classList.add('active'); $('#vgrid').classList.remove('active'); refreshListContent(type); });
+  bindViewToggle('#vgrid', '#vlist', v => { S.listView[type] = v; refreshListContent(type); });
 
   $('#btn-add-new')?.addEventListener('click', () => { S.searchType=type; navigate('search'); });
   bindListCards();
@@ -1191,7 +1204,7 @@ function bindMediaCard(card) {
 /* ================================================================
    MODAL: TRACKING (Add / Edit)
    ================================================================ */
-function showTrackModal(media, existingEntry) {
+function renderTrackModalBody(media, existingEntry) {
   const isAnime = media.type === 'anime';
   const statuses = isAnime ? ANIME_STATUSES : MANGA_STATUSES;
   const entry = existingEntry || {};
@@ -1200,7 +1213,7 @@ function showTrackModal(media, existingEntry) {
   const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
 
-  const html = `
+  return `
     <div class="modal-head">
       <h2>${existingEntry ? 'Eintrag bearbeiten' : 'Zur Liste hinzufügen'}</h2>
       <button class="btn-modal-close" id="modal-close">${IC.x}</button>
@@ -1314,8 +1327,15 @@ function showTrackModal(media, existingEntry) {
       <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
       <button class="btn btn-primary" id="btn-save" title="Speichern">${IC.check}<span class="btn-label"> Speichern</span></button>
     </div>`;
+}
 
-  openModal(html, () => {
+function showTrackModal(media, existingEntry) {
+  const isAnime = media.type === 'anime';
+  const entry = existingEntry || {};
+  const maxEp = media.episodes || 99999;
+  const maxCh = media.chapters || 99999;
+
+  openModal(renderTrackModalBody(media, existingEntry), () => {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
 
@@ -1602,7 +1622,7 @@ function renderAdminView() {
               <tr data-uid="${u.id}">
                 <td>
                   <div class="admin-user-cell">
-                    <div class="user-avatar" style="width:32px;height:32px;font-size:.75rem;flex-shrink:0">${u.username.substring(0,2).toUpperCase()}</div>
+                    <div class="user-avatar" style="width:32px;height:32px;font-size:.75rem;flex-shrink:0">${(u.username||'?').substring(0,2).toUpperCase()}</div>
                     <span class="admin-username">${esc(u.username)}</span>
                   </div>
                 </td>
@@ -1624,11 +1644,7 @@ function renderAdminView() {
           </tbody>
         </table>
       </div>` : `
-      <div class="empty-state">
-        <div class="empty-state-emoji">👤</div>
-        <h3>Keine Benutzer</h3>
-        <p>Noch niemand hat sich registriert.</p>
-      </div>`}`;
+      ${renderEmptyState('👤', 'Keine Benutzer', 'Noch niemand hat sich registriert.')}`}`;
 }
 
 function bindAdminView() {
@@ -1741,17 +1757,15 @@ function renderUsersView() {
       <div class="user-list">
         ${filtered.map(u => renderUserCard(u)).join('')}
       </div>` : `
-      <div class="empty-state">
-        <div class="empty-state-emoji">👥</div>
-        <h3>${S.userListFilter ? 'Kein Benutzer gefunden' : 'Noch keine anderen Nutzer'}</h3>
-        <p>${S.userListFilter ? 'Probiere einen anderen Suchbegriff.' : 'Lade Freunde zu AniGa ein!'}</p>
-      </div>`}`;
+      ${renderEmptyState('👥',
+        S.userListFilter ? 'Kein Benutzer gefunden' : 'Noch keine anderen Nutzer',
+        S.userListFilter ? 'Probiere einen anderen Suchbegriff.' : 'Lade Freunde zu AniGa ein!')}`}`;
 }
 
 function renderUserCard(u) {
   return `
     <div class="user-card" data-user-id="${u.id}">
-      <div class="user-avatar">${u.username.substring(0,2).toUpperCase()}</div>
+      <div class="user-avatar">${(u.username||'?').substring(0,2).toUpperCase()}</div>
       <div class="user-card-info">
         <div class="user-card-name">${esc(u.username)}</div>
         <div class="user-card-counts">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
@@ -1834,11 +1848,8 @@ async function showUserList(user) {
     main.innerHTML = renderUserListView();
     bindUserListView();
   } catch (e) {
-    main.innerHTML = `<div class="empty-state">
-      <div class="empty-state-emoji">⚠️</div>
-      <h3>Fehler beim Laden</h3><p>${esc(e.message)}</p>
-      <button class="btn btn-primary" onclick="navigate('users')">Zurück</button>
-    </div>`;
+    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="navigate('users')">Zurück</button>`);
   }
 }
 
@@ -1856,7 +1867,7 @@ function renderUserListView() {
   return `
     <div class="user-list-header">
       <button class="btn btn-ghost btn-sm" id="btn-back-users">${IC.chevL} Zurück</button>
-      <div class="user-avatar" style="width:40px;height:40px;font-size:1rem;flex-shrink:0">${u.username.substring(0,2).toUpperCase()}</div>
+      <div class="user-avatar" style="width:40px;height:40px;font-size:1rem;flex-shrink:0">${(u.username||'?').substring(0,2).toUpperCase()}</div>
       <div class="user-list-header-info">
         <div class="user-list-header-name">${esc(u.username)}</div>
         <div class="user-list-header-sub">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
@@ -1889,11 +1900,8 @@ function renderUserListView() {
 
 function renderUserListContent(filtered, curView) {
   if (!filtered.length) {
-    return `<div class="empty-state">
-      <div class="empty-state-emoji">${S.userListType==='anime'?'🎬':'📚'}</div>
-      <h3>Keine Einträge</h3>
-      <p>Dieser Nutzer hat noch nichts in dieser Kategorie.</p>
-    </div>`;
+    return renderEmptyState(S.userListType==='anime'?'🎬':'📚', 'Keine Einträge',
+      'Dieser Nutzer hat noch nichts in dieser Kategorie.');
   }
   return curView === 'grid'
     ? `<div class="media-grid">${filtered.map(e=>renderUserMediaCard(e)).join('')}</div>`
@@ -1956,26 +1964,8 @@ function bindUserListView() {
     });
   });
 
-  $$('.status-tab[data-ustatus]').forEach(t => {
-    t.addEventListener('click', () => {
-      S.userListStatus = t.dataset.ustatus;
-      $$('.status-tab[data-ustatus]').forEach(x => x.classList.toggle('active', x===t));
-      refreshUserListContent();
-    });
-  });
-
-  $('#uvgrid')?.addEventListener('click', () => {
-    S.userListView = 'grid';
-    $('#uvgrid').classList.add('active');
-    $('#uvlist').classList.remove('active');
-    refreshUserListContent();
-  });
-  $('#uvlist')?.addEventListener('click', () => {
-    S.userListView = 'list';
-    $('#uvlist').classList.add('active');
-    $('#uvgrid').classList.remove('active');
-    refreshUserListContent();
-  });
+  bindStatusTabs('.status-tab[data-ustatus]', 'ustatus', v => { S.userListStatus = v; refreshUserListContent(); });
+  bindViewToggle('#uvgrid', '#uvlist', v => { S.userListView = v; refreshUserListContent(); });
 
   bindUserEntryCards();
 }
@@ -2015,11 +2005,8 @@ async function showCompareView(user) {
     main.innerHTML = renderCompareView();
     bindCompareView();
   } catch (e) {
-    main.innerHTML = `<div class="empty-state">
-      <div class="empty-state-emoji">⚠️</div>
-      <h3>Fehler beim Laden</h3><p>${esc(e.message)}</p>
-      <button class="btn btn-primary" onclick="showUserList(S.viewingUser)">Zurück</button>
-    </div>`;
+    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="showUserList(S.viewingUser)">Zurück</button>`);
   }
 }
 
@@ -2087,15 +2074,18 @@ function renderCompareContent() {
   const me   = S.user;
 
   if (tab === 'both') {
-    if (!d.both.length) return `<div class="empty-state"><div class="empty-state-emoji">🤝</div><h3>Noch nichts gemeinsam</h3><p>Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.</p></div>`;
+    if (!d.both.length) return renderEmptyState('🤝', 'Noch nichts gemeinsam',
+      `Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.`);
     return `<div class="compare-list">${d.both.map(item => renderCompareCard(item, type, me.username, u.username)).join('')}</div>`;
   }
   if (tab === 'onlyMe') {
-    if (!d.onlyMe.length) return `<div class="empty-state"><div class="empty-state-emoji">📋</div><h3>Nichts exklusiv bei dir</h3><p>Alles was du hast, hat ${esc(u.username)} auch.</p></div>`;
+    if (!d.onlyMe.length) return renderEmptyState('📋', 'Nichts exklusiv bei dir',
+      `Alles was du hast, hat ${esc(u.username)} auch.`);
     return `<div class="compare-list">${d.onlyMe.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
   }
   // onlyThem
-  if (!d.onlyThem.length) return `<div class="empty-state"><div class="empty-state-emoji">📋</div><h3>Nichts exklusiv bei ${esc(u.username)}</h3><p>Alles was ${esc(u.username)} hat, hast du auch.</p></div>`;
+  if (!d.onlyThem.length) return renderEmptyState('📋', `Nichts exklusiv bei ${esc(u.username)}`,
+    `Alles was ${esc(u.username)} hat, hast du auch.`);
   return `<div class="compare-list">${d.onlyThem.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
 }
 
@@ -2174,12 +2164,8 @@ function bindCompareView() {
     });
   });
 
-  $$('.status-tab[data-ctab]').forEach(t => {
-    t.addEventListener('click', () => {
-      S.compareTab = t.dataset.ctab;
-      $$('.status-tab[data-ctab]').forEach(x => x.classList.toggle('active', x === t));
-      $('#compare-content').innerHTML = renderCompareContent();
-    });
+  bindStatusTabs('.status-tab[data-ctab]', 'ctab', v => {
+    S.compareTab = v; $('#compare-content').innerHTML = renderCompareContent();
   });
 }
 

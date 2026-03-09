@@ -2,18 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
 const authMiddleware = require('../middleware/auth');
-
-const JIKAN = 'https://api.jikan.moe/v4';
-let lastReq  = 0;
-
-async function jFetch(url) {
-  const wait = 450 - (Date.now() - lastReq);
-  if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  lastReq = Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Jikan ${res.status}`);
-  return res.json();
-}
+const { jFetch, JIKAN } = require('../utils/jikan');
 
 // MAL genre name → ID lookup
 const GENRE_IDS = {
