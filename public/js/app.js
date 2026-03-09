@@ -679,21 +679,21 @@ function bindHome() {
     loadRecommendations();
   });
 
-  // Recommendation cards click → track modal
+  bindRecCards();
+}
+
+function bindRecCards() {
   $$('.rec-card').forEach(card => {
-    card.addEventListener('click', async e => {
-      if (e.target.closest('.btn-add-rec') || e.target.closest('button')) {
-        // Plus button: open track modal
-        const malId = +card.dataset.malId;
-        const type  = card.dataset.type;
-        try {
-          const media = type === 'anime'
-            ? await API.search.getAnime(malId)
-            : await API.search.getManga(malId);
-          const existing = await API.list.check(malId, type).catch(() => null);
-          showTrackModal(media, existing?.entry || null);
-        } catch(err) { toast(err.message, 'error'); }
-      }
+    card.addEventListener('click', async () => {
+      const malId = +card.dataset.malId;
+      const type  = card.dataset.type;
+      try {
+        const media = type === 'anime'
+          ? await API.search.getAnime(malId)
+          : await API.search.getManga(malId);
+        const existing = await API.list.check(malId, type).catch(() => null);
+        showTrackModal(media, existing || null);
+      } catch(err) { toast(err.message, 'error'); }
     });
   });
 }
@@ -704,21 +704,7 @@ async function loadRecommendations() {
     const content = $('#rec-content');
     if (content && S.view === 'home') {
       content.innerHTML = renderRecommendationContent();
-      $$('.rec-card').forEach(card => {
-        card.addEventListener('click', async e => {
-          if (e.target.closest('.btn-add-rec') || e.target.closest('button')) {
-            const malId = +card.dataset.malId;
-            const type  = card.dataset.type;
-            try {
-              const media = type === 'anime'
-                ? await API.search.getAnime(malId)
-                : await API.search.getManga(malId);
-              const existing = await API.list.check(malId, type).catch(() => null);
-              showTrackModal(media, existing?.entry || null);
-            } catch(err) { toast(err.message, 'error'); }
-          }
-        });
-      });
+      bindRecCards();
     }
   } catch(e) {
     const content = $('#rec-content');
