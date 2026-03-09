@@ -548,7 +548,7 @@ function renderHome() {
     </div>` : ''}
 
     <div class="section" id="rec-section">
-      <div class="section-head">
+      <div class="section-head rec-head">
         <div class="section-title">✨ Empfohlen für dich</div>
         <div style="display:flex;gap:6px;align-items:center">
           <div class="type-toggle" style="margin:0">
