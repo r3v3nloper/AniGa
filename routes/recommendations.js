@@ -16,92 +16,76 @@ const GENRE_IDS = {
   'School': 23, 'Martial Arts': 17, 'Super Power': 31,
 };
 
-/* ── GET /api/recommendations?type=anime ─────────────────── */
+/* ── GET /api/recommendations?type=anime&page=1 ──────────── */
 router.get('/', authMiddleware, async (req, res) => {
   const type = req.query.type === 'manga' ? 'manga' : 'anime';
+  const page = Math.max(1, Math.min(5, parseInt(req.query.page) || 1));
 
-  // 1. Fetch user's list with genres + scores
-  const entries = db.prepare(`
+  // Single query: covers both genre weighting and mal_id filtering
+  const allEntries = db.prepare(`
     SELECT ul.user_score, me.genres, me.mal_id
     FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
-    WHERE ul.user_id = ? AND me.type = ? AND me.genres IS NOT NULL
+    WHERE ul.user_id = ? AND me.type = ?
   `).all(req.userId, type);
 
-  // 2. Collect all mal_ids already in list (for filtering later)
-  const allMalIds = new Set(
-    db.prepare(`
-      SELECT me.mal_id FROM user_list ul
-      JOIN media_entries me ON ul.media_id = me.id
-      WHERE ul.user_id = ? AND me.type = ?
-    `).all(req.userId, type).map(r => r.mal_id).filter(Boolean)
-  );
+  const allMalIds = new Set(allEntries.map(r => r.mal_id).filter(Boolean));
 
-  // 3. Build weighted genre frequency map
+  // Build weighted genre frequency map (only entries with genres)
   const genreWeights = {};
-  for (const entry of entries) {
-    const genres = entry.genres ? JSON.parse(entry.genres) : [];
-    const weight = entry.user_score || 3; // neutral weight if no score
+  for (const entry of allEntries) {
+    if (!entry.genres) continue;
+    const genres = JSON.parse(entry.genres);
+    const weight = entry.user_score || 3;
     for (const g of genres) {
       genreWeights[g] = (genreWeights[g] || 0) + weight;
     }
   }
 
-  // 4. Get top 3 genres with known MAL IDs
-  const topGenres = Object.entries(genreWeights)
+  // Top 3 genres — derive names and IDs in one pass
+  const topGenreEntries = Object.entries(genreWeights)
     .filter(([name]) => GENRE_IDS[name])
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([name]) => GENRE_IDS[name]);
+    .slice(0, 3);
+
+  const topGenreIds  = topGenreEntries.map(([name]) => GENRE_IDS[name]);
+  const usedGenres   = topGenreEntries.map(([name]) => name);
 
   try {
     let results;
 
-    if (topGenres.length > 0) {
-      // 5a. Fetch by genre from Jikan
-      const genreParam = topGenres.join(',');
+    if (topGenreIds.length > 0) {
       const data = await jFetch(
-        `${JIKAN}/${type}?genres=${genreParam}&order_by=score&sort=desc&limit=25&sfw=true`
+        `${JIKAN}/${type}?genres=${topGenreIds.join(',')}&order_by=score&sort=desc&limit=25&page=${page}&sfw=true`
       );
       results = data.data || [];
     } else {
-      // 5b. Fallback: top-rated anime/manga
       const data = await jFetch(
-        `${JIKAN}/top/${type}?limit=25&filter=bypopularity`
+        `${JIKAN}/top/${type}?limit=25&page=${page}&filter=bypopularity`
       );
       results = data.data || [];
     }
 
-    // 6. Filter out what user already has
     const filtered = results
       .filter(item => !allMalIds.has(item.mal_id))
       .slice(0, 12)
       .map(item => ({
-        mal_id:      item.mal_id,
+        mal_id:       item.mal_id,
         type,
-        title:       item.title,
+        title:        item.title,
         title_english: item.title_english || null,
-        image_url:   item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null,
-        synopsis:    item.synopsis || null,
+        image_url:    item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null,
+        synopsis:     item.synopsis || null,
         media_status: item.status || null,
-        episodes:    item.episodes || null,
-        chapters:    item.chapters || null,
-        volumes:     item.volumes || null,
-        api_score:   item.score || null,
-        genres:      item.genres?.map(g => g.name) || [],
-        year:        item.year || null,
-        season:      item.season || null,
-        source:      'jikan',
+        episodes:     item.episodes || null,
+        chapters:     item.chapters || null,
+        volumes:      item.volumes || null,
+        api_score:    item.score || null,
+        genres:       item.genres?.map(g => g.name) || [],
+        year:         item.year || null,
+        season:       item.season || null,
+        source:       'jikan',
       }));
-
-    // 7. Return with metadata
-    const usedGenres = topGenres.length > 0
-      ? Object.entries(genreWeights)
-          .filter(([name]) => topGenres.includes(GENRE_IDS[name]))
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([name]) => name)
-      : [];
 
     res.json({ results: filtered, basedOn: usedGenres });
   } catch (err) {

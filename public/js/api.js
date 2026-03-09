@@ -67,7 +67,7 @@ const API = (() => {
     },
 
     recommendations: {
-      get: (type) => req('GET', `/recommendations${type ? '?type=' + type : ''}`)
+      get: (type, page = 1) => req('GET', `/recommendations?type=${type || 'anime'}&page=${page}`)
     },
 
     search: {

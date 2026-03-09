@@ -65,6 +65,7 @@ const S = {
   compareTab: 'both',
   recommendations: null,
   recommendType: 'anime',
+  recommendPage: 1,
 };
 
 /* ---- HELPERS ---- */
@@ -657,7 +658,7 @@ function bindHome() {
   // Recommendation controls
   $('#rec-btn-anime')?.addEventListener('click', () => {
     if (S.recommendType === 'anime') return;
-    S.recommendType = 'anime'; S.recommendations = null;
+    S.recommendType = 'anime'; S.recommendations = null; S.recommendPage = 1;
     $('#rec-btn-anime').classList.add('active');
     $('#rec-btn-manga').classList.remove('active');
     $('#rec-content').innerHTML = renderRecommendationContent();
@@ -665,7 +666,7 @@ function bindHome() {
   });
   $('#rec-btn-manga')?.addEventListener('click', () => {
     if (S.recommendType === 'manga') return;
-    S.recommendType = 'manga'; S.recommendations = null;
+    S.recommendType = 'manga'; S.recommendations = null; S.recommendPage = 1;
     $('#rec-btn-manga').classList.add('active');
     $('#rec-btn-anime').classList.remove('active');
     $('#rec-content').innerHTML = renderRecommendationContent();
@@ -673,6 +674,7 @@ function bindHome() {
   });
   $('#rec-refresh')?.addEventListener('click', () => {
     S.recommendations = null;
+    S.recommendPage = (S.recommendPage % 5) + 1;
     $('#rec-content').innerHTML = renderRecommendationContent();
     loadRecommendations();
   });
@@ -698,7 +700,7 @@ function bindHome() {
 
 async function loadRecommendations() {
   try {
-    S.recommendations = await API.recommendations.get(S.recommendType);
+    S.recommendations = await API.recommendations.get(S.recommendType, S.recommendPage);
     const content = $('#rec-content');
     if (content && S.view === 'home') {
       content.innerHTML = renderRecommendationContent();
