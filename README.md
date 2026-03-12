@@ -407,6 +407,10 @@ CMD ["node", "server.js"]
 | 1.4 | Streaming-Dienste im Track-Modal |
 | 1.5 | Personalisierte Genre-Empfehlungen auf der Startseite |
 | 1.6 | Profil bearbeiten (Name, E-Mail, Passwort) |
+| 1.7 | Empfehlungen wechseln bei Klick auf "Neu laden" (Seiten 1–5) |
+| 1.8 | Security-Refactoring: JWT_SECRET via Env-Var, Admin-Credentials via Env-Var, SQL-Feld-Whitelist bei Profil-Update, Input-Validierung aller Route-Parameter, CORS-Origin-Einschränkung, Admin-Selbstlöschung verhindert |
+| 1.8 | Performance-Refactoring: DB-Indexes, Jikan-Rate-Limiter mit Queue + 8s Timeout, Such-Lock gegen Race Conditions, Empfehlungs-Abort bei Typwechsel |
+| 1.8 | Code-Refactoring: `fmtAnime`/`fmtManga` → `formatMedia()`, SQL-Subqueries in `utils/sql.js`, Admin-Middleware als Komposition, `showTrackModal` aufgeteilt in 4 Funktionen, SW-Offline-Response mit Status 503, `defer`-Attribute für Scripts, ARIA-Labels für alle Modals |
 
 ---
 

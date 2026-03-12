@@ -72,28 +72,60 @@ const S = {
 const $ = (sel, ctx) => (ctx || document).querySelector(sel);
 const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
 
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function esc(str)
+{
+  if (!str)
+  {
+    return '';
+  }
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
 }
 
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
+function timeAgo(dateStr)
+{
+  if (!dateStr)
+  {
+    return '';
+  }
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-  if (diff < 60) return 'Gerade eben';
-  if (diff < 3600) return `vor ${Math.floor(diff/60)} Min.`;
-  if (diff < 86400) return `vor ${Math.floor(diff/3600)} Std.`;
-  if (diff < 604800) return `vor ${Math.floor(diff/86400)} Tagen`;
+  if (diff < 60)
+  {
+    return 'Gerade eben';
+  }
+  if (diff < 3600)
+  {
+    return `vor ${Math.floor(diff/60)} Min.`;
+  }
+  if (diff < 86400)
+  {
+    return `vor ${Math.floor(diff/3600)} Std.`;
+  }
+  if (diff < 604800)
+  {
+    return `vor ${Math.floor(diff/86400)} Tagen`;
+  }
   return new Date(dateStr).toLocaleDateString('de-DE');
 }
 
-function debounce(fn, ms) {
-  let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+function debounce(fn, ms)
+{
+  let t;
+  return (...a) =>
+  {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...a), ms);
+  };
 }
 
-function coverImg(url, title) {
+function coverImg(url, title)
+{
   const safe = esc(title || '').substring(0, 12);
-  if (url) {
+  if (url)
+  {
     return `<img src="${esc(url)}" alt="${esc(title||'')}" loading="lazy"
       onerror="this.outerHTML='<div class=\\'no-cover\\'><span>🖼️</span><span>${safe}</span></div>'" />`;
   }
@@ -120,7 +152,8 @@ const MANGA_STATUSES = [
   {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
 ];
 
-function mediaStatusBadge(status) {
+function mediaStatusBadge(status)
+{
   const MAP = {
     'Currently Airing':['Läuft','badge-airing'],
     'Finished Airing':['Abgeschlossen','badge-finished'],
@@ -135,45 +168,74 @@ function mediaStatusBadge(status) {
   return `<span class="media-card-badge ${cls}">${label}</span>`;
 }
 
-function starsHtml(score, sm='') {
-  if (!score) return '';
+function starsHtml(score, sm='')
+{
+  if (!score)
+  {
+    return '';
+  }
   const n = Math.round(score);
-  return `<div class="stars">${Array.from({length:5},(_,i)=>`<span class="star-btn${sm?' sm':''} ${i<n?'on':''}">${IC.star}</span>`).join('')}</div>`;
+  const stars = Array.from({length:5}, (_,i) =>
+    `<span class="star-btn${sm?' sm':''} ${i<n?'on':''}">${IC.star}</span>`
+  ).join('');
+  return `<div class="stars">${stars}</div>`;
 }
 
-function progressText(e) {
-  if (e.type === 'anime') {
+function progressText(e)
+{
+  if (e.type === 'anime')
+  {
     return `Ep. ${e.current_episode||0} / ${e.episodes||'?'}`;
   }
   let t = `Kap. ${e.current_chapter||0} / ${e.chapters||'?'}`;
-  if (e.current_page) t += ` · S. ${e.current_page}`;
+  if (e.current_page)
+  {
+    t += ` · S. ${e.current_page}`;
+  }
   return t;
 }
 
-function progressPct(e) {
+function progressPct(e)
+{
   if (e.type === 'anime')
-    return e.episodes ? Math.min(100, ((e.current_episode||0)/e.episodes)*100) : 0;
-  return e.chapters ? Math.min(100, ((e.current_chapter||0)/e.chapters)*100) : 0;
+  {
+    return e.episodes
+      ? Math.min(100, ((e.current_episode||0)/e.episodes)*100)
+      : 0;
+  }
+  return e.chapters
+    ? Math.min(100, ((e.current_chapter||0)/e.chapters)*100)
+    : 0;
 }
 
-function isInList(media) {
-  if (!media.mal_id) return false;
+function isInList(media)
+{
+  if (!media.mal_id)
+  {
+    return false;
+  }
   const list = media.type === 'anime' ? S.animeList : S.mangaList;
   return list.some(e => String(e.mal_id) === String(media.mal_id));
 }
 
-function findInList(media) {
-  if (!media.mal_id) return null;
+function findInList(media)
+{
+  if (!media.mal_id)
+  {
+    return null;
+  }
   const list = media.type === 'anime' ? S.animeList : S.mangaList;
   return list.find(e => String(e.mal_id) === String(media.mal_id)) || null;
 }
 
-function findMediaInCache(malId, type) {
+function findMediaInCache(malId, type)
+{
   return [...S.searchResults, ...S.topAnime, ...S.topManga, ...S.seasonal]
     .find(m => String(m.mal_id) === String(malId) && m.type === type) || null;
 }
 
-function entryToMedia(entry) {
+function entryToMedia(entry)
+{
   return {
     mal_id: entry.mal_id, type: entry.type,
     title: entry.title, title_english: entry.title_english,
@@ -188,7 +250,8 @@ function entryToMedia(entry) {
 }
 
 /* ---- HELPERS ---- */
-function renderEmptyState(emoji, title, msg, btn = '', wrapStyle = '') {
+function renderEmptyState(emoji, title, msg, btn = '', wrapStyle = '')
+{
   return `<div class="empty-state"${wrapStyle ? ` style="${wrapStyle}"` : ''}>
     <div class="empty-state-emoji">${emoji}</div>
     ${title ? `<h3>${title}</h3>` : ''}
@@ -197,28 +260,37 @@ function renderEmptyState(emoji, title, msg, btn = '', wrapStyle = '') {
   </div>`;
 }
 
-function bindStatusTabs(selector, dataKey, onChange) {
-  $$(selector).forEach(t => {
-    t.addEventListener('click', () => {
+function bindStatusTabs(selector, dataKey, onChange)
+{
+  $$(selector).forEach(t =>
+  {
+    t.addEventListener('click', () =>
+    {
       $$(selector).forEach(x => x.classList.toggle('active', x === t));
       onChange(t.dataset[dataKey]);
     });
   });
 }
 
-function bindViewToggle(gridId, listId, onChange) {
-  $(gridId)?.addEventListener('click', () => {
-    $(gridId).classList.add('active'); $(listId).classList.remove('active');
+function bindViewToggle(gridId, listId, onChange)
+{
+  $(gridId)?.addEventListener('click', () =>
+  {
+    $(gridId).classList.add('active');
+    $(listId).classList.remove('active');
     onChange('grid');
   });
-  $(listId)?.addEventListener('click', () => {
-    $(listId).classList.add('active'); $(gridId).classList.remove('active');
+  $(listId)?.addEventListener('click', () =>
+  {
+    $(listId).classList.add('active');
+    $(gridId).classList.remove('active');
     onChange('list');
   });
 }
 
 /* ---- TOAST ---- */
-function toast(msg, type = 'info', title = '') {
+function toast(msg, type = 'info', title = '')
+{
   const iconMap = { success: IC.check, error: IC.x, warning: IC.warn, info: IC.info };
   const t = document.createElement('div');
   t.className = `toast t-${type}`;
@@ -228,38 +300,64 @@ function toast(msg, type = 'info', title = '') {
       <div class="toast-msg">${esc(msg)}</div>
     </div>`;
   document.getElementById('toasts').prepend(t);
-  setTimeout(() => {
-    t.style.opacity = '0'; t.style.transform = 'translateX(120%)';
-    t.style.transition = 'all .2s'; setTimeout(() => t.remove(), 220);
+  setTimeout(() =>
+  {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(120%)';
+    t.style.transition = 'all .2s';
+    setTimeout(() => t.remove(), 220);
   }, 3500);
 }
 
 /* ---- MODAL ---- */
 let _modal = null;
 
-function openModal(html, afterRender) {
+function openModal(html, afterRender)
+{
   closeModal();
   const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'modal-overlay';
+  ov.className = 'modal-overlay';
+  ov.id = 'modal-overlay';
   ov.innerHTML = `<div class="modal" id="modal-box">${html}</div>`;
   document.body.appendChild(ov);
   _modal = ov;
-  ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+  ov.addEventListener('click', e =>
+  {
+    if (e.target === ov)
+    {
+      closeModal();
+    }
+  });
   document.addEventListener('keydown', _modalKey);
-  if (afterRender) afterRender();
+  if (afterRender)
+  {
+    afterRender();
+  }
 }
 
-function closeModal() {
-  if (_modal) { _modal.remove(); _modal = null; }
+function closeModal()
+{
+  if (_modal)
+  {
+    _modal.remove();
+    _modal = null;
+  }
   document.removeEventListener('keydown', _modalKey);
 }
 
-function _modalKey(e) { if (e.key === 'Escape') closeModal(); }
+function _modalKey(e)
+{
+  if (e.key === 'Escape')
+  {
+    closeModal();
+  }
+}
 
 /* ================================================================
    SHELL (Sidebar + Header + Bottom Nav)
    ================================================================ */
-function renderShell() {
+function renderShell()
+{
   const v = S.view;
   const u = S.user || {};
   const initials = (u.username || '?').substring(0, 2).toUpperCase();
@@ -314,43 +412,68 @@ function renderShell() {
     </nav>`;
 }
 
-function updateNav() {
+function updateNav()
+{
   $$('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === S.view));
 }
 
 /* ================================================================
    ROUTER / NAVIGATION
    ================================================================ */
-async function navigate(view) {
+async function navigate(view)
+{
   S.view = view;
   updateNav();
   closeSidebar();
   const main = $('#main-content');
-  if (!main) return;
+  if (!main)
+  {
+    return;
+  }
   main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
 
-  try {
-    switch (view) {
+  try
+  {
+    switch (view)
+    {
       case 'home':
         await Promise.all([loadAllLists(), loadStats()]);
-        main.innerHTML = renderHome(); bindHome();
-        // Load recommendations lazily in background (don't block render)
-        if (!S.recommendations) loadRecommendations();
+        main.innerHTML = renderHome();
+        bindHome();
+        if (!S.recommendations)
+        {
+          loadRecommendations();
+        }
         break;
       case 'search':
-        main.innerHTML = renderSearch(); bindSearch();
-        if (!S.topAnime.length) loadTopContent(); break;
+        main.innerHTML = renderSearch();
+        bindSearch();
+        if (!S.topAnime.length)
+        {
+          loadTopContent();
+        }
+        break;
       case 'anime':
         S.animeList = await API.list.getAll('anime');
-        main.innerHTML = renderList('anime'); bindList('anime'); break;
+        main.innerHTML = renderList('anime');
+        bindList('anime');
+        break;
       case 'manga':
         S.mangaList = await API.list.getAll('manga');
-        main.innerHTML = renderList('manga'); bindList('manga'); break;
+        main.innerHTML = renderList('manga');
+        bindList('manga');
+        break;
       case 'profile':
         S.stats = await API.list.getStats();
-        main.innerHTML = renderProfile(); bindProfile(); break;
+        main.innerHTML = renderProfile();
+        bindProfile();
+        break;
       case 'admin':
-        if (!S.user?.is_admin) { navigate('home'); return; }
+        if (!S.user?.is_admin)
+        {
+          navigate('home');
+          return;
+        }
         S.adminUsers = await API.admin.getUsers();
         main.innerHTML = renderAdminView();
         bindAdminView();
@@ -366,39 +489,59 @@ async function navigate(view) {
         bindUsersView();
         break;
     }
-  } catch (e) {
-    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
-      `<button class="btn btn-primary" onclick="navigate('${view}')">Nochmal versuchen</button>`);
+  }
+  catch (e)
+  {
+    main.innerHTML = renderEmptyState(
+      '⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="navigate('${view}')">Nochmal versuchen</button>`
+    );
   }
 }
 
-async function loadAllLists() {
-  const [a, m] = await Promise.all([API.list.getAll('anime'), API.list.getAll('manga')]);
-  S.animeList = a; S.mangaList = m;
+async function loadAllLists()
+{
+  const [a, m] = await Promise.all([
+    API.list.getAll('anime'),
+    API.list.getAll('manga')
+  ]);
+  S.animeList = a;
+  S.mangaList = m;
 }
 
-async function loadStats() {
+async function loadStats()
+{
   S.stats = await API.list.getStats();
 }
 
-async function loadTopContent() {
-  try {
+async function loadTopContent()
+{
+  try
+  {
     const [ta, tm, sea] = await Promise.all([
       API.search.topAnime(), API.search.topManga(), API.search.seasonal()
     ]);
     S.topAnime = ta.results || [];
     S.topManga = tm.results || [];
     S.seasonal = sea.results || [];
-    if (S.view === 'search') {
+    if (S.view === 'search')
+    {
       const main = $('#main-content');
-      if (main && !S.searchQ) {
-        main.innerHTML = renderSearch(); bindSearch();
+      if (main && !S.searchQ)
+      {
+        main.innerHTML = renderSearch();
+        bindSearch();
       }
     }
-  } catch (e) { console.warn('Top-Inhalte nicht geladen:', e.message); }
+  }
+  catch (e)
+  {
+    console.warn('Top-Inhalte nicht geladen:', e.message);
+  }
 }
 
-function closeSidebar() {
+function closeSidebar()
+{
   $('#sidebar')?.classList.remove('open');
   $('#sidebar-overlay')?.classList.remove('open');
 }
@@ -406,11 +549,13 @@ function closeSidebar() {
 /* ================================================================
    VIEW: AUTH
    ================================================================ */
-function renderAuthView() {
+function renderAuthView()
+{
   return `<div class="auth-wrap">
     <div class="auth-box">
       <div class="auth-logo">
-        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo" style="width:56px;height:56px;margin:0 auto 10px;display:block;"/>
+        <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo"
+          style="width:56px;height:56px;margin:0 auto 10px;display:block;"/>
         <h1>AniGa</h1>
         <p>Dein persönlicher Anime &amp; Manga Tracker</p>
       </div>
@@ -423,26 +568,32 @@ function renderAuthView() {
   </div>`;
 }
 
-function loginFormHtml() {
+function loginFormHtml()
+{
   return `<form id="login-form">
     <div class="form-group">
       <label class="form-label">E-Mail</label>
-      <input class="form-input" type="email" name="email" placeholder="name@beispiel.de" required autocomplete="email"/>
+      <input class="form-input" type="email" name="email"
+        placeholder="name@beispiel.de" required autocomplete="email"/>
     </div>
     <div class="form-group">
       <label class="form-label">Passwort</label>
-      <input class="form-input" type="password" name="password" placeholder="Passwort" required autocomplete="current-password"/>
+      <input class="form-input" type="password" name="password"
+        placeholder="Passwort" required autocomplete="current-password"/>
     </div>
     <div class="form-error" id="login-error"></div>
     <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:6px">Anmelden</button>
   </form>`;
 }
 
-function registerFormHtml() {
+function registerFormHtml()
+{
   return `<form id="register-form">
     <div class="form-group">
       <label class="form-label">Benutzername</label>
-      <input class="form-input" type="text" name="username" placeholder="Mindestens 3 Zeichen" required minlength="3" autocomplete="username"/>
+      <input class="form-input" type="text" name="username"
+        placeholder="Mindestens 3 Zeichen" required minlength="3"
+        autocomplete="username"/>
     </div>
     <div class="form-group">
       <label class="form-label">E-Mail</label>
@@ -450,28 +601,35 @@ function registerFormHtml() {
     </div>
     <div class="form-group">
       <label class="form-label">Passwort</label>
-      <input class="form-input" type="password" name="password" placeholder="Mindestens 6 Zeichen" required minlength="6" autocomplete="new-password"/>
+      <input class="form-input" type="password" name="password"
+        placeholder="Mindestens 6 Zeichen" required minlength="6"
+        autocomplete="new-password"/>
     </div>
     <div class="form-group">
       <label class="form-label">Passwort bestätigen</label>
-      <input class="form-input" type="password" name="confirm" placeholder="Passwort wiederholen" required autocomplete="new-password"/>
+      <input class="form-input" type="password" name="confirm"
+        placeholder="Passwort wiederholen" required
+        autocomplete="new-password"/>
     </div>
     <div class="form-error" id="register-error"></div>
     <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:6px">Konto erstellen</button>
   </form>`;
 }
 
-function bindAuth() {
+function bindAuth()
+{
   const app = document.getElementById('app');
   app.innerHTML = renderAuthView();
 
-  $('#tab-login').addEventListener('click', () => {
+  $('#tab-login').addEventListener('click', () =>
+  {
     $('#tab-login').classList.add('active');
     $('#tab-register').classList.remove('active');
     $('#auth-form-wrap').innerHTML = loginFormHtml();
     bindLoginForm();
   });
-  $('#tab-register').addEventListener('click', () => {
+  $('#tab-register').addEventListener('click', () =>
+  {
     $('#tab-register').classList.add('active');
     $('#tab-login').classList.remove('active');
     $('#auth-form-wrap').innerHTML = registerFormHtml();
@@ -480,49 +638,80 @@ function bindAuth() {
   bindLoginForm();
 }
 
-function bindLoginForm() {
+function bindLoginForm()
+{
   const form = $('#login-form');
-  if (!form) return;
-  form.addEventListener('submit', async e => {
+  if (!form)
+  {
+    return;
+  }
+  form.addEventListener('submit', async e =>
+  {
     e.preventDefault();
     const fd = new FormData(form);
     const errEl = $('#login-error');
     const btn = form.querySelector('button[type=submit]');
-    errEl.classList.remove('show'); btn.disabled = true; btn.textContent = 'Anmelden…';
-    try {
-      const { token, user } = await API.auth.login(fd.get('email'), fd.get('password'));
+    errEl.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Anmelden…';
+    try
+    {
+      const { token, user } = await API.auth.login(
+        fd.get('email'), fd.get('password')
+      );
       localStorage.setItem('aniga_token', token);
-      S.token = token; S.user = user;
+      S.token = token;
+      S.user = user;
       initApp();
-    } catch (err) {
-      errEl.textContent = err.message; errEl.classList.add('show');
-      btn.disabled = false; btn.textContent = 'Anmelden';
+    }
+    catch (err)
+    {
+      errEl.textContent = err.message;
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Anmelden';
     }
   });
 }
 
-function bindRegisterForm() {
+function bindRegisterForm()
+{
   const form = $('#register-form');
-  if (!form) return;
-  form.addEventListener('submit', async e => {
+  if (!form)
+  {
+    return;
+  }
+  form.addEventListener('submit', async e =>
+  {
     e.preventDefault();
     const fd = new FormData(form);
     const errEl = $('#register-error');
     const btn = form.querySelector('button[type=submit]');
     errEl.classList.remove('show');
-    if (fd.get('password') !== fd.get('confirm')) {
+    if (fd.get('password') !== fd.get('confirm'))
+    {
       errEl.textContent = 'Passwörter stimmen nicht überein';
-      errEl.classList.add('show'); return;
+      errEl.classList.add('show');
+      return;
     }
-    btn.disabled = true; btn.textContent = 'Registrieren…';
-    try {
-      const { token, user } = await API.auth.register(fd.get('username'), fd.get('email'), fd.get('password'));
+    btn.disabled = true;
+    btn.textContent = 'Registrieren…';
+    try
+    {
+      const { token, user } = await API.auth.register(
+        fd.get('username'), fd.get('email'), fd.get('password')
+      );
       localStorage.setItem('aniga_token', token);
-      S.token = token; S.user = user;
+      S.token = token;
+      S.user = user;
       initApp();
-    } catch (err) {
-      errEl.textContent = err.message; errEl.classList.add('show');
-      btn.disabled = false; btn.textContent = 'Konto erstellen';
+    }
+    catch (err)
+    {
+      errEl.textContent = err.message;
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Konto erstellen';
     }
   });
 }
@@ -530,7 +719,8 @@ function bindRegisterForm() {
 /* ================================================================
    VIEW: HOME / DASHBOARD
    ================================================================ */
-function renderHome() {
+function renderHome()
+{
   const a = S.stats?.anime || {};
   const m = S.stats?.manga || {};
   const watching = S.animeList.filter(e => e.list_status === 'watching').slice(0, 6);
@@ -551,10 +741,22 @@ function renderHome() {
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-num">${a.total||0}</div><div class="stat-label">Anime gesamt</div></div>
-      <div class="stat-card"><div class="stat-num">${a.total_episodes||0}</div><div class="stat-label">Episoden gesehen</div></div>
-      <div class="stat-card"><div class="stat-num">${m.total||0}</div><div class="stat-label">Manga gesamt</div></div>
-      <div class="stat-card"><div class="stat-num">${m.total_chapters||0}</div><div class="stat-label">Kapitel gelesen</div></div>
+      <div class="stat-card">
+        <div class="stat-num">${a.total||0}</div>
+        <div class="stat-label">Anime gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${a.total_episodes||0}</div>
+        <div class="stat-label">Episoden gesehen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${m.total||0}</div>
+        <div class="stat-label">Manga gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${m.total_chapters||0}</div>
+        <div class="stat-label">Kapitel gelesen</div>
+      </div>
     </div>
 
     ${watching.length ? `
@@ -603,7 +805,7 @@ function renderHome() {
                 <div class="recent-meta">
                   <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
                   &nbsp;·&nbsp;${progressText(e)}
-                  ${e.user_score?` &nbsp;·&nbsp;${starsHtml(e.user_score,true)}`:''}
+                  ${e.user_score != null?` &nbsp;·&nbsp;${starsHtml(e.user_score,true)}`:''}
                 </div>
               </div>
               <div class="recent-updated">${timeAgo(e.updated_at)}</div>
@@ -614,14 +816,25 @@ function renderHome() {
     </div>`;
 }
 
-function renderRecommendationContent() {
+function renderRecommendationContent()
+{
   const r = S.recommendations;
-  if (!r) return `<div class="rec-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div> Wird geladen…</div>`;
-  if (!r.results.length) return renderEmptyState('🔍', 'Keine Empfehlungen',
-    'Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.', '', 'padding:20px 0');
+  if (!r)
+  {
+    return `<div class="rec-loading">` +
+      `<div class="spinner" style="width:20px;height:20px;` +
+      `border-width:2px"></div> Wird geladen…</div>`;
+  }
+  if (!r.results.length)
+  {
+    return renderEmptyState('🔍', 'Keine Empfehlungen',
+      'Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.',
+      '', 'padding:20px 0');
+  }
 
   const badge = r.basedOn.length
-    ? `<div class="rec-based-on">Basiert auf: ${r.basedOn.map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}</div>`
+    ? `<div class="rec-based-on">Basiert auf: ` +
+      `${r.basedOn.map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}</div>`
     : '';
 
   return `
@@ -629,7 +842,8 @@ function renderRecommendationContent() {
     <div class="media-grid">${r.results.map(m => renderRecommendCard(m)).join('')}</div>`;
 }
 
-function renderRecommendCard(m) {
+function renderRecommendCard(m)
+{
   return `
     <div class="media-card rec-card" data-mal-id="${m.mal_id}" data-type="${m.type}">
       <div class="media-card-cover">
@@ -638,41 +852,65 @@ function renderRecommendCard(m) {
         <div class="media-card-overlay"><div class="media-card-title">${esc(m.title)}</div></div>
       </div>
       <div class="media-card-footer">
-        <span class="media-card-type">${m.type==='anime'?(m.episodes?`${m.episodes} Ep.`:'Anime'):(m.chapters?`${m.chapters} Kap.`:'Manga')}</span>
+        <span class="media-card-type">${
+          m.type==='anime'
+            ? (m.episodes ? `${m.episodes} Ep.` : 'Anime')
+            : (m.chapters ? `${m.chapters} Kap.` : 'Manga')
+        }</span>
         <button class="btn-add-rec" title="Hinzufügen">${IC.plus}</button>
       </div>
     </div>`;
 }
 
-function bindHome() {
+function bindHome()
+{
   $$('[data-nav]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.nav)));
-  $$('.recent-item').forEach(el => {
-    el.addEventListener('click', () => {
+  $$('.recent-item').forEach(el =>
+  {
+    el.addEventListener('click', () =>
+    {
       const type = el.dataset.type;
-      const entry = (type==='anime'?S.animeList:S.mangaList).find(e=>e.id==el.dataset.entryId);
-      if (entry) showTrackModal(entryToMedia(entry), entry);
+      const entry = (type==='anime'?S.animeList:S.mangaList)
+        .find(e=>e.id==el.dataset.entryId);
+      if (entry)
+      {
+        showTrackModal(entryToMedia(entry), entry);
+      }
     });
   });
   $$('.media-card').forEach(c => bindMediaCard(c));
 
   // Recommendation controls
-  $('#rec-btn-anime')?.addEventListener('click', () => {
-    if (S.recommendType === 'anime') return;
-    S.recommendType = 'anime'; S.recommendations = null; S.recommendPage = 1;
+  $('#rec-btn-anime')?.addEventListener('click', () =>
+  {
+    if (S.recommendType === 'anime')
+    {
+      return;
+    }
+    S.recommendType = 'anime';
+    S.recommendations = null;
+    S.recommendPage = 1;
     $('#rec-btn-anime').classList.add('active');
     $('#rec-btn-manga').classList.remove('active');
     $('#rec-content').innerHTML = renderRecommendationContent();
     loadRecommendations();
   });
-  $('#rec-btn-manga')?.addEventListener('click', () => {
-    if (S.recommendType === 'manga') return;
-    S.recommendType = 'manga'; S.recommendations = null; S.recommendPage = 1;
+  $('#rec-btn-manga')?.addEventListener('click', () =>
+  {
+    if (S.recommendType === 'manga')
+    {
+      return;
+    }
+    S.recommendType = 'manga';
+    S.recommendations = null;
+    S.recommendPage = 1;
     $('#rec-btn-manga').classList.add('active');
     $('#rec-btn-anime').classList.remove('active');
     $('#rec-content').innerHTML = renderRecommendationContent();
     loadRecommendations();
   });
-  $('#rec-refresh')?.addEventListener('click', () => {
+  $('#rec-refresh')?.addEventListener('click', () =>
+  {
     S.recommendations = null;
     S.recommendPage = (S.recommendPage % 5) + 1;
     $('#rec-content').innerHTML = renderRecommendationContent();
@@ -682,34 +920,62 @@ function bindHome() {
   bindRecCards();
 }
 
-function bindRecCards() {
-  $$('.rec-card').forEach(card => {
-    card.addEventListener('click', async () => {
+function bindRecCards()
+{
+  $$('.rec-card').forEach(card =>
+  {
+    card.addEventListener('click', async () =>
+    {
       const malId = +card.dataset.malId;
       const type  = card.dataset.type;
-      try {
+      try
+      {
         const media = type === 'anime'
           ? await API.search.getAnime(malId)
           : await API.search.getManga(malId);
         const existing = await API.list.check(malId, type).catch(() => null);
         showTrackModal(media, existing || null);
-      } catch(err) { toast(err.message, 'error'); }
+      }
+      catch (err)
+      {
+        toast(err.message, 'error');
+      }
     });
   });
 }
 
-async function loadRecommendations() {
-  try {
-    S.recommendations = await API.recommendations.get(S.recommendType, S.recommendPage);
+let _recLoadId = 0;
+async function loadRecommendations()
+{
+  const myId = ++_recLoadId;
+  try
+  {
+    S.recommendations = await API.recommendations.get(
+      S.recommendType, S.recommendPage
+    );
+    if (myId !== _recLoadId)
+    {
+      return;
+    }
     const content = $('#rec-content');
-    if (content && S.view === 'home') {
+    if (content && S.view === 'home')
+    {
       content.innerHTML = renderRecommendationContent();
       bindRecCards();
     }
-  } catch(e) {
+  }
+  catch (e)
+  {
+    if (myId !== _recLoadId)
+    {
+      return;
+    }
     const content = $('#rec-content');
-    if (content && S.view === 'home') {
-      content.innerHTML = renderEmptyState('⚠️', '', esc(e.message), '', 'padding:20px 0');
+    if (content && S.view === 'home')
+    {
+      content.innerHTML = renderEmptyState(
+        '⚠️', '', esc(e.message), '', 'padding:20px 0'
+      );
     }
   }
 }
@@ -717,7 +983,8 @@ async function loadRecommendations() {
 /* ================================================================
    VIEW: SEARCH
    ================================================================ */
-function renderSearch() {
+function renderSearch()
+{
   const hasResults = S.searchResults.length > 0 && S.searchQ;
   return `
     <div class="page-header">
@@ -742,9 +1009,13 @@ function renderSearch() {
     <div id="search-results">${hasResults ? renderSearchResults() : renderSearchDefault()}</div>`;
 }
 
-function renderSearchDefault() {
+function renderSearchDefault()
+{
   const loading = !S.topAnime.length && !S.topManga.length;
-  if (loading) return '<div class="loader-wrap"><div class="spinner"></div></div>';
+  if (loading)
+  {
+    return '<div class="loader-wrap"><div class="spinner"></div></div>';
+  }
   const isAnime = S.searchType === 'anime';
   const top = isAnime ? S.topAnime : S.topManga;
 
@@ -768,7 +1039,8 @@ function renderSearchDefault() {
     </div>`;
 }
 
-function renderSearchResults() {
+function renderSearchResults()
+{
   const pag = S.searchPagination;
   return `
     <div class="section-head" style="margin-bottom:14px">
@@ -792,17 +1064,33 @@ function renderSearchResults() {
     </div>`;
 }
 
-function bindSearch() {
+function bindSearch()
+{
   const input = $('#search-input');
   $('#search-submit')?.addEventListener('click', doSearch);
-  input?.addEventListener('keydown', e => { if (e.key==='Enter') doSearch(); });
+  input?.addEventListener('keydown', e =>
+  {
+    if (e.key==='Enter')
+    {
+      doSearch();
+    }
+  });
 
-  $$('.type-btn').forEach(b => {
-    b.addEventListener('click', () => {
+  $$('.type-btn').forEach(b =>
+  {
+    b.addEventListener('click', () =>
+    {
       S.searchType = b.dataset.type;
-      S.searchQ = ''; S.searchResults = []; S.searchPage = 1;
+      S.searchQ = '';
+      S.searchResults = [];
+      S.searchPage = 1;
       $$('.type-btn').forEach(x => x.classList.toggle('active', x===b));
-      if (input) input.placeholder = S.searchType==='anime' ? 'Anime suchen…' : 'Manga suchen…';
+      if (input)
+      {
+        input.placeholder = S.searchType==='anime'
+          ? 'Anime suchen…'
+          : 'Manga suchen…';
+      }
       $('#search-results').innerHTML = renderSearchDefault();
       bindSearchResults();
     });
@@ -810,48 +1098,83 @@ function bindSearch() {
   bindSearchResults();
 }
 
-function bindSearchResults() {
+function bindSearchResults()
+{
   $$('.media-card').forEach(c => bindMediaCard(c));
   $('#btn-manual')?.addEventListener('click', () => showManualModal(S.searchType));
-  $('#btn-prev')?.addEventListener('click', () => { S.searchPage = Math.max(1,S.searchPage-1); doSearch(); });
-  $('#btn-next')?.addEventListener('click', () => { S.searchPage++; doSearch(); });
+  $('#btn-prev')?.addEventListener('click', () =>
+  {
+    S.searchPage = Math.max(1, S.searchPage - 1);
+    doSearch();
+  });
+  $('#btn-next')?.addEventListener('click', () =>
+  {
+    S.searchPage++;
+    doSearch();
+  });
 }
 
-async function doSearch() {
+let _searchLock = false;
+async function doSearch()
+{
   const q = $('#search-input')?.value.trim();
-  if (!q) return;
+  if (!q || _searchLock)
+  {
+    return;
+  }
+  _searchLock = true;
   S.searchQ = q;
   const res = $('#search-results');
   res.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
-  try {
+  try
+  {
     const fn = S.searchType === 'anime' ? API.search.anime : API.search.manga;
     const data = await fn(q, S.searchPage);
     S.searchResults = data.results || [];
     S.searchPagination = data.pagination || null;
     res.innerHTML = renderSearchResults();
     bindSearchResults();
-  } catch (e) {
-    res.innerHTML = renderEmptyState('⚠️', 'Suche fehlgeschlagen', esc(e.message));
+  }
+  catch (e)
+  {
+    res.innerHTML = renderEmptyState(
+      '⚠️', 'Suche fehlgeschlagen', esc(e.message)
+    );
+  }
+  finally
+  {
+    _searchLock = false;
   }
 }
 
 /* ================================================================
    VIEW: ANIME / MANGA LIST
    ================================================================ */
-function renderList(type) {
+function renderList(type)
+{
   const list = type === 'anime' ? S.animeList : S.mangaList;
   const curStatus = S.listStatus[type] || 'all';
   const curView = S.listView[type] || 'grid';
   const curFilter = S.listFilter[type] || '';
   const counts = {};
-  list.forEach(e => { counts[e.list_status] = (counts[e.list_status]||0)+1; });
-  const statuses = [{val:'all',label:'Alle'}, ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)];
+  list.forEach(e =>
+  {
+    counts[e.list_status] = (counts[e.list_status]||0)+1;
+  });
+  const statuses = [
+    {val:'all',label:'Alle'},
+    ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)
+  ];
 
-  let filtered = curStatus==='all' ? list : list.filter(e=>e.list_status===curStatus);
-  if (curFilter) {
+  let filtered = curStatus==='all'
+    ? list
+    : list.filter(e=>e.list_status===curStatus);
+  if (curFilter)
+  {
     const q = curFilter.toLowerCase();
-    filtered = filtered.filter(e=>
-      e.title.toLowerCase().includes(q)||(e.title_english||'').toLowerCase().includes(q));
+    filtered = filtered.filter(e =>
+      e.title.toLowerCase().includes(q)
+      || (e.title_english||'').toLowerCase().includes(q));
   }
 
   return `
@@ -885,8 +1208,10 @@ function renderList(type) {
     <div id="list-content">${renderListContent(filtered, curView, type)}</div>`;
 }
 
-function renderListContent(filtered, curView, type) {
-  if (!filtered.length) {
+function renderListContent(filtered, curView, type)
+{
+  if (!filtered.length)
+  {
     return renderEmptyState(
       type==='anime'?'🎬':'📚',
       `Keine Einträge${S.listFilter[type]?' für diesen Filter':''}`,
@@ -899,7 +1224,8 @@ function renderListContent(filtered, curView, type) {
     : `<div class="list-grid">${filtered.map(e=>renderListCard(e)).join('')}</div>`;
 }
 
-function renderListCard(e) {
+function renderListCard(e)
+{
   const pct = progressPct(e);
   return `
     <div class="list-card card" data-entry-id="${e.id}" data-type="${e.type}">
@@ -908,7 +1234,7 @@ function renderListCard(e) {
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
           <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
-          ${e.user_score?starsHtml(e.user_score,true):''}
+          ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
         <div class="list-card-progress">${progressText(e)}</div>
         ${pct>0?`<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
@@ -916,48 +1242,76 @@ function renderListCard(e) {
     </div>`;
 }
 
-function bindList(type) {
-  bindStatusTabs('.status-tab', 'status', v => { S.listStatus[type] = v; refreshListContent(type); });
+function bindList(type)
+{
+  bindStatusTabs('.status-tab', 'status', v =>
+  {
+    S.listStatus[type] = v;
+    refreshListContent(type);
+  });
 
   const filterInput = $('#list-filter');
-  filterInput?.addEventListener('input', debounce(() => {
+  filterInput?.addEventListener('input', debounce(() =>
+  {
     S.listFilter[type] = filterInput.value;
     refreshListContent(type);
   }, 250));
 
-  bindViewToggle('#vgrid', '#vlist', v => { S.listView[type] = v; refreshListContent(type); });
+  bindViewToggle('#vgrid', '#vlist', v =>
+  {
+    S.listView[type] = v;
+    refreshListContent(type);
+  });
 
-  $('#btn-add-new')?.addEventListener('click', () => { S.searchType=type; navigate('search'); });
+  $('#btn-add-new')?.addEventListener('click', () =>
+  {
+    S.searchType = type;
+    navigate('search');
+  });
   bindListCards();
 }
 
-function refreshListContent(type) {
+function refreshListContent(type)
+{
   const list = type==='anime' ? S.animeList : S.mangaList;
   const curStatus = S.listStatus[type]||'all';
   const curView = S.listView[type]||'grid';
   const curFilter = S.listFilter[type]||'';
 
-  let filtered = curStatus==='all' ? list : list.filter(e=>e.list_status===curStatus);
-  if (curFilter) {
+  let filtered = curStatus==='all'
+    ? list
+    : list.filter(e=>e.list_status===curStatus);
+  if (curFilter)
+  {
     const q = curFilter.toLowerCase();
-    filtered = filtered.filter(e=>e.title.toLowerCase().includes(q)||(e.title_english||'').toLowerCase().includes(q));
+    filtered = filtered.filter(e =>
+      e.title.toLowerCase().includes(q)
+      || (e.title_english||'').toLowerCase().includes(q));
   }
 
   const content = $('#list-content');
-  if (content) {
+  if (content)
+  {
     content.innerHTML = renderListContent(filtered, curView, type);
     bindListCards();
     $('#go-search-btn')?.addEventListener('click', () => navigate('search'));
   }
 }
 
-function bindListCards() {
+function bindListCards()
+{
   $$('.media-card').forEach(c => bindMediaCard(c));
-  $$('.list-card').forEach(c => {
-    c.addEventListener('click', () => {
+  $$('.list-card').forEach(c =>
+  {
+    c.addEventListener('click', () =>
+    {
       const type = c.dataset.type;
-      const entry = (type==='anime'?S.animeList:S.mangaList).find(e=>e.id==c.dataset.entryId);
-      if (entry) showTrackModal(entryToMedia(entry), entry);
+      const entry = (type==='anime'?S.animeList:S.mangaList)
+        .find(e=>e.id==c.dataset.entryId);
+      if (entry)
+      {
+        showTrackModal(entryToMedia(entry), entry);
+      }
     });
   });
 }
@@ -965,11 +1319,16 @@ function bindListCards() {
 /* ================================================================
    VIEW: PROFILE
    ================================================================ */
-function renderProfile() {
+function renderProfile()
+{
   const u = S.user || {};
   const a = S.stats?.anime || {};
   const m = S.stats?.manga || {};
-  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
+  const joined = u.created_at
+    ? new Date(u.created_at).toLocaleDateString('de-DE', {
+        day:'2-digit', month:'2-digit', year:'numeric'
+      })
+    : '';
 
   return `
     <div class="page-header">
@@ -989,12 +1348,30 @@ function renderProfile() {
     </div>
 
     <div class="stats-grid" style="margin-bottom:20px">
-      <div class="stat-card"><div class="stat-num">${a.total||0}</div><div class="stat-label">Anime gesamt</div></div>
-      <div class="stat-card"><div class="stat-num">${a.total_episodes||0}</div><div class="stat-label">Episoden gesehen</div></div>
-      <div class="stat-card"><div class="stat-num">${a.completed||0}</div><div class="stat-label">Anime abgeschlossen</div></div>
-      <div class="stat-card"><div class="stat-num">${m.total||0}</div><div class="stat-label">Manga gesamt</div></div>
-      <div class="stat-card"><div class="stat-num">${m.total_chapters||0}</div><div class="stat-label">Kapitel gelesen</div></div>
-      <div class="stat-card"><div class="stat-num">${m.completed||0}</div><div class="stat-label">Manga abgeschlossen</div></div>
+      <div class="stat-card">
+        <div class="stat-num">${a.total||0}</div>
+        <div class="stat-label">Anime gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${a.total_episodes||0}</div>
+        <div class="stat-label">Episoden gesehen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${a.completed||0}</div>
+        <div class="stat-label">Anime abgeschlossen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${m.total||0}</div>
+        <div class="stat-label">Manga gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${m.total_chapters||0}</div>
+        <div class="stat-label">Kapitel gelesen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${m.completed||0}</div>
+        <div class="stat-label">Manga abgeschlossen</div>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
@@ -1030,17 +1407,19 @@ function renderProfile() {
     </div>`;
 }
 
-function bindProfile() {
+function bindProfile()
+{
   $('#btn-logout-profile')?.addEventListener('click', logout);
   $('#btn-edit-profile')?.addEventListener('click', showProfileEditModal);
 }
 
-function showProfileEditModal() {
+function showProfileEditModal()
+{
   const u = S.user || {};
   openModal(`
     <div class="modal-head">
       <h2>${IC.edit} Profil bearbeiten</h2>
-      <button class="btn-modal-close" id="modal-close-btn">${IC.x}</button>
+      <button class="btn-modal-close" id="modal-close-btn" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -1052,31 +1431,43 @@ function showProfileEditModal() {
         <input class="form-input" id="pe-email" type="email" value="${esc(u.email||'')}" autocomplete="email"/>
       </div>
       <hr style="border-color:var(--border);margin:16px 0"/>
-      <p style="font-size:.82rem;color:var(--text2);margin-bottom:12px">Passwort ändern (optional — nur ausfüllen wenn gewünscht)</p>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:12px">
+        Passwort ändern (optional — nur ausfüllen wenn gewünscht)
+      </p>
       <div class="form-group">
         <label class="form-label">Aktuelles Passwort</label>
-        <input class="form-input" id="pe-current-pw" type="password" autocomplete="current-password" placeholder="Aktuelles Passwort"/>
+        <input class="form-input" id="pe-current-pw" type="password"
+          autocomplete="current-password"
+          placeholder="Aktuelles Passwort"/>
       </div>
       <div class="form-group">
         <label class="form-label">Neues Passwort</label>
-        <input class="form-input" id="pe-new-pw" type="password" autocomplete="new-password" placeholder="Mindestens 6 Zeichen"/>
+        <input class="form-input" id="pe-new-pw" type="password"
+          autocomplete="new-password"
+          placeholder="Mindestens 6 Zeichen"/>
       </div>
       <div class="form-group">
         <label class="form-label">Neues Passwort bestätigen</label>
-        <input class="form-input" id="pe-confirm-pw" type="password" autocomplete="new-password" placeholder="Wiederholen"/>
+        <input class="form-input" id="pe-confirm-pw" type="password"
+          autocomplete="new-password" placeholder="Wiederholen"/>
       </div>
       <div id="pe-error" style="color:#ef5350;font-size:.85rem;margin-bottom:8px;display:none"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" id="modal-cancel-btn" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
-      <button class="btn btn-primary" id="pe-save-btn" title="Speichern">${IC.check}<span class="btn-label"> Speichern</span></button>
+      <button class="btn btn-ghost" id="modal-cancel-btn"
+        title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span>
+      </button>
+      <button class="btn btn-primary" id="pe-save-btn"
+        title="Speichern">${IC.check}<span class="btn-label"> Speichern</span>
+      </button>
     </div>
   `);
 
   $('#modal-close-btn')?.addEventListener('click', closeModal);
   $('#modal-cancel-btn')?.addEventListener('click', closeModal);
 
-  $('#pe-save-btn')?.addEventListener('click', async () => {
+  $('#pe-save-btn')?.addEventListener('click', async () =>
+  {
     const username = $('#pe-username').value.trim();
     const email = $('#pe-email').value.trim();
     const currentPassword = $('#pe-current-pw').value;
@@ -1084,10 +1475,15 @@ function showProfileEditModal() {
     const confirmPassword = $('#pe-confirm-pw').value;
 
     const errEl = $('#pe-error');
-    const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+    const showErr = msg =>
+    {
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    };
     errEl.style.display = 'none';
 
-    if (newPassword && newPassword !== confirmPassword) {
+    if (newPassword && newPassword !== confirmPassword)
+    {
       return showErr('Die neuen Passwörter stimmen nicht überein.');
     }
 
@@ -1095,22 +1491,35 @@ function showProfileEditModal() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Speichert…';
 
-    try {
+    try
+    {
       const body = { username, email };
-      if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
+      if (newPassword)
+      {
+        body.currentPassword = currentPassword;
+        body.newPassword = newPassword;
+      }
       const { user } = await API.auth.updateProfile(body);
       S.user = { ...S.user, ...user };
       closeModal();
-      // Update sidebar in-place
       const initials = (user.username || '?').substring(0, 2).toUpperCase();
-      document.querySelectorAll('.user-avatar').forEach(el => el.textContent = initials);
+      document.querySelectorAll('.user-avatar')
+        .forEach(el => el.textContent = initials);
       const nameEl = document.querySelector('.user-name');
-      if (nameEl) nameEl.textContent = user.username || '';
+      if (nameEl)
+      {
+        nameEl.textContent = user.username || '';
+      }
       const emailEl = document.querySelector('.user-email');
-      if (emailEl) emailEl.textContent = user.email || '';
+      if (emailEl)
+      {
+        emailEl.textContent = user.email || '';
+      }
       navigate('profile');
       showToast('Profil gespeichert');
-    } catch (err) {
+    }
+    catch (err)
+    {
       showErr(err.message);
       saveBtn.disabled = false;
       saveBtn.innerHTML = `${IC.check}<span class="btn-label"> Speichern</span>`;
@@ -1121,7 +1530,8 @@ function showProfileEditModal() {
 /* ================================================================
    MEDIA CARD COMPONENTS
    ================================================================ */
-function renderMediaCard(media) {
+function renderMediaCard(media)
+{
   const inList = isInList(media);
   return `
     <div class="media-card" data-mal-id="${media.mal_id||''}" data-type="${media.type}">
@@ -1142,13 +1552,14 @@ function renderMediaCard(media) {
     </div>`;
 }
 
-function renderMediaCardFromEntry(entry) {
+function renderMediaCardFromEntry(entry)
+{
   const pct = progressPct(entry);
   return `
     <div class="media-card" data-entry-id="${entry.id}" data-type="${entry.type}">
       <div class="media-card-cover">
         ${coverImg(entry.image_url, entry.title)}
-        ${entry.user_score?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
+        ${entry.user_score != null?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
         <div class="media-card-badge">
           <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
         </div>
@@ -1160,29 +1571,49 @@ function renderMediaCardFromEntry(entry) {
         <span class="media-card-type">${progressText(entry)}</span>
         <button class="btn-add-to-list in-list" title="Bearbeiten">${IC.edit}</button>
       </div>
-      ${pct>0?`<div class="progress-bar" style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+      ${pct>0 ? `<div class="progress-bar"
+        style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>` : ''}
     </div>`;
 }
 
-function bindMediaCard(card) {
-  card.addEventListener('click', async () => {
+function bindMediaCard(card)
+{
+  card.addEventListener('click', async () =>
+  {
     const entryId = card.dataset.entryId;
     const malId = card.dataset.malId;
     const type = card.dataset.type;
 
-    if (entryId) {
-      const entry = (type==='anime'?S.animeList:S.mangaList).find(e=>e.id==entryId);
-      if (entry) showTrackModal(entryToMedia(entry), entry);
+    if (entryId)
+    {
+      const entry = (type==='anime'?S.animeList:S.mangaList)
+        .find(e=>e.id==entryId);
+      if (entry)
+      {
+        showTrackModal(entryToMedia(entry), entry);
+      }
       return;
     }
-    if (!malId) return;
+    if (!malId)
+    {
+      return;
+    }
 
     let media = findMediaInCache(malId, type);
-    if (!media) {
-      try {
+    if (!media)
+    {
+      try
+      {
         const fn = type==='anime' ? API.search.getAnime : API.search.getManga;
         media = await fn(malId);
-      } catch { toast('Details konnten nicht geladen werden', 'error'); return; }
+      }
+      catch
+      {
+        toast('Details konnten nicht geladen werden', 'error');
+        return;
+      }
     }
     const existing = findInList(media);
     showTrackModal(media, existing);
@@ -1192,7 +1623,8 @@ function bindMediaCard(card) {
 /* ================================================================
    MODAL: TRACKING (Add / Edit)
    ================================================================ */
-function renderTrackModalBody(media, existingEntry) {
+function renderTrackModalBody(media, existingEntry)
+{
   const isAnime = media.type === 'anime';
   const statuses = isAnime ? ANIME_STATUSES : MANGA_STATUSES;
   const entry = existingEntry || {};
@@ -1204,7 +1636,7 @@ function renderTrackModalBody(media, existingEntry) {
   return `
     <div class="modal-head">
       <h2>${existingEntry ? 'Eintrag bearbeiten' : 'Zur Liste hinzufügen'}</h2>
-      <button class="btn-modal-close" id="modal-close">${IC.x}</button>
+      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
       <div class="media-detail-hero">
@@ -1222,7 +1654,10 @@ function renderTrackModalBody(media, existingEntry) {
       </div>
 
       <div class="media-meta">
-        ${media.api_score?`<div class="meta-chip">${IC.star}<span style="color:var(--star)">${media.api_score.toFixed(1)}</span> MAL</div>`:''}
+        ${media.api_score
+          ? `<div class="meta-chip">${IC.star}` +
+            `<span style="color:var(--star)">${media.api_score.toFixed(1)}</span> MAL</div>`
+          : ''}
         ${isAnime&&media.episodes?`<div class="meta-chip">${IC.play} ${media.episodes} Folgen</div>`:''}
         ${!isAnime&&media.chapters?`<div class="meta-chip">${IC.book} ${media.chapters} Kapitel</div>`:''}
         ${!isAnime&&media.volumes?`<div class="meta-chip">📦 ${media.volumes} Bände</div>`:''}
@@ -1261,7 +1696,8 @@ function renderTrackModalBody(media, existingEntry) {
           <label class="form-label">Aktuelle Episode${media.episodes?' / '+media.episodes:''}</label>
           <div class="num-input-wrap">
             <button class="num-btn" id="ep-m">−</button>
-            <input class="num-input" type="number" id="track-ep" min="0" max="${maxEp}" value="${entry.current_episode||0}"/>
+            <input class="num-input" type="number" id="track-ep"
+              min="0" max="${maxEp}" value="${entry.current_episode||0}"/>
             <button class="num-btn" id="ep-p">+</button>
           </div>
         </div>` : `
@@ -1269,7 +1705,8 @@ function renderTrackModalBody(media, existingEntry) {
           <label class="form-label">Aktuelles Kapitel${media.chapters?' / '+media.chapters:''}</label>
           <div class="num-input-wrap">
             <button class="num-btn" id="ch-m">−</button>
-            <input class="num-input" type="number" id="track-ch" min="0" max="${maxCh}" value="${entry.current_chapter||0}"/>
+            <input class="num-input" type="number" id="track-ch"
+              min="0" max="${maxCh}" value="${entry.current_chapter||0}"/>
             <button class="num-btn" id="ch-p">+</button>
           </div>
         </div>
@@ -1294,7 +1731,8 @@ function renderTrackModalBody(media, existingEntry) {
 
       <div class="form-group">
         <label class="form-label">Notizen (optional)</label>
-        <textarea class="form-input" id="track-notes" rows="2" placeholder="Deine Gedanken…">${esc(entry.notes||'')}</textarea>
+        <textarea class="form-input" id="track-notes" rows="2"
+          placeholder="Deine Gedanken…">${esc(entry.notes||'')}</textarea>
       </div>
 
       <div class="form-row">
@@ -1310,156 +1748,266 @@ function renderTrackModalBody(media, existingEntry) {
     </div>
 
     <div class="modal-foot">
-      ${existingEntry?`<button class="btn btn-danger btn-sm" id="btn-delete" title="Entfernen">${IC.trash}<span class="btn-label"> Entfernen</span></button>`:''}
+      ${existingEntry
+        ? `<button class="btn btn-danger btn-sm" id="btn-delete"
+            title="Entfernen">${IC.trash}<span class="btn-label"> Entfernen</span>
+          </button>`
+        : ''}
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
-      <button class="btn btn-primary" id="btn-save" title="Speichern">${IC.check}<span class="btn-label"> Speichern</span></button>
+      <button class="btn btn-secondary" id="modal-cancel"
+        title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span>
+      </button>
+      <button class="btn btn-primary" id="btn-save"
+        title="Speichern">${IC.check}<span class="btn-label"> Speichern</span>
+      </button>
     </div>`;
 }
 
-function showTrackModal(media, existingEntry) {
+const STREAMING_COLORS = {
+  'Crunchyroll': '#f47521',
+  'Netflix':     '#e50914',
+  'Amazon Prime Video': '#00a8e0',
+  'Funimation':  '#410099',
+  'HIDIVE':      '#00baff',
+};
+
+function bindTrackModalStreaming(media)
+{
+  if (media.type !== 'anime' || !media.mal_id)
+  {
+    return;
+  }
+  API.search.getStreaming(media.mal_id).then(services =>
+  {
+    const sec = $('#streaming-section');
+    if (!sec)
+    {
+      return;
+    }
+    if (!services.length)
+    {
+      sec.remove();
+      return;
+    }
+    sec.innerHTML = `
+      <div class="streaming-label">${IC.play} Verfügbar auf</div>
+      <div class="streaming-chips">
+        ${services.map(s =>
+        {
+          const col = STREAMING_COLORS[s.name] || 'var(--accent)';
+          return `<a class="streaming-chip" href="${esc(s.url)}" target="_blank" rel="noopener"
+            style="--sc:#${col.startsWith('#') ? col.slice(1) : ''}; border-color:${col}; color:${col}">
+            ${esc(s.name)}
+          </a>`;
+        }).join('')}
+      </div>`;
+  }).catch(() =>
+  {
+    $('#streaming-section')?.remove();
+  });
+}
+
+function bindTrackModalNumbers(isAnime, maxEp, maxCh)
+{
+  function bindNum(mId, pId, inputId, min = 0, max = 99999)
+  {
+    const inp = document.getElementById(inputId);
+    if (!inp)
+    {
+      return;
+    }
+    document.getElementById(mId)?.addEventListener('click', () =>
+    {
+      inp.value = Math.max(min, +inp.value - 1);
+    });
+    document.getElementById(pId)?.addEventListener('click', () =>
+    {
+      inp.value = Math.min(max, +inp.value + 1);
+    });
+  }
+
+  if (isAnime)
+  {
+    bindNum('ep-m', 'ep-p', 'track-ep', 0, maxEp);
+  }
+  else
+  {
+    bindNum('ch-m', 'ch-p', 'track-ch', 0, maxCh);
+    bindNum('pg-m', 'pg-p', 'track-pg');
+  }
+
+  $('#track-status')?.addEventListener('change', () =>
+  {
+    if ($('#track-status').value !== 'completed')
+    {
+      return;
+    }
+    if (isAnime && maxEp < 99999)
+    {
+      const el = $('#track-ep');
+      if (el)
+      {
+        el.value = maxEp;
+      }
+    }
+    else if (!isAnime && maxCh < 99999)
+    {
+      const el = $('#track-ch');
+      if (el)
+      {
+        el.value = maxCh;
+      }
+    }
+  });
+}
+
+function bindTrackModalStars()
+{
+  const stars = $$('.star-btn', $('#star-rating'));
+  const scoreInp = $('#track-score');
+  stars.forEach(star =>
+  {
+    const val = +star.dataset.star;
+    star.addEventListener('click', () =>
+    {
+      const cur = +scoreInp.value;
+      const nv = cur === val ? 0 : val;
+      scoreInp.value = nv;
+      stars.forEach((s, j) => s.classList.toggle('on', j < nv));
+    });
+    star.addEventListener('mouseenter', () =>
+    {
+      stars.forEach((s, j) => s.classList.toggle('on', j < val));
+    });
+    star.setAttribute('aria-label', `${val} von 5 Sternen`);
+  });
+  document.getElementById('star-rating')?.addEventListener('mouseleave', () =>
+  {
+    const cur = +scoreInp.value;
+    stars.forEach((s, j) => s.classList.toggle('on', j < cur));
+  });
+}
+
+function bindTrackModalSave(media, existingEntry, isAnime)
+{
+  $('#btn-save')?.addEventListener('click', async () =>
+  {
+    const btn = $('#btn-save');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px"></div>`;
+    try
+    {
+      const listData = {
+        listStatus: $('#track-status').value,
+        currentEpisode: isAnime ? +($('#track-ep')?.value || 0) : 0,
+        currentChapter: !isAnime ? +($('#track-ch')?.value || 0) : 0,
+        currentPage: !isAnime ? +($('#track-pg')?.value || 0) : 0,
+        userScore: +($('#track-score').value) || null,
+        notes: $('#track-notes').value.trim() || null,
+        startedAt: $('#track-start').value || null,
+        completedAt: $('#track-end').value || null,
+      };
+      if (existingEntry)
+      {
+        await API.list.update(existingEntry.id, listData);
+        toast('Eintrag aktualisiert!', 'success');
+      }
+      else
+      {
+        await API.list.save(media, listData);
+        toast(`„${media.title}" zur Liste hinzugefügt!`, 'success');
+      }
+      closeModal();
+      await refreshAfterSave(media.type);
+    }
+    catch (e)
+    {
+      toast(e.message, 'error', 'Fehler beim Speichern');
+      btn.disabled = false;
+      btn.innerHTML = `${IC.check}<span class="btn-label"> Speichern</span>`;
+    }
+  });
+
+  $('#btn-delete')?.addEventListener('click', async () =>
+  {
+    if (!confirm(`„${media.title}" aus der Liste entfernen?`))
+    {
+      return;
+    }
+    try
+    {
+      await API.list.remove(existingEntry.id);
+      toast('Aus der Liste entfernt', 'success');
+      closeModal();
+      await refreshAfterSave(media.type);
+    }
+    catch (e)
+    {
+      toast(e.message, 'error');
+    }
+  });
+}
+
+function showTrackModal(media, existingEntry)
+{
   const isAnime = media.type === 'anime';
-  const entry = existingEntry || {};
   const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
 
-  openModal(renderTrackModalBody(media, existingEntry), () => {
+  openModal(renderTrackModalBody(media, existingEntry), () =>
+  {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
 
-    // Load streaming services for anime
-    if (isAnime && media.mal_id) {
-      API.search.getStreaming(media.mal_id).then(services => {
-        const sec = $('#streaming-section');
-        if (!sec) return;
-        if (!services.length) { sec.remove(); return; }
-        const COLORS = {
-          'Crunchyroll': '#f47521',
-          'Netflix':     '#e50914',
-          'Amazon Prime Video': '#00a8e0',
-          'Funimation':  '#410099',
-          'HIDIVE':      '#00baff',
-        };
-        sec.innerHTML = `
-          <div class="streaming-label">${IC.play} Verfügbar auf</div>
-          <div class="streaming-chips">
-            ${services.map(s => {
-              const col = COLORS[s.name] || 'var(--accent)';
-              return `<a class="streaming-chip" href="${esc(s.url)}" target="_blank" rel="noopener"
-                style="--sc:#${col.startsWith('#') ? col.slice(1) : ''}; border-color:${col}; color:${col}">
-                ${esc(s.name)}
-              </a>`;
-            }).join('')}
-          </div>`;
-      }).catch(() => { $('#streaming-section')?.remove(); });
-    }
+    bindTrackModalStreaming(media);
 
-    // Synopsis expand
-    $('#btn-expand')?.addEventListener('click', () => {
+    $('#btn-expand')?.addEventListener('click', () =>
+    {
       const st = $('#syn-text');
       const exp = st.classList.toggle('expanded');
       $('#btn-expand').textContent = exp ? 'Weniger anzeigen' : 'Mehr anzeigen';
     });
 
-    // Number inputs helper
-    function bindNum(mId, pId, inputId, min=0, max=99999) {
-      const inp = document.getElementById(inputId);
-      if (!inp) return;
-      document.getElementById(mId)?.addEventListener('click',()=>{ inp.value=Math.max(min,+inp.value-1); });
-      document.getElementById(pId)?.addEventListener('click',()=>{ inp.value=Math.min(max,+inp.value+1); });
-    }
-    if (isAnime) bindNum('ep-m','ep-p','track-ep',0,maxEp);
-    else { bindNum('ch-m','ch-p','track-ch',0,maxCh); bindNum('pg-m','pg-p','track-pg'); }
-
-    // Auto-fill auf Maximum wenn Status → Abgeschlossen
-    $('#track-status')?.addEventListener('change', () => {
-      if ($('#track-status').value !== 'completed') return;
-      if (isAnime && maxEp < 99999) {
-        const epInp = $('#track-ep');
-        if (epInp) epInp.value = maxEp;
-      } else if (!isAnime && maxCh < 99999) {
-        const chInp = $('#track-ch');
-        if (chInp) chInp.value = maxCh;
-      }
-    });
-
-    // Star rating
-    const stars = $$('.star-btn', $('#star-rating'));
-    const scoreInp = $('#track-score');
-    stars.forEach(star => {
-      star.addEventListener('click', () => {
-        const val = +star.dataset.star;
-        const cur = +scoreInp.value;
-        const nv = cur===val ? 0 : val;
-        scoreInp.value = nv;
-        stars.forEach((s,j) => s.classList.toggle('on', j<nv));
-      });
-      star.addEventListener('mouseenter', () => {
-        const val = +star.dataset.star;
-        stars.forEach((s,j) => s.classList.toggle('on', j<val));
-      });
-    });
-    document.getElementById('star-rating')?.addEventListener('mouseleave', () => {
-      const cur = +scoreInp.value;
-      stars.forEach((s,j) => s.classList.toggle('on', j<cur));
-    });
-
-    // Save
-    $('#btn-save')?.addEventListener('click', async () => {
-      const btn = $('#btn-save');
-      btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px"></div>`;
-      try {
-        const listData = {
-          listStatus: $('#track-status').value,
-          currentEpisode: isAnime ? +($('#track-ep')?.value||0) : 0,
-          currentChapter: !isAnime ? +($('#track-ch')?.value||0) : 0,
-          currentPage: !isAnime ? +($('#track-pg')?.value||0) : 0,
-          userScore: +($('#track-score').value)||null,
-          notes: $('#track-notes').value.trim()||null,
-          startedAt: $('#track-start').value||null,
-          completedAt: $('#track-end').value||null,
-        };
-        if (existingEntry) {
-          await API.list.update(existingEntry.id, listData);
-          toast('Eintrag aktualisiert!', 'success');
-        } else {
-          await API.list.save(media, listData);
-          toast(`„${media.title}" zur Liste hinzugefügt!`, 'success');
-        }
-        closeModal();
-        await refreshAfterSave(media.type);
-      } catch (e) {
-        toast(e.message, 'error', 'Fehler beim Speichern');
-        btn.disabled = false; btn.innerHTML = `${IC.check}<span class="btn-label"> Speichern</span>`;
-      }
-    });
-
-    // Delete
-    $('#btn-delete')?.addEventListener('click', async () => {
-      if (!confirm(`„${media.title}" aus der Liste entfernen?`)) return;
-      try {
-        await API.list.remove(existingEntry.id);
-        toast('Aus der Liste entfernt', 'success');
-        closeModal();
-        await refreshAfterSave(media.type);
-      } catch (e) { toast(e.message, 'error'); }
-    });
+    bindTrackModalNumbers(isAnime, maxEp, maxCh);
+    bindTrackModalStars();
+    bindTrackModalSave(media, existingEntry, isAnime);
   });
 }
 
-async function refreshAfterSave(type) {
-  if (type === 'anime') S.animeList = await API.list.getAll('anime');
-  else S.mangaList = await API.list.getAll('manga');
+async function refreshAfterSave(type)
+{
+  if (type === 'anime')
+  {
+    S.animeList = await API.list.getAll('anime');
+  }
+  else
+  {
+    S.mangaList = await API.list.getAll('manga');
+  }
   S.stats = await API.list.getStats();
-  if (S.view === 'home') { S.recommendations = null; navigate('home'); return; }
-  if (S.view === type) { navigate(type); return; }
-  // Update add-buttons in search view
-  $$('.btn-add-to-list').forEach(btn => {
+  if (S.view === 'home')
+  {
+    S.recommendations = null;
+    navigate('home');
+    return;
+  }
+  if (S.view === type)
+  {
+    navigate(type);
+    return;
+  }
+  $$('.btn-add-to-list').forEach(btn =>
+  {
     const card = btn.closest('.media-card');
-    if (!card || !card.dataset.malId) return;
+    if (!card || !card.dataset.malId)
+    {
+      return;
+    }
     const ctype = card.dataset.type;
-    if (ctype === type) {
-      const inList = (type==='anime'?S.animeList:S.mangaList).some(e=>String(e.mal_id)===card.dataset.malId);
+    if (ctype === type)
+    {
+      const inList = (type==='anime'?S.animeList:S.mangaList)
+        .some(e=>String(e.mal_id)===card.dataset.malId);
       btn.classList.toggle('in-list', inList);
       btn.innerHTML = inList ? IC.check : IC.plus;
     }
@@ -1469,13 +2017,14 @@ async function refreshAfterSave(type) {
 /* ================================================================
    MODAL: MANUAL ENTRY
    ================================================================ */
-function showManualModal(type = 'anime') {
+function showManualModal(type = 'anime')
+{
   let curType = type;
 
   const html = `
     <div class="modal-head">
       <h2>Manuell eintragen</h2>
-      <button class="btn-modal-close" id="modal-close">${IC.x}</button>
+      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
       <div class="type-toggle" style="margin-bottom:16px">
@@ -1523,31 +2072,45 @@ function showManualModal(type = 'anime') {
       <div class="form-error" id="m-error"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
-      <button class="btn btn-primary" id="btn-save-manual" title="Hinzufügen">${IC.plus}<span class="btn-label"> Hinzufügen</span></button>
+      <button class="btn btn-secondary" id="modal-cancel"
+        title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span>
+      </button>
+      <button class="btn btn-primary" id="btn-save-manual"
+        title="Hinzufügen">${IC.plus}<span class="btn-label"> Hinzufügen</span>
+      </button>
     </div>`;
 
-  openModal(html, () => {
+  openModal(html, () =>
+  {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
 
-    $$('[data-mtype]').forEach(btn => {
-      btn.addEventListener('click', () => {
+    $$('[data-mtype]').forEach(btn =>
+    {
+      btn.addEventListener('click', () =>
+      {
         curType = btn.dataset.mtype;
         $$('[data-mtype]').forEach(b => b.classList.toggle('active', b===btn));
-        $('#m-count-label').textContent = curType==='anime' ? 'Episoden' : 'Kapitel';
-        $('#m-vol-label').textContent = curType==='anime' ? 'Staffeln' : 'Bände';
+        $('#m-count-label').textContent = curType==='anime'
+          ? 'Episoden' : 'Kapitel';
+        $('#m-vol-label').textContent = curType==='anime'
+          ? 'Staffeln' : 'Bände';
       });
     });
 
-    $('#btn-save-manual')?.addEventListener('click', async () => {
+    $('#btn-save-manual')?.addEventListener('click', async () =>
+    {
       const title = $('#m-title').value.trim();
-      if (!title) {
+      if (!title)
+      {
         const err = $('#m-error');
-        err.textContent = 'Titel ist erforderlich'; err.classList.add('show'); return;
+        err.textContent = 'Titel ist erforderlich';
+        err.classList.add('show');
+        return;
       }
       const btn = $('#btn-save-manual');
-      btn.disabled = true; btn.textContent = 'Speichern…';
+      btn.disabled = true;
+      btn.textContent = 'Speichern…';
       const mediaData = {
         is_manual: true, type: curType, title,
         title_english: $('#m-title-en').value.trim()||null,
@@ -1560,17 +2123,22 @@ function showManualModal(type = 'anime') {
         year: +$('#m-year').value||null,
         genres: [],
       };
-      try {
+      try
+      {
         await API.list.save(mediaData, {
           listStatus: curType==='anime' ? 'plan_to_watch' : 'plan_to_read'
         });
         toast(`„${title}" manuell hinzugefügt!`, 'success');
         closeModal();
         await refreshAfterSave(curType);
-      } catch (e) {
+      }
+      catch (e)
+      {
         const err = $('#m-error');
-        err.textContent = e.message; err.classList.add('show');
-        btn.disabled = false; btn.innerHTML = `${IC.plus} Hinzufügen`;
+        err.textContent = e.message;
+        err.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = `${IC.plus} Hinzufügen`;
       }
     });
   });
@@ -1579,7 +2147,8 @@ function showManualModal(type = 'anime') {
 /* ================================================================
    VIEW: ADMIN
    ================================================================ */
-function renderAdminView() {
+function renderAdminView()
+{
   const users = S.adminUsers;
   return `
     <div class="page-header">
@@ -1610,7 +2179,10 @@ function renderAdminView() {
               <tr data-uid="${u.id}">
                 <td>
                   <div class="admin-user-cell">
-                    <div class="user-avatar" style="width:32px;height:32px;font-size:.75rem;flex-shrink:0">${(u.username||'?').substring(0,2).toUpperCase()}</div>
+                    <div class="user-avatar"
+                      style="width:32px;height:32px;font-size:.75rem;flex-shrink:0">
+                      ${(u.username||'?').substring(0,2).toUpperCase()}
+                    </div>
                     <span class="admin-username">${esc(u.username)}</span>
                   </div>
                 </td>
@@ -1620,10 +2192,14 @@ function renderAdminView() {
                 <td class="admin-date">${new Date(u.created_at).toLocaleDateString('de-DE')}</td>
                 <td>
                   <div class="admin-actions">
-                    <button class="btn btn-secondary btn-sm btn-admin-pw" data-uid="${u.id}" data-uname="${esc(u.username)}" title="Passwort ändern">
+                    <button class="btn btn-secondary btn-sm btn-admin-pw"
+                      data-uid="${u.id}" data-uname="${esc(u.username)}"
+                      title="Passwort ändern">
                       ${IC.key} Passwort
                     </button>
-                    <button class="btn btn-danger btn-sm btn-admin-del" data-uid="${u.id}" data-uname="${esc(u.username)}" title="Löschen">
+                    <button class="btn btn-danger btn-sm btn-admin-del"
+                      data-uid="${u.id}" data-uname="${esc(u.username)}"
+                      title="Löschen">
                       ${IC.trash}
                     </button>
                   </div>
@@ -1635,20 +2211,26 @@ function renderAdminView() {
       ${renderEmptyState('👤', 'Keine Benutzer', 'Noch niemand hat sich registriert.')}`}`;
 }
 
-function bindAdminView() {
-  $$('.btn-admin-pw').forEach(btn => {
-    btn.addEventListener('click', () => showAdminPasswordModal(+btn.dataset.uid, btn.dataset.uname));
+function bindAdminView()
+{
+  $$('.btn-admin-pw').forEach(btn =>
+  {
+    btn.addEventListener('click', () =>
+      showAdminPasswordModal(+btn.dataset.uid, btn.dataset.uname));
   });
-  $$('.btn-admin-del').forEach(btn => {
-    btn.addEventListener('click', () => confirmAdminDelete(+btn.dataset.uid, btn.dataset.uname));
+  $$('.btn-admin-del').forEach(btn =>
+  {
+    btn.addEventListener('click', () =>
+      confirmAdminDelete(+btn.dataset.uid, btn.dataset.uname));
   });
 }
 
-function showAdminPasswordModal(uid, username) {
+function showAdminPasswordModal(uid, username)
+{
   const html = `
     <div class="modal-head">
       <h2>Passwort ändern</h2>
-      <button class="btn-modal-close" id="modal-close">${IC.x}</button>
+      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
       <p style="color:var(--text2);font-size:.9rem;margin-bottom:16px">
@@ -1667,59 +2249,91 @@ function showAdminPasswordModal(uid, username) {
       <div class="form-error" id="pw-error"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" id="modal-cancel" title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span></button>
-      <button class="btn btn-primary" id="btn-save-pw" title="Speichern">${IC.key}<span class="btn-label"> Speichern</span></button>
+      <button class="btn btn-secondary" id="modal-cancel"
+        title="Abbrechen">${IC.x}<span class="btn-label"> Abbrechen</span>
+      </button>
+      <button class="btn btn-primary" id="btn-save-pw"
+        title="Speichern">${IC.key}<span class="btn-label"> Speichern</span>
+      </button>
     </div>`;
 
-  openModal(html, () => {
+  openModal(html, () =>
+  {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
     $('#new-password')?.focus();
 
-    $('#btn-save-pw')?.addEventListener('click', async () => {
+    $('#btn-save-pw')?.addEventListener('click', async () =>
+    {
       const pw = $('#new-password').value;
       const confirm = $('#confirm-password').value;
       const errEl = $('#pw-error');
       errEl.classList.remove('show');
 
-      if (pw.length < 6) {
+      if (pw.length < 6)
+      {
         errEl.textContent = 'Mindestens 6 Zeichen erforderlich';
-        errEl.classList.add('show'); return;
+        errEl.classList.add('show');
+        return;
       }
-      if (pw !== confirm) {
+      if (pw !== confirm)
+      {
         errEl.textContent = 'Passwörter stimmen nicht überein';
-        errEl.classList.add('show'); return;
+        errEl.classList.add('show');
+        return;
       }
 
       const btn = $('#btn-save-pw');
-      btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>`;
-      try {
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>`;
+      try
+      {
         await API.admin.changePassword(uid, pw);
         toast(`Passwort für „${username}" geändert`, 'success');
         closeModal();
-      } catch (e) {
-        errEl.textContent = e.message; errEl.classList.add('show');
-        btn.disabled = false; btn.innerHTML = `${IC.key}<span class="btn-label"> Speichern</span>`;
+      }
+      catch (e)
+      {
+        errEl.textContent = e.message;
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = `${IC.key}<span class="btn-label"> Speichern</span>`;
       }
     });
   });
 }
 
-async function confirmAdminDelete(uid, username) {
-  if (!confirm(`Benutzer „${username}" wirklich löschen?\n\nDadurch werden auch alle Listen-Einträge und Follows unwiderruflich entfernt.`)) return;
-  try {
+async function confirmAdminDelete(uid, username)
+{
+  const msg = `Benutzer „${username}" wirklich löschen?\n\n` +
+    `Dadurch werden auch alle Listen-Einträge und Follows unwiderruflich entfernt.`;
+  if (!confirm(msg))
+  {
+    return;
+  }
+  try
+  {
     await API.admin.deleteUser(uid);
     S.adminUsers = S.adminUsers.filter(u => u.id !== uid);
     toast(`Benutzer „${username}" gelöscht`, 'success');
     const main = $('#main-content');
-    if (main) { main.innerHTML = renderAdminView(); bindAdminView(); }
-  } catch (e) { toast(e.message, 'error'); }
+    if (main)
+    {
+      main.innerHTML = renderAdminView();
+      bindAdminView();
+    }
+  }
+  catch (e)
+  {
+    toast(e.message, 'error');
+  }
 }
 
 /* ================================================================
    VIEW: USERS (Nutzerliste & Follow)
    ================================================================ */
-function renderUsersView() {
+function renderUsersView()
+{
   const filter = S.userListFilter.toLowerCase();
   const filtered = filter
     ? S.allUsers.filter(u => u.username.toLowerCase().includes(filter))
@@ -1750,7 +2364,8 @@ function renderUsersView() {
         S.userListFilter ? 'Probiere einen anderen Suchbegriff.' : 'Lade Freunde zu AniGa ein!')}`}`;
 }
 
-function renderUserCard(u) {
+function renderUserCard(u)
+{
   return `
     <div class="user-card" data-user-id="${u.id}">
       <div class="user-avatar">${(u.username||'?').substring(0,2).toUpperCase()}</div>
@@ -1764,59 +2379,90 @@ function renderUserCard(u) {
     </div>`;
 }
 
-function bindUsersView() {
+function bindUsersView()
+{
   const input = $('#user-search');
-  input?.addEventListener('input', debounce(() => {
+  input?.addEventListener('input', debounce(() =>
+  {
     S.userListFilter = input.value;
     const filter = S.userListFilter.toLowerCase();
     const filtered = filter
       ? S.allUsers.filter(u => u.username.toLowerCase().includes(filter))
       : S.allUsers;
     const ul = $('.user-list');
-    if (ul) {
+    if (ul)
+    {
       ul.innerHTML = filtered.map(u => renderUserCard(u)).join('');
       bindUserCards();
-    } else {
-      // empty → full re-render
+    }
+    else
+    {
       const main = $('#main-content');
-      if (main) { main.innerHTML = renderUsersView(); bindUsersView(); }
+      if (main)
+      {
+        main.innerHTML = renderUsersView();
+        bindUsersView();
+      }
     }
   }, 200));
   bindUserCards();
 }
 
-function bindUserCards() {
-  $$('.user-card').forEach(card => {
-    card.addEventListener('click', e => {
-      if (e.target.closest('.btn-follow')) return;
+function bindUserCards()
+{
+  $$('.user-card').forEach(card =>
+  {
+    card.addEventListener('click', e =>
+    {
+      if (e.target.closest('.btn-follow'))
+      {
+        return;
+      }
       const uid = +card.dataset.userId;
       const user = S.allUsers.find(u => u.id === uid);
-      if (user) showUserList(user);
+      if (user)
+      {
+        showUserList(user);
+      }
     });
   });
-  $$('.btn-follow').forEach(btn => {
-    btn.addEventListener('click', async e => {
+  $$('.btn-follow').forEach(btn =>
+  {
+    btn.addEventListener('click', async e =>
+    {
       e.stopPropagation();
       const uid = +btn.dataset.uid;
       const wasFollowing = btn.classList.contains('following');
       btn.disabled = true;
-      try {
-        if (wasFollowing) {
+      try
+      {
+        if (wasFollowing)
+        {
           await API.users.unfollow(uid);
           btn.classList.remove('following');
           btn.textContent = 'Folgen';
           const u = S.allUsers.find(x => x.id === uid);
-          if (u) u.isFollowing = false;
+          if (u)
+          {
+            u.isFollowing = false;
+          }
           toast('Nicht mehr gefolgt', 'info');
-        } else {
+        }
+        else
+        {
           await API.users.follow(uid);
           btn.classList.add('following');
           btn.textContent = 'Entfolgen';
           const u = S.allUsers.find(x => x.id === uid);
-          if (u) u.isFollowing = true;
+          if (u)
+          {
+            u.isFollowing = true;
+          }
           toast('Jetzt gefolgt! 🎉', 'success');
         }
-      } catch (err) {
+      }
+      catch (err)
+      {
         toast(err.message, 'error');
       }
       btn.disabled = false;
@@ -1824,43 +2470,62 @@ function bindUserCards() {
   });
 }
 
-async function showUserList(user) {
+async function showUserList(user)
+{
   S.viewingUser = user;
   S.userListType = 'anime';
   S.userListStatus = 'all';
   S.userListView = 'grid';
   const main = $('#main-content');
   main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
-  try {
+  try
+  {
     S.viewingUserList = await API.users.getList(user.id, 'anime');
     main.innerHTML = renderUserListView();
     bindUserListView();
-  } catch (e) {
-    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
-      `<button class="btn btn-primary" onclick="navigate('users')">Zurück</button>`);
+  }
+  catch (e)
+  {
+    main.innerHTML = renderEmptyState(
+      '⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="navigate('users')">Zurück</button>`
+    );
   }
 }
 
-function renderUserListView() {
+function renderUserListView()
+{
   const u = S.viewingUser;
   const list = S.viewingUserList;
   const type = S.userListType;
   const curStatus = S.userListStatus;
   const curView = S.userListView;
   const counts = {};
-  list.forEach(e => { counts[e.list_status] = (counts[e.list_status]||0)+1; });
-  const statuses = [{val:'all',label:'Alle'}, ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)];
-  const filtered = curStatus==='all' ? list : list.filter(e=>e.list_status===curStatus);
+  list.forEach(e =>
+  {
+    counts[e.list_status] = (counts[e.list_status]||0)+1;
+  });
+  const statuses = [
+    {val:'all',label:'Alle'},
+    ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)
+  ];
+  const filtered = curStatus==='all'
+    ? list
+    : list.filter(e=>e.list_status===curStatus);
 
   return `
     <div class="user-list-header">
       <button class="btn btn-ghost btn-sm" id="btn-back-users">${IC.chevL} Zurück</button>
-      <div class="user-avatar" style="width:40px;height:40px;font-size:1rem;flex-shrink:0">${(u.username||'?').substring(0,2).toUpperCase()}</div>
+      <div class="user-avatar"
+        style="width:40px;height:40px;font-size:1rem;flex-shrink:0">
+        ${(u.username||'?').substring(0,2).toUpperCase()}
+      </div>
       <div class="user-list-header-info">
         <div class="user-list-header-name">${esc(u.username)}</div>
         <div class="user-list-header-sub">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
       </div>
-      <button class="btn btn-primary btn-sm" id="btn-compare-user" style="margin-left:auto;flex-shrink:0">⚖️ Vergleichen</button>
+      <button class="btn btn-primary btn-sm" id="btn-compare-user"
+        style="margin-left:auto;flex-shrink:0">⚖️ Vergleichen</button>
     </div>
 
     <div class="type-toggle" style="margin-bottom:16px">
@@ -1886,9 +2551,12 @@ function renderUserListView() {
     <div id="user-list-content">${renderUserListContent(filtered, curView)}</div>`;
 }
 
-function renderUserListContent(filtered, curView) {
-  if (!filtered.length) {
-    return renderEmptyState(S.userListType==='anime'?'🎬':'📚', 'Keine Einträge',
+function renderUserListContent(filtered, curView)
+{
+  if (!filtered.length)
+  {
+    return renderEmptyState(
+      S.userListType==='anime'?'🎬':'📚', 'Keine Einträge',
       'Dieser Nutzer hat noch nichts in dieser Kategorie.');
   }
   return curView === 'grid'
@@ -1896,13 +2564,14 @@ function renderUserListContent(filtered, curView) {
     : `<div class="list-grid">${filtered.map(e=>renderUserListCard(e)).join('')}</div>`;
 }
 
-function renderUserMediaCard(entry) {
+function renderUserMediaCard(entry)
+{
   const pct = progressPct(entry);
   return `
     <div class="media-card user-entry-card" data-entry-id="${entry.id}">
       <div class="media-card-cover">
         ${coverImg(entry.image_url, entry.title)}
-        ${entry.user_score?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
+        ${entry.user_score != null?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
         <div class="media-card-badge">
           <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
         </div>
@@ -1913,11 +2582,15 @@ function renderUserMediaCard(entry) {
       <div class="media-card-footer">
         <span class="media-card-type">${progressText(entry)}</span>
       </div>
-      ${pct>0?`<div class="progress-bar" style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+      ${pct>0 ? `<div class="progress-bar"
+        style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>` : ''}
     </div>`;
 }
 
-function renderUserListCard(e) {
+function renderUserListCard(e)
+{
   const pct = progressPct(e);
   return `
     <div class="list-card user-entry-card" data-entry-id="${e.id}">
@@ -1926,7 +2599,7 @@ function renderUserListCard(e) {
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
           <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
-          ${e.user_score?starsHtml(e.user_score,true):''}
+          ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
         <div class="list-card-progress">${progressText(e)}</div>
         ${pct>0?`<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
@@ -1934,48 +2607,77 @@ function renderUserListCard(e) {
     </div>`;
 }
 
-function bindUserListView() {
+function bindUserListView()
+{
   $('#btn-back-users')?.addEventListener('click', () => navigate('users'));
-  $('#btn-compare-user')?.addEventListener('click', () => showCompareView(S.viewingUser));
+  $('#btn-compare-user')?.addEventListener('click', () =>
+    showCompareView(S.viewingUser));
 
-  $$('.type-btn[data-utype]').forEach(b => {
-    b.addEventListener('click', async () => {
+  $$('.type-btn[data-utype]').forEach(b =>
+  {
+    b.addEventListener('click', async () =>
+    {
       S.userListType = b.dataset.utype;
       S.userListStatus = 'all';
       const main = $('#main-content');
       main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
-      try {
-        S.viewingUserList = await API.users.getList(S.viewingUser.id, S.userListType);
+      try
+      {
+        S.viewingUserList = await API.users.getList(
+          S.viewingUser.id, S.userListType
+        );
         main.innerHTML = renderUserListView();
         bindUserListView();
-      } catch (e) { toast(e.message, 'error'); }
+      }
+      catch (e)
+      {
+        toast(e.message, 'error');
+      }
     });
   });
 
-  bindStatusTabs('.status-tab[data-ustatus]', 'ustatus', v => { S.userListStatus = v; refreshUserListContent(); });
-  bindViewToggle('#uvgrid', '#uvlist', v => { S.userListView = v; refreshUserListContent(); });
+  bindStatusTabs('.status-tab[data-ustatus]', 'ustatus', v =>
+  {
+    S.userListStatus = v;
+    refreshUserListContent();
+  });
+  bindViewToggle('#uvgrid', '#uvlist', v =>
+  {
+    S.userListView = v;
+    refreshUserListContent();
+  });
 
   bindUserEntryCards();
 }
 
-function refreshUserListContent() {
+function refreshUserListContent()
+{
   const list = S.viewingUserList;
   const curStatus = S.userListStatus;
   const curView = S.userListView;
-  const filtered = curStatus==='all' ? list : list.filter(e=>e.list_status===curStatus);
+  const filtered = curStatus==='all'
+    ? list
+    : list.filter(e=>e.list_status===curStatus);
   const content = $('#user-list-content');
-  if (content) {
+  if (content)
+  {
     content.innerHTML = renderUserListContent(filtered, curView);
     bindUserEntryCards();
   }
 }
 
-function bindUserEntryCards() {
-  $$('.user-entry-card').forEach(card => {
-    card.addEventListener('click', () => {
+function bindUserEntryCards()
+{
+  $$('.user-entry-card').forEach(card =>
+  {
+    card.addEventListener('click', () =>
+    {
       const entryId = +card.dataset.entryId;
       const entry = S.viewingUserList.find(e => e.id === entryId);
-      if (entry) showUserInfoModal(entry);
+      if (entry)
+      {
+        showUserInfoModal(entry);
+      }
     });
   });
 }
@@ -1983,22 +2685,29 @@ function bindUserEntryCards() {
 /* ================================================================
    COMPARE VIEW
    ================================================================ */
-async function showCompareView(user) {
+async function showCompareView(user)
+{
   S.compareType = 'anime';
   S.compareTab  = 'both';
   const main = $('#main-content');
   main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
-  try {
+  try
+  {
     S.compareData = await API.users.compare(user.id, 'anime');
     main.innerHTML = renderCompareView();
     bindCompareView();
-  } catch (e) {
-    main.innerHTML = renderEmptyState('⚠️', 'Fehler beim Laden', esc(e.message),
-      `<button class="btn btn-primary" onclick="showUserList(S.viewingUser)">Zurück</button>`);
+  }
+  catch (e)
+  {
+    main.innerHTML = renderEmptyState(
+      '⚠️', 'Fehler beim Laden', esc(e.message),
+      `<button class="btn btn-primary" onclick="showUserList(S.viewingUser)">Zurück</button>`
+    );
   }
 }
 
-function renderCompareView() {
+function renderCompareView()
+{
   const u    = S.viewingUser;
   const me   = S.user;
   const d    = S.compareData || { both: [], onlyMe: [], onlyThem: [] };
@@ -2054,30 +2763,46 @@ function renderCompareView() {
     <div id="compare-content">${renderCompareContent()}</div>`;
 }
 
-function renderCompareContent() {
+function renderCompareContent()
+{
   const d    = S.compareData || { both: [], onlyMe: [], onlyThem: [] };
   const tab  = S.compareTab;
   const type = S.compareType;
   const u    = S.viewingUser;
   const me   = S.user;
 
-  if (tab === 'both') {
-    if (!d.both.length) return renderEmptyState('🤝', 'Noch nichts gemeinsam',
-      `Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.`);
-    return `<div class="compare-list">${d.both.map(item => renderCompareCard(item, type, me.username, u.username)).join('')}</div>`;
+  if (tab === 'both')
+  {
+    if (!d.both.length)
+    {
+      return renderEmptyState('🤝', 'Noch nichts gemeinsam',
+        `Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.`);
+    }
+    const cards = d.both.map(item =>
+      renderCompareCard(item, type, me.username, u.username)
+    ).join('');
+    return `<div class="compare-list">${cards}</div>`;
   }
-  if (tab === 'onlyMe') {
-    if (!d.onlyMe.length) return renderEmptyState('📋', 'Nichts exklusiv bei dir',
-      `Alles was du hast, hat ${esc(u.username)} auch.`);
+  if (tab === 'onlyMe')
+  {
+    if (!d.onlyMe.length)
+    {
+      return renderEmptyState('📋', 'Nichts exklusiv bei dir',
+        `Alles was du hast, hat ${esc(u.username)} auch.`);
+    }
     return `<div class="compare-list">${d.onlyMe.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
   }
-  // onlyThem
-  if (!d.onlyThem.length) return renderEmptyState('📋', `Nichts exklusiv bei ${esc(u.username)}`,
-    `Alles was ${esc(u.username)} hat, hast du auch.`);
+  if (!d.onlyThem.length)
+  {
+    return renderEmptyState('📋',
+      `Nichts exklusiv bei ${esc(u.username)}`,
+      `Alles was ${esc(u.username)} hat, hast du auch.`);
+  }
   return `<div class="compare-list">${d.onlyThem.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
 }
 
-function renderCompareCard(item, type, myName, theirName) {
+function renderCompareCard(item, type, myName, theirName)
+{
   const { media, me, them } = item;
   const total   = type === 'anime' ? media.episodes : media.chapters;
   const myProg  = type === 'anime' ? me.episode  : me.chapter;
@@ -2093,7 +2818,10 @@ function renderCompareCard(item, type, myName, theirName) {
       <span class="status-badge ${STATUS_CSS[status]||'status-default'}">${STATUS_LABELS[status]||status}</span>
       <div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>
       ${score ? `<div class="compare-side-score">${IC.star} ${score}.0</div>` : ''}
-      ${total ? `<div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+      ${total
+        ? `<div class="progress-bar" style="margin-top:4px">` +
+          `<div class="progress-fill" style="width:${pct}%"></div></div>`
+        : ''}
     </div>`;
 
   return `
@@ -2110,7 +2838,8 @@ function renderCompareCard(item, type, myName, theirName) {
     </div>`;
 }
 
-function renderCompareSimpleCard(e, type) {
+function renderCompareSimpleCard(e, type)
+{
   const total = type === 'anime' ? e.episodes : e.chapters;
   const prog  = type === 'anime' ? e.current_episode : e.current_chapter;
   const pct   = total ? Math.round((prog / total) * 100) : 0;
@@ -2121,50 +2850,69 @@ function renderCompareSimpleCard(e, type) {
         <div class="compare-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="compare-sides" style="justify-content:flex-start;gap:0">
           <div class="compare-side" style="flex:unset;min-width:0">
-            <span class="status-badge ${STATUS_CSS[e.list_status]||'status-default'}">${STATUS_LABELS[e.list_status]||e.list_status}</span>
+            <span class="status-badge ${STATUS_CSS[e.list_status]||'status-default'}">
+              ${STATUS_LABELS[e.list_status]||e.list_status}
+            </span>
             <div class="compare-side-prog">${type==='anime'?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>
             ${e.user_score ? `<div class="compare-side-score">${IC.star} ${e.user_score}.0</div>` : ''}
-            ${total ? `<div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+            ${total
+        ? `<div class="progress-bar" style="margin-top:4px">` +
+          `<div class="progress-fill" style="width:${pct}%"></div></div>`
+        : ''}
           </div>
         </div>
       </div>
     </div>`;
 }
 
-function bindCompareView() {
-  $('#btn-back-compare')?.addEventListener('click', () => {
+function bindCompareView()
+{
+  $('#btn-back-compare')?.addEventListener('click', () =>
+  {
     const main = $('#main-content');
     main.innerHTML = renderUserListView();
     bindUserListView();
   });
 
-  $$('.type-btn[data-ctype]').forEach(b => {
-    b.addEventListener('click', async () => {
+  $$('.type-btn[data-ctype]').forEach(b =>
+  {
+    b.addEventListener('click', async () =>
+    {
       S.compareType = b.dataset.ctype;
       S.compareTab  = 'both';
       const main = $('#main-content');
       main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
-      try {
-        S.compareData = await API.users.compare(S.viewingUser.id, S.compareType);
+      try
+      {
+        S.compareData = await API.users.compare(
+          S.viewingUser.id, S.compareType
+        );
         main.innerHTML = renderCompareView();
         bindCompareView();
-      } catch (e) { toast(e.message, 'error'); }
+      }
+      catch (e)
+      {
+        toast(e.message, 'error');
+      }
     });
   });
 
-  bindStatusTabs('.status-tab[data-ctab]', 'ctab', v => {
-    S.compareTab = v; $('#compare-content').innerHTML = renderCompareContent();
+  bindStatusTabs('.status-tab[data-ctab]', 'ctab', v =>
+  {
+    S.compareTab = v;
+    $('#compare-content').innerHTML = renderCompareContent();
   });
 }
 
-function showUserInfoModal(entry) {
+function showUserInfoModal(entry)
+{
   const isAnime = entry.type === 'anime';
   const synopsis = entry.synopsis || '';
 
   const html = `
     <div class="modal-head">
       <h2>${esc(entry.title)}</h2>
-      <button class="btn-modal-close" id="modal-close">${IC.x}</button>
+      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
       <div class="media-detail-hero">
@@ -2182,7 +2930,10 @@ function showUserInfoModal(entry) {
       </div>
 
       <div class="media-meta">
-        ${entry.api_score?`<div class="meta-chip">${IC.star}<span style="color:var(--star)">${Number(entry.api_score).toFixed(1)}</span> MAL</div>`:''}
+        ${entry.api_score
+          ? `<div class="meta-chip">${IC.star}` +
+            `<span style="color:var(--star)">${Number(entry.api_score).toFixed(1)}</span> MAL</div>`
+          : ''}
         ${isAnime&&entry.episodes?`<div class="meta-chip">${IC.play} ${entry.episodes} Folgen</div>`:''}
         ${!isAnime&&entry.chapters?`<div class="meta-chip">${IC.book} ${entry.chapters} Kapitel</div>`:''}
         ${!isAnime&&entry.volumes?`<div class="meta-chip">📦 ${entry.volumes} Bände</div>`:''}
@@ -2206,22 +2957,33 @@ function showUserInfoModal(entry) {
       </h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
         <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
-        ${entry.user_score?starsHtml(entry.user_score):'<span style="color:var(--text3);font-size:.8rem">Keine Bewertung</span>'}
+        ${entry.user_score != null
+          ? starsHtml(entry.user_score)
+          : '<span style="color:var(--text3);font-size:.8rem">Keine Bewertung</span>'}
       </div>
       <div style="color:var(--text2);font-size:.88rem;margin-bottom:6px">${progressText(entry)}</div>
-      ${entry.notes?`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;font-size:.85rem;color:var(--text2);margin-top:10px;white-space:pre-wrap">${esc(entry.notes)}</div>`:''}
+      ${entry.notes
+        ? `<div style="background:var(--bg3);border:1px solid var(--border);` +
+          `border-radius:var(--r-sm);padding:10px 13px;font-size:.85rem;` +
+          `color:var(--text2);margin-top:10px;white-space:pre-wrap">` +
+          `${esc(entry.notes)}</div>`
+        : ''}
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" id="modal-cancel">Schließen</button>
     </div>`;
 
-  openModal(html, () => {
+  openModal(html, () =>
+  {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
-    $('#btn-expand')?.addEventListener('click', () => {
+    $('#btn-expand')?.addEventListener('click', () =>
+    {
       const st = $('#syn-text');
       const exp = st.classList.toggle('expanded');
-      $('#btn-expand').textContent = exp ? 'Weniger anzeigen' : 'Mehr anzeigen';
+      $('#btn-expand').textContent = exp
+        ? 'Weniger anzeigen'
+        : 'Mehr anzeigen';
     });
   });
 }
@@ -2229,55 +2991,76 @@ function showUserInfoModal(entry) {
 /* ================================================================
    APP INIT & BOOT
    ================================================================ */
-function initApp() {
+function initApp()
+{
   const app = document.getElementById('app');
   app.innerHTML = renderShell();
 
-  // Global event delegation
-  document.addEventListener('click', e => {
-    // Nav buttons
+  document.addEventListener('click', e =>
+  {
     const navBtn = e.target.closest('[data-nav]');
-    if (navBtn && !navBtn.closest('.modal-overlay')) {
-      navigate(navBtn.dataset.nav); return;
+    if (navBtn && !navBtn.closest('.modal-overlay'))
+    {
+      navigate(navBtn.dataset.nav);
+      return;
     }
-    // Logout
-    if (e.target.closest('#btn-logout') || e.target.closest('#btn-logout-profile')) {
-      logout(); return;
+    if (e.target.closest('#btn-logout')
+      || e.target.closest('#btn-logout-profile'))
+    {
+      logout();
+      return;
     }
-    // Mobile sidebar toggle
-    if (e.target.closest('#btn-menu')) {
+    if (e.target.closest('#btn-menu'))
+    {
       $('#sidebar')?.classList.toggle('open');
-      $('#sidebar-overlay')?.classList.toggle('open'); return;
+      $('#sidebar-overlay')?.classList.toggle('open');
+      return;
     }
-    // Close sidebar on overlay click
-    if (e.target.id === 'sidebar-overlay') {
-      closeSidebar(); return;
+    if (e.target.id === 'sidebar-overlay')
+    {
+      closeSidebar();
+      return;
     }
   });
 
   navigate('home');
 }
 
-function logout() {
+function logout()
+{
   localStorage.removeItem('aniga_token');
-  S.token = null; S.user = null;
-  S.animeList = []; S.mangaList = []; S.stats = null;
-  S.topAnime = []; S.topManga = []; S.seasonal = [];
-  S.allUsers = []; S.following = []; S.viewingUser = null; S.adminUsers = [];
-  S.viewingUserList = []; S.userListFilter = '';
+  S.token = null;
+  S.user = null;
+  S.animeList = [];
+  S.mangaList = [];
+  S.stats = null;
+  S.topAnime = [];
+  S.topManga = [];
+  S.seasonal = [];
+  S.allUsers = [];
+  S.following = [];
+  S.viewingUser = null;
+  S.adminUsers = [];
+  S.viewingUserList = [];
+  S.userListFilter = '';
   bindAuth();
 }
 
-async function boot() {
-  // PWA service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+async function boot()
+{
+  if ('serviceWorker' in navigator)
+  {
+    navigator.serviceWorker.register('/sw.js').catch(() =>
+    {
+      // Registration failed silently
+    });
   }
 
-  // PWA install prompt
   let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault(); deferredPrompt = e;
+  window.addEventListener('beforeinstallprompt', e =>
+  {
+    e.preventDefault();
+    deferredPrompt = e;
     const banner = document.createElement('div');
     banner.className = 'install-banner';
     banner.innerHTML = `<span style="font-size:1.4rem">🌸</span>
@@ -2285,26 +3068,36 @@ async function boot() {
       <button class="btn btn-primary btn-sm" id="btn-pwa-install">Installieren</button>
       <button class="btn btn-icon" id="btn-pwa-dismiss">${IC.x}</button>`;
     document.body.appendChild(banner);
-    banner.querySelector('#btn-pwa-install')?.addEventListener('click', async () => {
+    banner.querySelector('#btn-pwa-install')?.addEventListener('click', async () =>
+    {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') toast('App installiert! 🎉', 'success');
+      if (outcome === 'accepted')
+      {
+        toast('App installiert! 🎉', 'success');
+      }
       banner.remove();
     });
-    banner.querySelector('#btn-pwa-dismiss')?.addEventListener('click', () => banner.remove());
+    banner.querySelector('#btn-pwa-dismiss')?.addEventListener('click',
+      () => banner.remove());
   });
 
-  // Auth check
-  if (S.token) {
-    try {
+  if (S.token)
+  {
+    try
+    {
       S.user = await API.auth.me();
       initApp();
-    } catch {
+    }
+    catch
+    {
       localStorage.removeItem('aniga_token');
       S.token = null;
       bindAuth();
     }
-  } else {
+  }
+  else
+  {
     bindAuth();
   }
 }

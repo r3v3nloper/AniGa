@@ -2,15 +2,14 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const adminMiddleware = require('../middleware/admin');
+const { ANIME_COUNT_COL, MANGA_COUNT_COL, parseIntParam } = require('../utils/sql');
 
 const router = express.Router();
 router.use(adminMiddleware);
 
-const ANIME_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'anime') AS animeCount`;
-const MANGA_COUNT_COL = `(SELECT COUNT(*) FROM user_list ul JOIN media_entries me ON ul.media_id = me.id WHERE ul.user_id = u.id AND me.type = 'manga') AS mangaCount`;
-
-/* ── GET /api/admin/users ─────────────────────────────────── */
-router.get('/users', (req, res) => {
+/* ── GET /api/admin/users ────────── */
+router.get('/users', (req, res) =>
+{
   const users = db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at,
       ${ANIME_COUNT_COL},
@@ -22,26 +21,53 @@ router.get('/users', (req, res) => {
   res.json(users);
 });
 
-/* ── DELETE /api/admin/users/:id ──────────────────────────── */
-router.delete('/users/:id', (req, res) => {
-  const targetId = +req.params.id;
+/* ── DELETE /api/admin/users/:id ──── */
+router.delete('/users/:id', (req, res) =>
+{
+  const targetId = parseIntParam(req.params.id);
+  if (targetId === null)
+  {
+    return res.status(400).json({ error: 'Ungültige ID' });
+  }
+  if (targetId === req.userId)
+  {
+    return res.status(400).json({ error: 'Eigenes Konto kann nicht gelöscht werden' });
+  }
+
   const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetId);
-  if (!target) return res.status(404).json({ error: 'Nutzer nicht gefunden' });
-  if (target.is_admin) return res.status(403).json({ error: 'Admin kann nicht gelöscht werden' });
+  if (!target)
+  {
+    return res.status(404).json({ error: 'Nutzer nicht gefunden' });
+  }
+  if (target.is_admin)
+  {
+    return res.status(403).json({ error: 'Admin kann nicht gelöscht werden' });
+  }
 
   db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
   res.json({ success: true });
 });
 
-/* ── PUT /api/admin/users/:id/password ────────────────────── */
-router.put('/users/:id/password', async (req, res) => {
-  const targetId = +req.params.id;
-  const { password } = req.body;
-  if (!password || password.length < 6)
-    return res.status(400).json({ error: 'Passwort muss mindestens 6 Zeichen haben' });
+/* ── PUT /api/admin/users/:id/pw ──── */
+router.put('/users/:id/password', async (req, res) =>
+{
+  const targetId = parseIntParam(req.params.id);
+  if (targetId === null)
+  {
+    return res.status(400).json({ error: 'Ungültige ID' });
+  }
 
-  const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetId);
-  if (!target) return res.status(404).json({ error: 'Nutzer nicht gefunden' });
+  const { password } = req.body;
+  if (!password || typeof password !== 'string' || password.length < 6 || password.length > 1000)
+  {
+    return res.status(400).json({ error: 'Passwort muss zwischen 6 und 1000 Zeichen haben' });
+  }
+
+  const target = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+  if (!target)
+  {
+    return res.status(404).json({ error: 'Nutzer nicht gefunden' });
+  }
 
   const hash = await bcrypt.hash(password, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, targetId);

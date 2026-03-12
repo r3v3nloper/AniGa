@@ -54,7 +54,7 @@ db.exec(`
     completed_at TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (media_id) REFERENCES media_entries(id),
+    FOREIGN KEY (media_id) REFERENCES media_entries(id) ON DELETE CASCADE,
     UNIQUE(user_id, media_id)
   );
 
@@ -67,18 +67,35 @@ db.exec(`
     FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(follower_id, following_id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_user_list_user_id ON user_list(user_id);
+  CREATE INDEX IF NOT EXISTS idx_user_list_media_id ON user_list(media_id);
+  CREATE INDEX IF NOT EXISTS idx_media_entries_mal_id ON media_entries(mal_id);
+  CREATE INDEX IF NOT EXISTS idx_media_entries_type ON media_entries(type);
+  CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
+  CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
 `);
 
 // Migrate: add is_admin column for existing databases
-try { db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0'); } catch {}
+try
+{
+  db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
+}
+catch
+{
+  // Column already exists
+}
 
 // Seed admin user if not exists
-const adminExists = db.prepare("SELECT id FROM users WHERE email = 'main@tech.de'").get();
-if (!adminExists) {
-  const hash = bcrypt.hashSync('IchBinEinAdmin!', 10);
+const adminEmail = process.env.ADMIN_EMAIL || 'admin@aniga.local';
+const adminPassword = process.env.ADMIN_PASSWORD;
+const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+if (!adminExists && adminPassword)
+{
+  const hash = bcrypt.hashSync(adminPassword, 10);
   db.prepare('INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, 1)')
-    .run('admin', 'main@tech.de', hash);
-  console.log('✅ Admin-Benutzer angelegt (main@tech.de)');
+    .run('admin', adminEmail, hash);
+  console.log(`Admin-Benutzer angelegt (${adminEmail})`);
 }
 
 module.exports = db;

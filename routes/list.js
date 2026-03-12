@@ -6,7 +6,8 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // Get user's list
-router.get('/', (req, res) => {
+router.get('/', (req, res) =>
+{
   const { type, status } = req.query;
   let query = `
     SELECT ul.id, ul.list_status, ul.current_episode, ul.current_chapter, ul.current_page,
@@ -20,19 +21,39 @@ router.get('/', (req, res) => {
     WHERE ul.user_id = ?
   `;
   const params = [req.userId];
-  if (type) { query += ' AND me.type = ?'; params.push(type); }
-  if (status) { query += ' AND ul.list_status = ?'; params.push(status); }
+  if (type)
+  {
+    query += ' AND me.type = ?';
+    params.push(type);
+  }
+  if (status)
+  {
+    query += ' AND ul.list_status = ?';
+    params.push(status);
+  }
   query += ' ORDER BY ul.updated_at DESC';
 
   const entries = db.prepare(query).all(...params);
-  entries.forEach(e => {
-    if (e.genres) { try { e.genres = JSON.parse(e.genres); } catch { e.genres = []; } }
+  entries.forEach(e =>
+  {
+    if (e.genres)
+    {
+      try
+      {
+        e.genres = JSON.parse(e.genres);
+      }
+      catch
+      {
+        e.genres = [];
+      }
+    }
   });
   res.json(entries);
 });
 
 // Get stats
-router.get('/stats', (req, res) => {
+router.get('/stats', (req, res) =>
+{
   const stats = {
     anime: { watching: 0, completed: 0, on_hold: 0, dropped: 0, plan_to_watch: 0, total: 0, total_episodes: 0 },
     manga: { reading: 0, completed: 0, on_hold: 0, dropped: 0, plan_to_read: 0, total: 0, total_chapters: 0 }
@@ -44,8 +65,12 @@ router.get('/stats', (req, res) => {
     WHERE ul.user_id = ? AND me.type = 'anime' GROUP BY ul.list_status
   `).all(req.userId);
 
-  animeRows.forEach(r => {
-    if (r.list_status in stats.anime) stats.anime[r.list_status] = r.cnt;
+  animeRows.forEach(r =>
+  {
+    if (r.list_status in stats.anime)
+    {
+      stats.anime[r.list_status] = r.cnt;
+    }
     stats.anime.total += r.cnt;
     stats.anime.total_episodes += r.ep_sum;
   });
@@ -56,8 +81,12 @@ router.get('/stats', (req, res) => {
     WHERE ul.user_id = ? AND me.type = 'manga' GROUP BY ul.list_status
   `).all(req.userId);
 
-  mangaRows.forEach(r => {
-    if (r.list_status in stats.manga) stats.manga[r.list_status] = r.cnt;
+  mangaRows.forEach(r =>
+  {
+    if (r.list_status in stats.manga)
+    {
+      stats.manga[r.list_status] = r.cnt;
+    }
     stats.manga.total += r.cnt;
     stats.manga.total_chapters += r.ch_sum;
   });
@@ -66,9 +95,14 @@ router.get('/stats', (req, res) => {
 });
 
 // Check if media is in user's list
-router.get('/check', (req, res) => {
-  const { malId, type } = req.query;
-  if (!malId || !type) return res.json(null);
+router.get('/check', (req, res) =>
+{
+  const malId = parseInt(req.query.malId);
+  const type = req.query.type;
+  if (!Number.isInteger(malId) || !['anime', 'manga'].includes(type))
+  {
+    return res.json(null);
+  }
   const entry = db.prepare(`
     SELECT ul.* FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
@@ -78,16 +112,25 @@ router.get('/check', (req, res) => {
 });
 
 // Add or update entry
-router.post('/', (req, res) => {
-  const { mediaData, listStatus, currentEpisode, currentChapter, currentPage, userScore, notes, startedAt, completedAt } = req.body;
-  if (!mediaData || !mediaData.type)
+router.post('/', (req, res) =>
+{
+  const {
+    mediaData, listStatus, currentEpisode, currentChapter,
+    currentPage, userScore, notes, startedAt, completedAt
+  } = req.body;
+  if (!mediaData || !['anime', 'manga'].includes(mediaData.type))
+  {
     return res.status(400).json({ error: 'Mediendaten erforderlich' });
+  }
 
-  try {
-    const mediaId = db.transaction(() => {
+  try
+  {
+    const mediaId = db.transaction(() =>
+    {
       let mid;
 
-      if (mediaData.is_manual) {
+      if (mediaData.is_manual)
+      {
         const result = db.prepare(`
           INSERT INTO media_entries (source, type, title, title_english, image_url, synopsis,
             media_status, episodes, chapters, volumes, genres, year, is_manual)
@@ -100,10 +143,13 @@ router.post('/', (req, res) => {
           JSON.stringify(mediaData.genres || []), mediaData.year || null
         );
         mid = result.lastInsertRowid;
-      } else {
+      }
+      else
+      {
         const existing = db.prepare('SELECT id FROM media_entries WHERE mal_id = ? AND type = ?')
           .get(mediaData.mal_id, mediaData.type);
-        if (existing) {
+        if (existing)
+        {
           mid = existing.id;
           // Update API data in case it changed
           db.prepare(`
@@ -118,7 +164,9 @@ router.post('/', (req, res) => {
             mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
             mediaData.year || null, mediaData.season || null, mid
           );
-        } else {
+        }
+        else
+        {
           const result = db.prepare(`
             INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
               image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
@@ -160,16 +208,29 @@ router.post('/', (req, res) => {
     })();
 
     res.json({ success: true, mediaId });
-  } catch (err) {
+  }
+  catch (err)
+  {
     console.error(err);
     res.status(500).json({ error: 'Fehler beim Speichern' });
   }
 });
 
 // Update entry by id
-router.put('/:id', (req, res) => {
-  const { listStatus, currentEpisode, currentChapter, currentPage, userScore, notes, startedAt, completedAt } = req.body;
-  try {
+router.put('/:id', (req, res) =>
+{
+  const id = parseInt(req.params.id);
+  if (!Number.isInteger(id))
+  {
+    return res.status(400).json({ error: 'Ungültige ID' });
+  }
+
+  const {
+    listStatus, currentEpisode, currentChapter,
+    currentPage, userScore, notes, startedAt, completedAt
+  } = req.body;
+  try
+  {
     const result = db.prepare(`
       UPDATE user_list SET
         list_status = COALESCE(?, list_status),
@@ -184,22 +245,35 @@ router.put('/:id', (req, res) => {
       WHERE id = ? AND user_id = ?
     `).run(listStatus, currentEpisode, currentChapter, currentPage,
       userScore !== undefined ? userScore : null,
-      notes, startedAt, completedAt, req.params.id, req.userId);
+      notes, startedAt, completedAt, id, req.userId);
 
     if (result.changes === 0)
+    {
       return res.status(404).json({ error: 'Eintrag nicht gefunden' });
+    }
     res.json({ success: true });
-  } catch {
+  }
+  catch
+  {
     res.status(500).json({ error: 'Fehler beim Aktualisieren' });
   }
 });
 
 // Delete entry
-router.delete('/:id', (req, res) => {
+router.delete('/:id', (req, res) =>
+{
+  const id = parseInt(req.params.id);
+  if (!Number.isInteger(id))
+  {
+    return res.status(400).json({ error: 'Ungültige ID' });
+  }
+
   const result = db.prepare('DELETE FROM user_list WHERE id = ? AND user_id = ?')
-    .run(req.params.id, req.userId);
+    .run(id, req.userId);
   if (result.changes === 0)
+  {
     return res.status(404).json({ error: 'Eintrag nicht gefunden' });
+  }
   res.json({ success: true });
 });
 

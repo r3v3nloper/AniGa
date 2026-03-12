@@ -13,7 +13,7 @@ const recommendRoutes = require('./routes/recommendations');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({ origin: process.env.CORS_ORIGIN || `http://localhost:${PORT}` }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -25,10 +25,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/recommendations', recommendRoutes);
 
 // SPA fallback
-app.get('*', (req, res) => {
+app.get('*', (req, res) =>
+{
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, () =>
+{
   console.log(`\n🌸 AniGa läuft auf http://localhost:${PORT}\n`);
 });

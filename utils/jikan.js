@@ -1,14 +1,38 @@
-/* Shared Jikan API helper – single rate-limiter for all routes */
+/* Shared Jikan API helper – sequential queue-based rate limiter */
 const JIKAN = 'https://api.jikan.moe/v4';
-let lastReq = 0;
+const MIN_INTERVAL = 450;
+const TIMEOUT_MS = 8000;
 
-async function jFetch(url) {
-  const wait = 450 - (Date.now() - lastReq);
-  if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  lastReq = Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Jikan ${res.status}`);
-  return res.json();
+let pending = Promise.resolve();
+
+async function jFetch(url)
+{
+  const execute = async () =>
+  {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try
+    {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok)
+      {
+        throw new Error(`Jikan ${res.status}`);
+      }
+      return res.json();
+    }
+    finally
+    {
+      clearTimeout(timer);
+    }
+  };
+
+  // Chain onto pending to serialize all Jikan requests with rate-limit spacing
+  pending = pending
+    .catch(() => {})
+    .then(() => new Promise(r => setTimeout(r, MIN_INTERVAL)))
+    .then(execute);
+
+  return pending;
 }
 
 module.exports = { jFetch, JIKAN };
