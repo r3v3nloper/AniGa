@@ -144,7 +144,9 @@ docker run -d \
   aniga
 ```
 
-> **Wichtig:** `-e DATA_DIR=/data` muss gesetzt sein, damit die Datenbank im Volume-Verzeichnis liegt und bei Neustarts erhalten bleibt.
+> **Wichtig:**
+> - `-e JWT_SECRET=...` ist **Pflicht** — ohne diese Variable startet der Server nicht (Exit mit Fehler).
+> - `-e DATA_DIR=/data` muss gesetzt sein, damit die Datenbank im Volume-Verzeichnis liegt und bei Neustarts erhalten bleibt.
 
 ### Update (Synology / NAS)
 
@@ -179,16 +181,21 @@ docker pull ghcr.io/DEIN-USERNAME/aniga:latest
 
 ## Umgebungsvariablen
 
-| Variable | Standard | Beschreibung |
-|---|---|---|
-| `PORT` | `3000` | Port des HTTP-Servers |
-| `JWT_SECRET` | `aniga-secret-key` | Geheimer Schlüssel für JWT — **in Produktion unbedingt ändern!** |
-| `DATA_DIR` | `__dirname` (Projektordner) | Verzeichnis für die SQLite-Datei — bei Docker auf `/data` setzen |
+| Variable | Pflicht | Standard | Beschreibung |
+|---|---|---|---|
+| `JWT_SECRET` | **Ja** | — | Geheimer Schlüssel für JWT. **Ohne diese Variable startet der Server nicht!** |
+| `PORT` | Nein | `3000` | Port des HTTP-Servers |
+| `DATA_DIR` | Nein | `__dirname` (Projektordner) | Verzeichnis für die SQLite-Datei — bei Docker auf `/data` setzen |
+| `ADMIN_EMAIL` | Nein | `admin@aniga.local` | E-Mail des Admin-Kontos (nur beim ersten Start relevant) |
+| `ADMIN_PASSWORD` | Nein | — | Passwort des Admin-Kontos. Wird nur gesetzt, wenn noch kein Admin existiert |
+| `CORS_ORIGIN` | Nein | `http://localhost:PORT` | Erlaubte Origin für CORS-Anfragen |
 
 `.env.example`:
 ```env
 PORT=3000
 JWT_SECRET=your-super-secret-key-change-this
+ADMIN_EMAIL=admin@aniga.local
+ADMIN_PASSWORD=MeinSicheresPasswort123
 ```
 
 ---
@@ -350,14 +357,16 @@ Verknüpft Nutzer mit Medien.
 
 ## Standard-Admin
 
-Beim ersten Start wird automatisch ein Admin-Konto angelegt:
+Beim ersten Start wird ein Admin-Konto angelegt, sofern `ADMIN_PASSWORD` gesetzt ist:
 
-| Feld | Wert |
-|---|---|
-| E-Mail | `main@tech.de` |
-| Passwort | `IchBinEinAdmin!` |
+```bash
+# Beispiel: Admin beim ersten Start anlegen
+-e ADMIN_EMAIL=admin@aniga.local \
+-e ADMIN_PASSWORD=MeinSicheresPasswort123
+```
 
-> ⚠️ **Das Passwort nach dem ersten Login im Admin-Panel oder unter Profil ändern!**
+> ⚠️ **Ohne `ADMIN_PASSWORD` wird kein Admin-Konto angelegt.**
+> Die Variablen werden nur ausgewertet, wenn noch kein Nutzer mit der angegebenen E-Mail existiert.
 
 ---
 

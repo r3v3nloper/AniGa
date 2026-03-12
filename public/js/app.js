@@ -1516,7 +1516,7 @@ function showProfileEditModal()
         emailEl.textContent = user.email || '';
       }
       navigate('profile');
-      showToast('Profil gespeichert');
+      toast('Profil gespeichert', 'success');
     }
     catch (err)
     {
