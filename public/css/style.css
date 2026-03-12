@@ -2,6 +2,12 @@
    AniGa – Anime & Manga Tracker  |  style.css
    ===================================================== */
 
+/* ===== GLOBAL ===== */
+*
+{
+  touch-action: manipulation;
+}
+
 /* ===== VARIABLES ===== */
 :root
 {
