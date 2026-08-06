@@ -709,6 +709,118 @@ select.form-input
   width: 11px; height: 11px;
 }
 
+/* Collections */
+.collection-chips
+{
+  display: flex; flex-wrap: wrap; gap: 7px;
+}
+.collection-chip
+{
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 5px 12px; border-radius: 20px;
+  font-size: .8rem; font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.collection-chip:hover
+{
+  border-color: var(--accent);
+}
+.collection-chip.on
+{
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.collection-chip.chip-new
+{
+  border-style: dashed;
+  color: var(--text3);
+}
+
+.collection-grid
+{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.collection-card
+{
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform .15s, border-color .15s;
+}
+.collection-card:hover
+{
+  transform: translateY(-3px);
+  border-color: var(--accent);
+}
+.collection-mosaic
+{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 70px 70px;
+  gap: 2px;
+}
+.collection-mosaic img
+{
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.collection-mosaic-empty
+{
+  background: var(--bg3);
+}
+.collection-card-body
+{
+  padding: 10px 12px;
+}
+.collection-card-name
+{
+  font-weight: 700; font-size: .9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.collection-card-count
+{
+  color: var(--text3); font-size: .75rem; margin-top: 2px;
+}
+
+.collection-select
+{
+  width: auto; max-width: 200px;
+  flex-shrink: 0;
+}
+
+.collection-item-wrap
+{
+  position: relative;
+}
+.btn-remove-from-collection
+{
+  position: absolute; top: -6px; right: -6px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 3;
+  transition: all .15s;
+}
+.btn-remove-from-collection:hover
+{
+  background: #ef5350;
+  border-color: #ef5350;
+  color: #fff;
+}
+.btn-remove-from-collection svg
+{
+  width: 12px; height: 12px;
+}
+
 /* Toggle switch */
 .toggle-switch
 {

@@ -1,4 +1,4 @@
-const CACHE = 'aniga-v9';
+const CACHE = 'aniga-v10';
 const STATIC = [
   '/',
   '/index.html',
@@ -20,6 +20,7 @@ const STATIC = [
   '/js/views/admin.js',
   '/js/views/users.js',
   '/js/views/compare.js',
+  '/js/views/collections.js',
   '/js/modals/track.js',
   '/js/modals/manual.js',
   '/manifest.json',

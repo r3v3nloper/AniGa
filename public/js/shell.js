@@ -16,6 +16,7 @@ export function renderShell()
     { id:'search',  icon:IC.search, label:'Suche' },
     { id:'anime',   icon:IC.tv,     label:'Anime-Liste' },
     { id:'manga',   icon:IC.book,   label:'Manga-Liste' },
+    { id:'collections', icon:IC.folder, label:'Collections' },
     { id:'users',   icon:IC.users,  label:'Nutzer' },
     { id:'profile', icon:IC.user,   label:'Profil' },
     ...(S.user?.is_admin ? [{ id:'admin', icon:IC.shield, label:'Admin', admin:true }] : []),

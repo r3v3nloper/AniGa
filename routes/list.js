@@ -36,8 +36,27 @@ router.get('/', (req, res) =>
   query += ' ORDER BY ul.updated_at DESC';
 
   const entries = db.prepare(query).all(...params);
+
+  // Collection-Zugehörigkeiten in einem Rutsch anhängen (für Chips & Filter im Frontend)
+  const memberships = db.prepare(`
+    SELECT ci.list_entry_id, c.id, c.name, c.emoji
+    FROM collection_items ci
+    JOIN collections c ON c.id = ci.collection_id
+    WHERE c.user_id = ?
+  `).all(req.userId);
+  const byEntry = new Map();
+  memberships.forEach(m =>
+  {
+    if (!byEntry.has(m.list_entry_id))
+    {
+      byEntry.set(m.list_entry_id, []);
+    }
+    byEntry.get(m.list_entry_id).push({ id: m.id, name: m.name, emoji: m.emoji });
+  });
+
   entries.forEach(e =>
   {
+    e.collections = byEntry.get(e.id) || [];
     if (e.genres)
     {
       try
@@ -110,6 +129,15 @@ router.get('/check', (req, res) =>
     JOIN media_entries me ON ul.media_id = me.id
     WHERE ul.user_id = ? AND me.mal_id = ? AND me.type = ?
   `).get(req.userId, malId, type);
+  if (entry)
+  {
+    entry.collections = db.prepare(`
+      SELECT c.id, c.name, c.emoji
+      FROM collection_items ci
+      JOIN collections c ON c.id = ci.collection_id
+      WHERE ci.list_entry_id = ?
+    `).all(entry.id);
+  }
   res.json(entry || null);
 });
 
@@ -128,7 +156,7 @@ router.post('/', (req, res) =>
 
   try
   {
-    const mediaId = db.transaction(() =>
+    const { mediaId, entryId } = db.transaction(() =>
     {
       const mid = upsertMedia(mediaData);
 
@@ -155,10 +183,12 @@ router.post('/', (req, res) =>
         owned ? 1 : 0, ownedVolumes || 0
       );
 
-      return mid;
+      const ul = db.prepare('SELECT id FROM user_list WHERE user_id = ? AND media_id = ?')
+        .get(req.userId, mid);
+      return { mediaId: mid, entryId: ul.id };
     })();
 
-    res.json({ success: true, mediaId });
+    res.json({ success: true, mediaId, entryId });
   }
   catch (err)
   {

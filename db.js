@@ -59,6 +59,26 @@ db.exec(`
     UNIQUE(user_id, media_id)
   );
 
+  CREATE TABLE IF NOT EXISTS collections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    emoji TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, name)
+  );
+
+  CREATE TABLE IF NOT EXISTS collection_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL,
+    list_entry_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+    FOREIGN KEY (list_entry_id) REFERENCES user_list(id) ON DELETE CASCADE,
+    UNIQUE(collection_id, list_entry_id)
+  );
+
   CREATE TABLE IF NOT EXISTS user_follows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     follower_id INTEGER NOT NULL,
@@ -75,6 +95,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_media_entries_type ON media_entries(type);
   CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
   CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+  CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id);
+  CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id);
+  CREATE INDEX IF NOT EXISTS idx_collection_items_entry ON collection_items(list_entry_id);
 `);
 
 // Migrations for existing databases (no-op when the column already exists)

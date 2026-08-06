@@ -21,7 +21,8 @@
 | 📚 **Manga tracken** | Status, aktuelles Kapitel + Seite, Bewertung, Notizen |
 | 📦 **Physischer Besitz** | Pro Eintrag markieren, ob man ihn physisch besitzt; bei Manga inkl. Bände-Zähler (y / x); Badge auf den Karten |
 | 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback |
-| 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Grid- oder Listenansicht |
+| 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Collection-Filter, Grid- oder Listenansicht |
+| 📂 **Collections** | Eigene Sammlungen (z.B. „ReWatch") — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend (Anime + Manga gemischt); Zuordnung per Chips im Track-Modal |
 | ✏️ **Manueller Eintrag** | Eigene Einträge ohne MAL-Verknüpfung anlegen |
 
 ### Entdecken & Empfehlungen
@@ -251,7 +252,8 @@ aniga/
 │   │   │   ├── profile.js     # Profil + Bearbeiten-Modal
 │   │   │   ├── admin.js       # Admin-Panel
 │   │   │   ├── users.js       # Nutzerliste, Folgen, fremde Listen
-│   │   │   └── compare.js     # Listen-Vergleich
+│   │   │   ├── compare.js     # Listen-Vergleich
+│   │   │   └── collections.js # Collections: Übersicht + Detail
 │   │   └── modals/
 │   │       ├── track.js       # Tracking-Modal (Hinzufügen/Bearbeiten)
 │   │       └── manual.js      # Modal für manuelle Einträge
@@ -261,6 +263,7 @@ aniga/
 ├── routes/
 │   ├── admin.js               # /api/admin — Nutzerverwaltung
 │   ├── auth.js                # /api/auth — Register, Login, Profil
+│   ├── collections.js         # /api/collections — eigene Sammlungen
 │   ├── list.js                # /api/list — CRUD Nutzerliste + Stats
 │   ├── recommendations.js     # /api/recommendations — Genre-Empfehlungen
 │   ├── search.js              # /api/search — Jikan-Proxy mit AniList-Fallback
@@ -327,6 +330,17 @@ aniga/
 | `GET` | `/top/anime` | ✅ | Top-Anime nach Bewertung |
 | `GET` | `/top/manga` | ✅ | Top-Manga |
 | `GET` | `/seasonal` | ✅ | Anime der aktuellen Saison |
+
+### Collections (`/api/collections`)
+| Methode | Pfad | Auth | Beschreibung |
+|---|---|---|---|
+| `GET` | `/` | ✅ | Eigene Collections (mit Anzahl + Cover-Vorschau) |
+| `GET` | `/:id` | ✅ | Detail mit allen Items (typ-übergreifend) |
+| `POST` | `/` | ✅ | Collection anlegen (`{ name, emoji? }`) |
+| `PUT` | `/:id` | ✅ | Umbenennen |
+| `DELETE` | `/:id` | ✅ | Löschen (Items bleiben in der Liste) |
+| `POST` | `/:id/items` | ✅ | Eintrag hinzufügen (`{ listEntryId }`) |
+| `DELETE` | `/:id/items/:entryId` | ✅ | Eintrag entfernen |
 
 ### Nutzer (`/api/users`)
 | Methode | Pfad | Auth | Beschreibung |
@@ -405,6 +419,26 @@ Verknüpft Nutzer mit Medien.
 | `started_at` / `completed_at` / `updated_at` | DATETIME | |
 
 > **UNIQUE-Constraint:** `(user_id, media_id)`.
+
+### `collections`
+| Spalte | Typ | Beschreibung |
+|---|---|---|
+| `id` | INTEGER PK | |
+| `user_id` | INTEGER FK | → `users.id` (CASCADE) |
+| `name` | TEXT | z.B. „ReWatch" |
+| `emoji` | TEXT | Optionales Symbol |
+
+> **UNIQUE-Constraint:** `(user_id, name)`.
+
+### `collection_items`
+Verknüpft Collections mit Listen-Einträgen (Many-to-Many).
+
+| Spalte | Typ | Beschreibung |
+|---|---|---|
+| `collection_id` | INTEGER FK | → `collections.id` (CASCADE) |
+| `list_entry_id` | INTEGER FK | → `user_list.id` (CASCADE) |
+
+> **UNIQUE-Constraint:** `(collection_id, list_entry_id)`. Wird ein Listen-Eintrag gelöscht, verschwindet er automatisch aus allen Collections.
 
 ### `user_follows`
 | Spalte | Typ | Beschreibung |
@@ -487,6 +521,7 @@ CMD ["node", "server.js"]
 | 1.9 | Weitere Härtung & Refactoring: Search-Endpoints erfordern Login (kein offener API-Proxy mehr), Timing-Angleichung beim Login gegen E-Mail-Enumeration, Media-Upsert aus `routes/list.js` nach `utils/mediaStore.js` extrahiert, Migrations-Helper `addColumnIfMissing()` in `db.js` |
 | 2.0 | Frontend-Modularisierung: `app.js`-Monolith (3160 Zeilen) in 18 ES-Module aufgeteilt (`views/`, `modals/`, `state.js`, `router.js`, …) — kein Framework, natives `<script type="module">`; Inline-`onclick`-Handler entfernt (CSP-kompatibel) |
 | 2.0 | Testsuite: 30 Tests via eingebautem `node:test` (`npm test`, keine neue Dependency) — Unit-Tests für Jikan/AniList-Mapping, `withFallback`, Media-Upsert; Integrationstests für Auth (inkl. Token-Invalidierung), Listen-CRUD und Notes-Privacy; `server.js` in `app.js` (App) + `server.js` (listen) gesplittet für Testbarkeit |
+| 2.1 | Collections: eigene Sammlungen (z.B. „ReWatch") mit Many-to-Many-Zuordnung — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend; Chips im Track-Modal, eigener Nav-Punkt mit Cover-Mosaik, Collection-Filter in den Listen-Views, Schnell-Entfernen im Detail; `POST /list` liefert jetzt `entryId`; 8 neue Tests (38 gesamt) |
 
 ---
 

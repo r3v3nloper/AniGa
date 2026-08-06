@@ -13,12 +13,37 @@ import {
 import { showTrackModal } from '../modals/track.js';
 import { navigate } from '../router.js';
 
+function applyFilters(list, type)
+{
+  const curStatus = S.listStatus[type] || 'all';
+  const curFilter = S.listFilter[type] || '';
+  const curCollection = S.listCollection[type] || 'all';
+
+  let filtered = curStatus === 'all'
+    ? list
+    : list.filter(e => e.list_status === curStatus);
+  if (curFilter)
+  {
+    const q = curFilter.toLowerCase();
+    filtered = filtered.filter(e =>
+      e.title.toLowerCase().includes(q)
+      || (e.title_english||'').toLowerCase().includes(q));
+  }
+  if (curCollection !== 'all')
+  {
+    filtered = filtered.filter(e =>
+      (e.collections || []).some(c => c.id === +curCollection));
+  }
+  return filtered;
+}
+
 export function renderList(type)
 {
   const list = type === 'anime' ? S.animeList : S.mangaList;
   const curStatus = S.listStatus[type] || 'all';
   const curView = S.listView[type] || 'grid';
   const curFilter = S.listFilter[type] || '';
+  const curCollection = S.listCollection[type] || 'all';
   const counts = {};
   list.forEach(e =>
   {
@@ -29,16 +54,7 @@ export function renderList(type)
     ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)
   ];
 
-  let filtered = curStatus==='all'
-    ? list
-    : list.filter(e=>e.list_status===curStatus);
-  if (curFilter)
-  {
-    const q = curFilter.toLowerCase();
-    filtered = filtered.filter(e =>
-      e.title.toLowerCase().includes(q)
-      || (e.title_english||'').toLowerCase().includes(q));
-  }
+  const filtered = applyFilters(list, type);
 
   return `
     <div class="page-header">
@@ -62,6 +78,14 @@ export function renderList(type)
     <div class="filter-bar">
       <input class="filter-input" id="list-filter" type="text"
         placeholder="In Liste suchen…" value="${esc(curFilter)}" />
+      ${S.collections.length ? `
+      <select class="form-input collection-select" id="collection-filter" title="Nach Collection filtern">
+        <option value="all">Alle Collections</option>
+        ${S.collections.map(c => `
+          <option value="${c.id}"${String(curCollection)===String(c.id)?' selected':''}>
+            ${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}
+          </option>`).join('')}
+      </select>` : ''}
       <div class="view-toggle">
         <button class="view-btn${curView==='grid'?' active':''}" id="vgrid" title="Raster">${IC.gridV}</button>
         <button class="view-btn${curView==='list'?' active':''}" id="vlist" title="Liste">${IC.listV}</button>
@@ -127,6 +151,12 @@ export function bindList(type)
     refreshListContent(type);
   });
 
+  $('#collection-filter')?.addEventListener('change', e =>
+  {
+    S.listCollection[type] = e.target.value;
+    refreshListContent(type);
+  });
+
   $('#btn-add-new')?.addEventListener('click', () =>
   {
     S.searchType = type;
@@ -138,20 +168,8 @@ export function bindList(type)
 function refreshListContent(type)
 {
   const list = type==='anime' ? S.animeList : S.mangaList;
-  const curStatus = S.listStatus[type]||'all';
   const curView = S.listView[type]||'grid';
-  const curFilter = S.listFilter[type]||'';
-
-  let filtered = curStatus==='all'
-    ? list
-    : list.filter(e=>e.list_status===curStatus);
-  if (curFilter)
-  {
-    const q = curFilter.toLowerCase();
-    filtered = filtered.filter(e =>
-      e.title.toLowerCase().includes(q)
-      || (e.title_english||'').toLowerCase().includes(q));
-  }
+  const filtered = applyFilters(list, type);
 
   const content = $('#list-content');
   if (content)

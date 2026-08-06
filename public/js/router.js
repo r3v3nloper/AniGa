@@ -12,6 +12,7 @@ import { renderList, bindList } from './views/lists.js';
 import { renderProfile, bindProfile } from './views/profile.js';
 import { renderAdminView, bindAdminView } from './views/admin.js';
 import { renderUsersView, bindUsersView } from './views/users.js';
+import { renderCollectionsView, bindCollectionsView } from './views/collections.js';
 
 export async function navigate(view)
 {
@@ -47,12 +48,18 @@ export async function navigate(view)
         }
         break;
       case 'anime':
-        S.animeList = await API.list.getAll('anime');
+        [S.animeList, S.collections] = await Promise.all([
+          API.list.getAll('anime'),
+          API.collections.getAll()
+        ]);
         main.innerHTML = renderList('anime');
         bindList('anime');
         break;
       case 'manga':
-        S.mangaList = await API.list.getAll('manga');
+        [S.mangaList, S.collections] = await Promise.all([
+          API.list.getAll('manga'),
+          API.collections.getAll()
+        ]);
         main.innerHTML = renderList('manga');
         bindList('manga');
         break;
@@ -70,6 +77,12 @@ export async function navigate(view)
         S.adminUsers = await API.admin.getUsers();
         main.innerHTML = renderAdminView();
         bindAdminView();
+        break;
+      case 'collections':
+        S.collections = await API.collections.getAll();
+        S.viewingCollection = null;
+        main.innerHTML = renderCollectionsView();
+        bindCollectionsView();
         break;
       case 'users':
         [S.allUsers, S.following] = await Promise.all([

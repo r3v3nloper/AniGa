@@ -9,6 +9,7 @@ import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
 import { ANIME_STATUSES, MANGA_STATUSES } from '../media.js';
 import { navigate } from '../router.js';
+import { refreshCollectionsAfterSave } from '../views/collections.js';
 
 function renderTrackModalBody(media, existingEntry)
 {
@@ -142,6 +143,13 @@ function renderTrackModalBody(media, existingEntry)
           <button class="num-btn" id="ov-p">+</button>
         </div>
       </div>` : ''}
+
+      <div class="form-group">
+        <label class="form-label">Collections</label>
+        <div class="collection-chips" id="collection-chips">
+          <span style="color:var(--text3);font-size:.8rem">Wird geladen…</span>
+        </div>
+      </div>
 
       <div class="form-row">
         <div class="form-group">
@@ -284,6 +292,114 @@ function bindTrackModalNumbers(isAnime, maxEp, maxCh)
   });
 }
 
+/* Collection-Chips: Zugehörigkeiten togglen, neue Collection direkt anlegen.
+   Änderungen werden erst beim Speichern übernommen (colState-Diff). */
+async function bindTrackModalCollections(existingEntry, colState)
+{
+  const wrap = $('#collection-chips');
+  if (!wrap)
+  {
+    return;
+  }
+  try
+  {
+    if (!S.collections.length)
+    {
+      S.collections = await API.collections.getAll();
+    }
+  }
+  catch
+  {
+    wrap.closest('.form-group')?.remove();
+    return;
+  }
+
+  (existingEntry?.collections || []).forEach(c =>
+  {
+    colState.initial.add(c.id);
+    colState.selected.add(c.id);
+  });
+
+  function renderChips()
+  {
+    if (!document.body.contains(wrap))
+    {
+      return;
+    }
+    wrap.innerHTML = S.collections.map(c => `
+      <button type="button" class="collection-chip${colState.selected.has(c.id) ? ' on' : ''}" data-cid="${c.id}">
+        ${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}
+      </button>`).join('')
+      + `<button type="button" class="collection-chip chip-new" id="chip-new-collection">＋ Neu</button>`;
+
+    $$('.collection-chip[data-cid]', wrap).forEach(chip =>
+    {
+      chip.addEventListener('click', () =>
+      {
+        const cid = +chip.dataset.cid;
+        if (colState.selected.has(cid))
+        {
+          colState.selected.delete(cid);
+        }
+        else
+        {
+          colState.selected.add(cid);
+        }
+        chip.classList.toggle('on', colState.selected.has(cid));
+      });
+    });
+
+    $('#chip-new-collection', wrap)?.addEventListener('click', async () =>
+    {
+      const name = prompt('Name der neuen Collection (z.B. "ReWatch"):');
+      if (!name || !name.trim())
+      {
+        return;
+      }
+      try
+      {
+        const created = await API.collections.create(name.trim());
+        S.collections.push(created);
+        S.collections.sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+        colState.selected.add(created.id);
+        renderChips();
+      }
+      catch (e)
+      {
+        toast(e.message, 'error');
+      }
+    });
+  }
+
+  renderChips();
+}
+
+/* Wendet die im Modal getroffene Chip-Auswahl auf den gespeicherten Eintrag an */
+async function syncCollections(entryId, colState)
+{
+  if (!entryId)
+  {
+    return;
+  }
+  const adds = [...colState.selected].filter(id => !colState.initial.has(id));
+  const removes = [...colState.initial].filter(id => !colState.selected.has(id));
+  if (!adds.length && !removes.length)
+  {
+    return;
+  }
+  try
+  {
+    await Promise.all([
+      ...adds.map(id => API.collections.addItem(id, entryId)),
+      ...removes.map(id => API.collections.removeItem(id, entryId)),
+    ]);
+  }
+  catch
+  {
+    toast('Collections konnten nicht vollständig aktualisiert werden', 'warning');
+  }
+}
+
 function bindTrackModalStars()
 {
   const stars = $$('.star-btn', $('#star-rating'));
@@ -311,7 +427,7 @@ function bindTrackModalStars()
   });
 }
 
-function bindTrackModalSave(media, existingEntry, isAnime)
+function bindTrackModalSave(media, existingEntry, isAnime, colState)
 {
   $('#btn-save')?.addEventListener('click', async () =>
   {
@@ -332,6 +448,7 @@ function bindTrackModalSave(media, existingEntry, isAnime)
         owned: $('#track-owned')?.checked || false,
         ownedVolumes: !isAnime ? +($('#track-owned-vol')?.value || 0) : 0,
       };
+      let entryId = existingEntry?.id;
       if (existingEntry)
       {
         await API.list.update(existingEntry.id, listData);
@@ -339,9 +456,11 @@ function bindTrackModalSave(media, existingEntry, isAnime)
       }
       else
       {
-        await API.list.save(media, listData);
+        const saved = await API.list.save(media, listData);
+        entryId = saved.entryId;
         toast(`„${media.title}" zur Liste hinzugefügt!`, 'success');
       }
+      await syncCollections(entryId, colState);
       closeModal();
       await refreshAfterSave(media.type);
     }
@@ -379,12 +498,15 @@ export function showTrackModal(media, existingEntry)
   const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
 
+  const colState = { initial: new Set(), selected: new Set() };
+
   openModal(renderTrackModalBody(media, existingEntry), () =>
   {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
 
     bindTrackModalStreaming(media);
+    bindTrackModalCollections(existingEntry, colState);
 
     $('#btn-expand')?.addEventListener('click', () =>
     {
@@ -395,7 +517,7 @@ export function showTrackModal(media, existingEntry)
 
     bindTrackModalNumbers(isAnime, maxEp, maxCh);
     bindTrackModalStars();
-    bindTrackModalSave(media, existingEntry, isAnime);
+    bindTrackModalSave(media, existingEntry, isAnime, colState);
   });
 }
 
@@ -419,6 +541,11 @@ export async function refreshAfterSave(type)
   if (S.view === type)
   {
     navigate(type);
+    return;
+  }
+  if (S.view === 'collections')
+  {
+    await refreshCollectionsAfterSave();
     return;
   }
   $$('.btn-add-to-list').forEach(btn =>

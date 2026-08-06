@@ -94,6 +94,18 @@ export const API = (() =>
         req('GET', `/recommendations?type=${type || 'anime'}&page=${page}`)
     },
 
+    collections: {
+      getAll: () => req('GET', '/collections'),
+      get: (id) => req('GET', `/collections/${id}`),
+      create: (name, emoji) => req('POST', '/collections', { name, emoji }),
+      rename: (id, name, emoji) => req('PUT', `/collections/${id}`, { name, emoji }),
+      remove: (id) => req('DELETE', `/collections/${id}`),
+      addItem: (id, listEntryId) =>
+        req('POST', `/collections/${id}/items`, { listEntryId }),
+      removeItem: (id, listEntryId) =>
+        req('DELETE', `/collections/${id}/items/${listEntryId}`),
+    },
+
     search: {
       anime: (q, page) =>
         req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
