@@ -67,7 +67,7 @@ function renderOverview()
     </div>
 
     ${S.collections.length ? `
-      <div class="collection-grid">
+      <div class="media-grid">
         ${S.collections.map(c => renderCollectionCard(c)).join('')}
       </div>` : renderEmptyState('📂', 'Noch keine Collections',
         'Erstelle Sammlungen wie „ReWatch" oder „Favoriten" und ordne deine Einträge frei zu — ein Titel kann in beliebig vielen Collections sein.',
@@ -76,25 +76,31 @@ function renderOverview()
 
 function renderCollectionCard(c)
 {
-  const covers = c.covers || [];
+  const covers = (c.covers || []).slice(0, 4);
   return `
-    <div class="collection-card card" data-collection-id="${c.id}">
-      <div class="collection-mosaic">
-        ${Array.from({length: 4}, (_, i) => covers[i]
-          ? `<img src="${esc(covers[i])}" alt="" loading="lazy"/>`
-          : '<div class="collection-mosaic-empty"></div>').join('')}
+    <div class="media-card collection-card" data-collection-id="${c.id}">
+      <div class="media-card-cover">
+        <div class="collection-mosaic covers-${covers.length}">
+          ${covers.length
+            ? covers.map(u => `<img src="${esc(u)}" alt="" loading="lazy"/>`).join('')
+            : `<div class="collection-mosaic-placeholder">${IC.folder}</div>`}
+        </div>
+        <div class="media-card-overlay">
+          <div class="media-card-title">${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}</div>
+        </div>
       </div>
-      <div class="collection-card-body">
-        <div class="collection-card-name">${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}</div>
-        <div class="collection-card-count">${c.itemCount} ${c.itemCount === 1 ? 'Eintrag' : 'Einträge'}</div>
+      <div class="media-card-footer">
+        <span class="media-card-type">${c.itemCount} ${c.itemCount === 1 ? 'Eintrag' : 'Einträge'}</span>
+        <span class="collection-open-hint">${IC.chevR}</span>
       </div>
     </div>`;
 }
 
 function bindOverview()
 {
-  const newBtn = $('#btn-new-collection') || $('#btn-new-collection-empty');
-  newBtn?.addEventListener('click', createCollectionPrompt);
+  // Im Leerzustand existieren beide Buttons (Header + Empty-State) — beide binden
+  $('#btn-new-collection')?.addEventListener('click', createCollectionPrompt);
+  $('#btn-new-collection-empty')?.addEventListener('click', createCollectionPrompt);
 
   $$('.collection-card').forEach(card =>
   {

@@ -6,21 +6,30 @@ import { IC } from './icons.js';
 import { S } from './state.js';
 import { $, $$, esc } from './dom.js';
 
-export function renderShell()
+/* Views, die mobil hinter dem „Mehr"-Sheet liegen (Bottom-Nav max. 5 Items) */
+const MORE_VIEWS = ['collections', 'users', 'profile', 'admin'];
+
+function allNavItems()
 {
-  const v = S.view;
-  const u = S.user || {};
-  const initials = (u.username || '?').substring(0, 2).toUpperCase();
-  const navItems = [
-    { id:'home',    icon:IC.home,   label:'Übersicht' },
-    { id:'search',  icon:IC.search, label:'Suche' },
-    { id:'anime',   icon:IC.tv,     label:'Anime-Liste' },
-    { id:'manga',   icon:IC.book,   label:'Manga-Liste' },
+  return [
+    { id:'home',    icon:IC.home,   label:'Übersicht', short:'Start' },
+    { id:'search',  icon:IC.search, label:'Suche', short:'Suche' },
+    { id:'anime',   icon:IC.tv,     label:'Anime-Liste', short:'Anime' },
+    { id:'manga',   icon:IC.book,   label:'Manga-Liste', short:'Manga' },
     { id:'collections', icon:IC.folder, label:'Collections' },
     { id:'users',   icon:IC.users,  label:'Nutzer' },
     { id:'profile', icon:IC.user,   label:'Profil' },
     ...(S.user?.is_admin ? [{ id:'admin', icon:IC.shield, label:'Admin', admin:true }] : []),
   ];
+}
+
+export function renderShell()
+{
+  const v = S.view;
+  const u = S.user || {};
+  const initials = (u.username || '?').substring(0, 2).toUpperCase();
+  const navItems = allNavItems();
+  const primary = navItems.filter(n => !MORE_VIEWS.includes(n.id));
 
   return `
     <aside class="sidebar" id="sidebar">
@@ -55,10 +64,13 @@ export function renderShell()
     <main class="main-content" id="main-content"></main>
     <nav class="bottom-nav">
       <div class="bottom-nav-inner">
-        ${navItems.map(n=>`
+        ${primary.map(n=>`
           <button class="bottom-nav-item${v===n.id?' active':''}" data-nav="${n.id}">
-            ${n.icon}<span>${n.label}</span>
+            ${n.icon}<span>${n.short||n.label}</span>
           </button>`).join('')}
+        <button class="bottom-nav-item${MORE_VIEWS.includes(v)?' active':''}" id="btn-more-nav">
+          ${IC.more}<span>Mehr</span>
+        </button>
       </div>
     </nav>`;
 }
@@ -66,6 +78,40 @@ export function renderShell()
 export function updateNav()
 {
   $$('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === S.view));
+  $('#btn-more-nav')?.classList.toggle('active', MORE_VIEWS.includes(S.view));
+}
+
+/* Bottom-Sheet mit den restlichen Navigationspunkten (mobil) */
+export function openMoreSheet()
+{
+  closeMoreSheet();
+  const items = allNavItems().filter(n => MORE_VIEWS.includes(n.id));
+  const overlay = document.createElement('div');
+  overlay.className = 'more-sheet-overlay';
+  overlay.id = 'more-sheet-overlay';
+  overlay.innerHTML = `
+    <div class="more-sheet">
+      <div class="more-sheet-handle"></div>
+      ${items.map(n => `
+        <button class="more-sheet-item${S.view===n.id?' active':''}" data-nav="${n.id}">
+          ${n.icon}<span>${n.label}</span>
+        </button>`).join('')}
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // Schließt bei Overlay-Tipp und bei Navigation (data-nav übernimmt die globale Delegation)
+  overlay.addEventListener('click', e =>
+  {
+    if (e.target === overlay || e.target.closest('[data-nav]'))
+    {
+      closeMoreSheet();
+    }
+  });
+}
+
+export function closeMoreSheet()
+{
+  document.getElementById('more-sheet-overlay')?.remove();
 }
 
 export function closeSidebar()

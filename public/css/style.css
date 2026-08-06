@@ -740,51 +740,55 @@ select.form-input
   color: var(--text3);
 }
 
-.collection-grid
-{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 14px;
-}
-.collection-card
-{
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform .15s, border-color .15s;
-}
-.collection-card:hover
-{
-  transform: translateY(-3px);
-  border-color: var(--accent);
-}
+/* Collection-Karten nutzen das Media-Card-Layout; das Mosaik passt sich
+   der Cover-Anzahl an, damit keine leeren Kacheln entstehen */
 .collection-mosaic
 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 70px 70px;
-  gap: 2px;
+  position: absolute; inset: 0;
+  display: grid; gap: 2px;
+  background: var(--bg2);
 }
 .collection-mosaic img
 {
+  position: static;
   width: 100%; height: 100%;
   object-fit: cover;
+  min-height: 0;
 }
-.collection-mosaic-empty
+.collection-mosaic.covers-0
 {
-  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
 }
-.collection-card-body
+.collection-mosaic-placeholder
 {
-  padding: 10px 12px;
+  color: var(--text3);
 }
-.collection-card-name
+.collection-mosaic-placeholder svg
 {
-  font-weight: 700; font-size: .9rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 42px; height: 42px; stroke-width: 1.5;
 }
-.collection-card-count
+.collection-mosaic.covers-2
 {
-  color: var(--text3); font-size: .75rem; margin-top: 2px;
+  grid-template-columns: 1fr 1fr;
+}
+.collection-mosaic.covers-3
+{
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.collection-mosaic.covers-3 img:first-child
+{
+  grid-row: span 2;
+}
+.collection-mosaic.covers-4
+{
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.collection-open-hint
+{
+  color: var(--text3);
+  display: flex; align-items: center;
 }
 
 .collection-select
@@ -819,6 +823,61 @@ select.form-input
 .btn-remove-from-collection svg
 {
   width: 12px; height: 12px;
+}
+
+/* "Mehr"-Bottom-Sheet (mobile Navigation) */
+.more-sheet-overlay
+{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 150;
+  display: flex; align-items: flex-end;
+}
+.more-sheet
+{
+  width: 100%;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  animation: sheetUp .22s ease;
+}
+@keyframes sheetUp
+{
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.more-sheet-handle
+{
+  width: 38px; height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 0 auto 12px;
+}
+.more-sheet-item
+{
+  display: flex; align-items: center; gap: 14px;
+  width: 100%;
+  padding: 14px 12px;
+  background: none; border: none;
+  color: var(--text);
+  font-size: .95rem; font-weight: 600;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .15s;
+}
+.more-sheet-item:hover
+{
+  background: var(--bg3);
+}
+.more-sheet-item.active
+{
+  color: var(--accent);
+  background: rgba(124, 77, 255, .12);
+}
+.more-sheet-item svg
+{
+  width: 20px; height: 20px; flex-shrink: 0;
 }
 
 /* Toggle switch */

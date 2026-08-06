@@ -6,7 +6,7 @@ import { IC } from './icons.js';
 import { S } from './state.js';
 import { $, toast } from './dom.js';
 import { API } from './api.js';
-import { renderShell, closeSidebar } from './shell.js';
+import { renderShell, closeSidebar, openMoreSheet } from './shell.js';
 import { navigate } from './router.js';
 import { bindAuth } from './views/auth.js';
 
@@ -27,6 +27,11 @@ export function initApp()
       || e.target.closest('#btn-logout-profile'))
     {
       logout();
+      return;
+    }
+    if (e.target.closest('#btn-more-nav'))
+    {
+      openMoreSheet();
       return;
     }
     if (e.target.closest('#btn-menu'))

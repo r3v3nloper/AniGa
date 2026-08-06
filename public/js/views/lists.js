@@ -162,6 +162,8 @@ export function bindList(type)
     S.searchType = type;
     navigate('search');
   });
+  // Auch beim initialen Render binden — der Leerzustand kann sofort sichtbar sein
+  $('#go-search-btn')?.addEventListener('click', () => navigate('search'));
   bindListCards();
 }
 

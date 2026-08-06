@@ -50,7 +50,7 @@
 |---|---|
 | 📱 **PWA** | Installierbar auf Mobilgeräten, Offline-fähig via Service Worker |
 | 🌙 **Dark Theme** | Durchgängiges dunkles Design mit CSS-Variablen |
-| 📐 **Responsiv** | Sidebar-Layout auf Desktop, Bottom-Navigation auf Mobil |
+| 📐 **Responsiv** | Sidebar-Layout auf Desktop; mobile Bottom-Navigation mit 5 Kern-Items + „Mehr"-Bottom-Sheet (Collections, Nutzer, Profil, Admin) |
 | 🔄 **API-Fallback** | Wenn Jikan/MyAnimeList nicht erreichbar ist, springt AniList (GraphQL) transparent ein |
 | 🐳 **Docker-ready** | Multi-Stage Dockerfile, docker-compose, GitHub Container Registry |
 
@@ -522,6 +522,7 @@ CMD ["node", "server.js"]
 | 2.0 | Frontend-Modularisierung: `app.js`-Monolith (3160 Zeilen) in 18 ES-Module aufgeteilt (`views/`, `modals/`, `state.js`, `router.js`, …) — kein Framework, natives `<script type="module">`; Inline-`onclick`-Handler entfernt (CSP-kompatibel) |
 | 2.0 | Testsuite: 30 Tests via eingebautem `node:test` (`npm test`, keine neue Dependency) — Unit-Tests für Jikan/AniList-Mapping, `withFallback`, Media-Upsert; Integrationstests für Auth (inkl. Token-Invalidierung), Listen-CRUD und Notes-Privacy; `server.js` in `app.js` (App) + `server.js` (listen) gesplittet für Testbarkeit |
 | 2.1 | Collections: eigene Sammlungen (z.B. „ReWatch") mit Many-to-Many-Zuordnung — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend; Chips im Track-Modal, eigener Nav-Punkt mit Cover-Mosaik, Collection-Filter in den Listen-Views, Schnell-Entfernen im Detail; `POST /list` liefert jetzt `entryId`; 8 neue Tests (38 gesamt) |
+| 2.1 | Mobile UX: Bottom-Navigation auf 5 Kern-Items reduziert (Start, Suche, Anime, Manga, Mehr) — „Mehr" öffnet ein Bottom-Sheet mit Collections, Nutzer, Profil und Admin; Collection-Karten im Media-Card-Design mit adaptivem Cover-Mosaik (keine leeren Kacheln) |
 
 ---
 
