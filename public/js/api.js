@@ -1,9 +1,9 @@
 /* =====================================================
    AniGa – api.js
-   All HTTP calls to the backend
+   All HTTP calls to the backend (ES module)
    ===================================================== */
 
-const API = (() =>
+export const API = (() =>
 {
   const BASE = '/api';
 

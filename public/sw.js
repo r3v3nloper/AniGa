@@ -1,10 +1,27 @@
-const CACHE = 'aniga-v8';
+const CACHE = 'aniga-v9';
 const STATIC = [
   '/',
   '/index.html',
   '/css/style.css',
+  '/js/main.js',
   '/js/api.js',
-  '/js/app.js',
+  '/js/icons.js',
+  '/js/state.js',
+  '/js/dom.js',
+  '/js/modal.js',
+  '/js/media.js',
+  '/js/shell.js',
+  '/js/router.js',
+  '/js/views/auth.js',
+  '/js/views/home.js',
+  '/js/views/search.js',
+  '/js/views/lists.js',
+  '/js/views/profile.js',
+  '/js/views/admin.js',
+  '/js/views/users.js',
+  '/js/views/compare.js',
+  '/js/modals/track.js',
+  '/js/modals/manual.js',
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];

@@ -1,0 +1,38 @@
+/* =====================================================
+   AniGa – state.js
+   Zentraler, veränderlicher App-State (Single Source of Truth)
+   ===================================================== */
+export const S = {
+  user: null,
+  token: localStorage.getItem('aniga_token'),
+  view: 'home',
+  animeList: [],
+  mangaList: [],
+  stats: null,
+  searchType: 'anime',
+  searchQ: '',
+  searchPage: 1,
+  searchResults: [],
+  searchPagination: null,
+  topAnime: [],
+  topManga: [],
+  seasonal: [],
+  listStatus: { anime: 'all', manga: 'all' },
+  listView: { anime: 'grid', manga: 'grid' },
+  listFilter: { anime: '', manga: '' },
+  allUsers: [],
+  following: [],
+  adminUsers: [],
+  viewingUser: null,
+  viewingUserList: [],
+  userListFilter: '',
+  userListType: 'anime',
+  userListStatus: 'all',
+  userListView: 'grid',
+  compareData: null,
+  compareType: 'anime',
+  compareTab: 'both',
+  recommendations: null,
+  recommendType: 'anime',
+  recommendPage: 1,
+};

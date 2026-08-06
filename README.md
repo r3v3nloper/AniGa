@@ -70,7 +70,7 @@
 | `express-rate-limit` | ^8.6 | Brute-Force-Schutz auf Auth-Routen |
 
 ### Frontend
-- **Vanilla JavaScript** (kein Framework)
+- **Vanilla JavaScript** (kein Framework) — native ES-Module (`<script type="module">`)
 - HTML5 + CSS3 mit Custom Properties
 - Service Worker (`sw.js`) für Offline-Cache
 - PWA Manifest (`manifest.json`)
@@ -223,9 +223,28 @@ aniga/
 │   ├── css/
 │   │   └── style.css          # Dark Theme, CSS Custom Properties
 │   ├── icons/                 # App-Icons (192px, 512px, Logo)
-│   ├── js/
-│   │   ├── api.js             # Frontend HTTP-Client (globales API-Objekt)
-│   │   └── app.js             # Haupt-SPA (~2300 Zeilen, State in S{})
+│   ├── js/                    # Frontend als ES-Module (kein Framework)
+│   │   ├── main.js            # Einstiegspunkt: Boot, App-Shell, Logout, PWA-Install
+│   │   ├── api.js             # HTTP-Client (exportiert API-Objekt)
+│   │   ├── state.js           # Zentraler App-State (S)
+│   │   ├── icons.js           # Inline-SVG-Icons (IC)
+│   │   ├── dom.js             # DOM-Helfer, esc(), coverImg(), Toast
+│   │   ├── modal.js           # Generisches Modal-Overlay
+│   │   ├── media.js           # Status-Mappings, Medien-Helfer, Karten-Komponenten
+│   │   ├── shell.js           # Sidebar, Mobile-Header, Bottom-Nav
+│   │   ├── router.js          # View-Navigation + Daten-Laden pro View
+│   │   ├── views/             # Eine Datei pro Ansicht
+│   │   │   ├── auth.js        # Login/Registrierung
+│   │   │   ├── home.js        # Dashboard + Empfehlungen
+│   │   │   ├── search.js      # Suche, Top-Listen, Seasonal
+│   │   │   ├── lists.js       # Eigene Anime-/Manga-Liste
+│   │   │   ├── profile.js     # Profil + Bearbeiten-Modal
+│   │   │   ├── admin.js       # Admin-Panel
+│   │   │   ├── users.js       # Nutzerliste, Folgen, fremde Listen
+│   │   │   └── compare.js     # Listen-Vergleich
+│   │   └── modals/
+│   │       ├── track.js       # Tracking-Modal (Hinzufügen/Bearbeiten)
+│   │       └── manual.js      # Modal für manuelle Einträge
 │   ├── index.html             # App-Shell (1 HTML-Datei)
 │   ├── manifest.json          # PWA-Manifest
 │   └── sw.js                  # Service Worker (Cache-first)
@@ -443,6 +462,7 @@ CMD ["node", "server.js"]
 | 1.9 | Service Worker: Stale-While-Revalidate für statische Assets — Deploys kommen ohne manuellen Cache-Versions-Bump an; cross-origin Requests (Cover, Fonts) werden nicht mehr vom SW abgefangen |
 | 1.9 | Token-Versionierung: Passwortänderung (Profil oder Admin-Reset) invalidiert alle bestehenden JWTs (`token_version`-Claim); die eigene Sitzung erhält automatisch einen frischen Token |
 | 1.9 | Weitere Härtung & Refactoring: Search-Endpoints erfordern Login (kein offener API-Proxy mehr), Timing-Angleichung beim Login gegen E-Mail-Enumeration, Media-Upsert aus `routes/list.js` nach `utils/mediaStore.js` extrahiert, Migrations-Helper `addColumnIfMissing()` in `db.js` |
+| 2.0 | Frontend-Modularisierung: `app.js`-Monolith (3160 Zeilen) in 18 ES-Module aufgeteilt (`views/`, `modals/`, `state.js`, `router.js`, …) — kein Framework, natives `<script type="module">`; Inline-`onclick`-Handler entfernt (CSP-kompatibel) |
 
 ---
 

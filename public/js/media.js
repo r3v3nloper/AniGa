@@ -1,0 +1,243 @@
+/* =====================================================
+   AniGa – media.js
+   Status-Mappings, Medien-Helfer und geteilte Karten-Komponenten
+   ===================================================== */
+import { IC } from './icons.js';
+import { S } from './state.js';
+import { $$, esc, coverImg, toast } from './dom.js';
+import { API } from './api.js';
+import { showTrackModal } from './modals/track.js';
+
+export const STATUS_LABELS = {
+  watching:'Schaut gerade', reading:'Liest gerade',
+  completed:'Abgeschlossen', on_hold:'Pausiert', dropped:'Abgebrochen',
+  plan_to_watch:'Geplant', plan_to_read:'Geplant',
+};
+export const STATUS_CSS = {
+  watching:'s-watching', reading:'s-reading',
+  completed:'s-completed', on_hold:'s-on_hold', dropped:'s-dropped',
+  plan_to_watch:'s-plan_to_watch', plan_to_read:'s-plan_to_read',
+};
+export const ANIME_STATUSES = [
+  {val:'watching',label:'Schaut gerade'},{val:'plan_to_watch',label:'Geplant'},
+  {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
+];
+export const MANGA_STATUSES = [
+  {val:'reading',label:'Liest gerade'},{val:'plan_to_read',label:'Geplant'},
+  {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
+];
+
+export function mediaStatusBadge(status)
+{
+  const MAP = {
+    'Currently Airing':['Läuft','badge-airing'],
+    'Finished Airing':['Abgeschlossen','badge-finished'],
+    'Not yet aired':['Angekündigt','badge-upcoming'],
+    'Publishing':['Erscheint noch','badge-publishing'],
+    'Finished':['Abgeschlossen','badge-finished'],
+    'On Hiatus':['Hiatus','badge-upcoming'],
+    'Discontinued':['Eingestellt','badge-finished'],
+    'Not yet published':['Angekündigt','badge-upcoming'],
+  };
+  const [label, cls] = MAP[status] || [esc(status), 'badge-finished'];
+  return `<span class="media-card-badge ${cls}">${label}</span>`;
+}
+
+export function starsHtml(score, sm='')
+{
+  if (!score)
+  {
+    return '';
+  }
+  const n = Math.round(score);
+  const stars = Array.from({length:5}, (_,i) =>
+    `<span class="star-btn${sm?' sm':''} ${i<n?'on':''}">${IC.star}</span>`
+  ).join('');
+  return `<div class="stars">${stars}</div>`;
+}
+
+export function progressText(e)
+{
+  if (e.type === 'anime')
+  {
+    return `Ep. ${e.current_episode||0} / ${e.episodes||'?'}`;
+  }
+  let t = `Kap. ${e.current_chapter||0} / ${e.chapters||'?'}`;
+  if (e.current_page)
+  {
+    t += ` · S. ${e.current_page}`;
+  }
+  return t;
+}
+
+export function progressPct(e)
+{
+  if (e.type === 'anime')
+  {
+    return e.episodes
+      ? Math.min(100, ((e.current_episode||0)/e.episodes)*100)
+      : 0;
+  }
+  return e.chapters
+    ? Math.min(100, ((e.current_chapter||0)/e.chapters)*100)
+    : 0;
+}
+
+export function isInList(media)
+{
+  if (!media.mal_id)
+  {
+    return false;
+  }
+  const list = media.type === 'anime' ? S.animeList : S.mangaList;
+  return list.some(e => String(e.mal_id) === String(media.mal_id));
+}
+
+export function findInList(media)
+{
+  if (!media.mal_id)
+  {
+    return null;
+  }
+  const list = media.type === 'anime' ? S.animeList : S.mangaList;
+  return list.find(e => String(e.mal_id) === String(media.mal_id)) || null;
+}
+
+export function findMediaInCache(malId, type)
+{
+  return [...S.searchResults, ...S.topAnime, ...S.topManga, ...S.seasonal]
+    .find(m => String(m.mal_id) === String(malId) && m.type === type) || null;
+}
+
+export function entryToMedia(entry)
+{
+  return {
+    mal_id: entry.mal_id, type: entry.type,
+    title: entry.title, title_english: entry.title_english,
+    title_japanese: entry.title_japanese,
+    image_url: entry.image_url, synopsis: entry.synopsis,
+    media_status: entry.media_status, episodes: entry.episodes,
+    chapters: entry.chapters, volumes: entry.volumes,
+    api_score: entry.api_score, genres: entry.genres || [],
+    year: entry.year, season: entry.season,
+    is_manual: entry.is_manual, source: entry.source,
+  };
+}
+
+/* ---- KARTEN-KOMPONENTEN ---- */
+export function ownedBadgeHtml(entry)
+{
+  if (!entry.owned)
+  {
+    return '';
+  }
+  const label = entry.type !== 'anime' && entry.volumes
+    ? `${entry.owned_volumes || 0}/${entry.volumes}`
+    : '';
+  return `<div class="owned-badge" title="Physisch im Besitz${label ? ' — ' + label + ' Bände' : ''}">${IC.shelf}${label ? `<span>${label}</span>` : ''}</div>`;
+}
+
+export function ownedChipHtml(e)
+{
+  if (!e.owned)
+  {
+    return '';
+  }
+  return `<span class="owned-chip">${IC.shelf} Besitz${e.type!=='anime'&&e.volumes?' '+((e.owned_volumes||0)+'/'+e.volumes):''}</span>`;
+}
+
+export function renderMediaCard(media)
+{
+  const inList = isInList(media);
+  return `
+    <div class="media-card" data-mal-id="${media.mal_id||''}" data-type="${media.type}">
+      <div class="media-card-cover">
+        ${coverImg(media.image_url, media.title)}
+        ${media.api_score?`<div class="media-card-score">${IC.star}${media.api_score.toFixed(1)}</div>`:''}
+        ${media.media_status?mediaStatusBadge(media.media_status):''}
+        <div class="media-card-overlay">
+          <div class="media-card-title">${esc(media.title)}</div>
+        </div>
+      </div>
+      <div class="media-card-footer">
+        <span class="media-card-type">${media.type==='anime'?'Anime':'Manga'}${media.year?' · '+media.year:''}</span>
+        <button class="btn-add-to-list${inList?' in-list':''}" title="${inList?'Bearbeiten':'Hinzufügen'}">
+          ${inList?IC.check:IC.plus}
+        </button>
+      </div>
+    </div>`;
+}
+
+export function renderMediaCardFromEntry(entry)
+{
+  const pct = progressPct(entry);
+  return `
+    <div class="media-card" data-entry-id="${entry.id}" data-type="${entry.type}">
+      <div class="media-card-cover">
+        ${coverImg(entry.image_url, entry.title)}
+        ${entry.user_score != null?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
+        <div class="media-card-badge">
+          <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
+        </div>
+        ${ownedBadgeHtml(entry)}
+        <div class="media-card-overlay">
+          <div class="media-card-title">${esc(entry.title)}</div>
+        </div>
+      </div>
+      <div class="media-card-footer">
+        <span class="media-card-type">${progressText(entry)}</span>
+        <button class="btn-add-to-list in-list" title="Bearbeiten">${IC.edit}</button>
+      </div>
+      ${pct>0 ? `<div class="progress-bar"
+        style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>` : ''}
+    </div>`;
+}
+
+export function bindMediaCard(card)
+{
+  card.addEventListener('click', async () =>
+  {
+    const entryId = card.dataset.entryId;
+    const malId = card.dataset.malId;
+    const type = card.dataset.type;
+
+    if (entryId)
+    {
+      const entry = (type==='anime'?S.animeList:S.mangaList)
+        .find(e=>e.id==entryId);
+      if (entry)
+      {
+        showTrackModal(entryToMedia(entry), entry);
+      }
+      return;
+    }
+    if (!malId)
+    {
+      return;
+    }
+
+    let media = findMediaInCache(malId, type);
+    if (!media)
+    {
+      try
+      {
+        const fn = type==='anime' ? API.search.getAnime : API.search.getManga;
+        media = await fn(malId);
+      }
+      catch
+      {
+        toast('Details konnten nicht geladen werden', 'error');
+        return;
+      }
+    }
+    const existing = findInList(media);
+    showTrackModal(media, existing);
+  });
+}
+
+export function bindMediaCards()
+{
+  $$('.media-card').forEach(c => bindMediaCard(c));
+}
