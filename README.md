@@ -117,6 +117,16 @@ Die App ist dann unter **http://localhost:3000** erreichbar.
 
 > **Hinweis:** Die SQLite-Datenbank (`aniga.db`) wird beim ersten Start automatisch angelegt.
 
+### Tests
+
+```bash
+npm test
+```
+
+Nutzt den eingebauten `node:test`-Runner — keine zusätzlichen Dependencies. Jede Testdatei
+läuft in einem eigenen Prozess mit einer frischen Temp-SQLite-DB; die Routen-Tests fahren
+die echte Express-App auf einem ephemeren Port hoch.
+
 ---
 
 ## Docker Deployment
@@ -260,14 +270,27 @@ aniga/
 │   ├── jikan.js               # Jikan-Client mit Rate-Limiter + formatMedia()
 │   ├── mediaStore.js          # Persistenz für media_entries (Upsert-Logik)
 │   └── sql.js                 # Wiederverwendbare SQL-Subqueries
+├── tests/                     # Testsuite (node:test, keine Extra-Dependency)
+│   ├── helpers/
+│   │   └── setup.js           # Temp-DB + Testserver auf ephemerem Port
+│   ├── routes/                # Integrationstests gegen die echte App
+│   │   ├── auth.test.js       # Register/Login/Token-Invalidierung
+│   │   ├── list.test.js       # Listen-CRUD inkl. Besitz-Feldern
+│   │   └── users.test.js      # Follow, Vergleich, Notes-Privacy-Regression
+│   └── utils/                 # Unit-Tests der puren Funktionen
+│       ├── anilist.test.js    # AniList-Mapping + withFallback
+│       ├── jikan.test.js      # Jikan-Mapping
+│       ├── mediaStore.test.js # Media-Upsert-Pfade
+│       └── sql.test.js        # parseIntParam
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
+├── app.js                     # Express-App (ohne listen — testbar)
 ├── db.js                      # SQLite-Schema & Initialisierung
 ├── docker-compose.yml
 ├── Dockerfile                 # Multi-Stage Build
 ├── package.json
-├── server.js                  # Express-App (Einstiegspunkt)
+├── server.js                  # Einstiegspunkt (app.listen)
 └── update.sh                  # Update-Script für Synology/NAS
 ```
 
@@ -463,6 +486,7 @@ CMD ["node", "server.js"]
 | 1.9 | Token-Versionierung: Passwortänderung (Profil oder Admin-Reset) invalidiert alle bestehenden JWTs (`token_version`-Claim); die eigene Sitzung erhält automatisch einen frischen Token |
 | 1.9 | Weitere Härtung & Refactoring: Search-Endpoints erfordern Login (kein offener API-Proxy mehr), Timing-Angleichung beim Login gegen E-Mail-Enumeration, Media-Upsert aus `routes/list.js` nach `utils/mediaStore.js` extrahiert, Migrations-Helper `addColumnIfMissing()` in `db.js` |
 | 2.0 | Frontend-Modularisierung: `app.js`-Monolith (3160 Zeilen) in 18 ES-Module aufgeteilt (`views/`, `modals/`, `state.js`, `router.js`, …) — kein Framework, natives `<script type="module">`; Inline-`onclick`-Handler entfernt (CSP-kompatibel) |
+| 2.0 | Testsuite: 30 Tests via eingebautem `node:test` (`npm test`, keine neue Dependency) — Unit-Tests für Jikan/AniList-Mapping, `withFallback`, Media-Upsert; Integrationstests für Auth (inkl. Token-Invalidierung), Listen-CRUD und Notes-Privacy; `server.js` in `app.js` (App) + `server.js` (listen) gesplittet für Testbarkeit |
 
 ---
 

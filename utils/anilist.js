@@ -234,4 +234,4 @@ async function withFallback(primary, fallback)
   }
 }
 
-module.exports = { searchMedia, getByMalId, topMedia, byGenres, seasonal, withFallback };
+module.exports = { searchMedia, getByMalId, topMedia, byGenres, seasonal, withFallback, formatMedia };
