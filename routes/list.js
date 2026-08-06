@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { upsertMedia } = require('../utils/mediaStore');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -129,62 +130,7 @@ router.post('/', (req, res) =>
   {
     const mediaId = db.transaction(() =>
     {
-      let mid;
-
-      if (mediaData.is_manual)
-      {
-        const result = db.prepare(`
-          INSERT INTO media_entries (source, type, title, title_english, image_url, synopsis,
-            media_status, episodes, chapters, volumes, genres, year, is_manual)
-          VALUES ('manual', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-        `).run(
-          mediaData.type, mediaData.title, mediaData.title_english || null,
-          mediaData.image_url || null, mediaData.synopsis || null,
-          mediaData.media_status || null, mediaData.episodes || null,
-          mediaData.chapters || null, mediaData.volumes || null,
-          JSON.stringify(mediaData.genres || []), mediaData.year || null
-        );
-        mid = result.lastInsertRowid;
-      }
-      else
-      {
-        const existing = db.prepare('SELECT id FROM media_entries WHERE mal_id = ? AND type = ?')
-          .get(mediaData.mal_id, mediaData.type);
-        if (existing)
-        {
-          mid = existing.id;
-          // Update API data in case it changed
-          db.prepare(`
-            UPDATE media_entries SET title=?, title_english=?, title_japanese=?, image_url=?,
-            synopsis=?, media_status=?, episodes=?, chapters=?, volumes=?, api_score=?,
-            genres=?, year=?, season=? WHERE id=?
-          `).run(
-            mediaData.title, mediaData.title_english || null, mediaData.title_japanese || null,
-            mediaData.image_url || null, mediaData.synopsis || null,
-            mediaData.media_status || null, mediaData.episodes || null,
-            mediaData.chapters || null, mediaData.volumes || null,
-            mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-            mediaData.year || null, mediaData.season || null, mid
-          );
-        }
-        else
-        {
-          const result = db.prepare(`
-            INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
-              image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
-            VALUES (?, 'jikan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            mediaData.mal_id, mediaData.type, mediaData.title,
-            mediaData.title_english || null, mediaData.title_japanese || null,
-            mediaData.image_url || null, mediaData.synopsis || null,
-            mediaData.media_status || null, mediaData.episodes || null,
-            mediaData.chapters || null, mediaData.volumes || null,
-            mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-            mediaData.year || null, mediaData.season || null
-          );
-          mid = result.lastInsertRowid;
-        }
-      }
+      const mid = upsertMedia(mediaData);
 
       db.prepare(`
         INSERT INTO user_list (user_id, media_id, list_status, current_episode, current_chapter,

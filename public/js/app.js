@@ -1521,7 +1521,13 @@ function showProfileEditModal()
         body.currentPassword = currentPassword;
         body.newPassword = newPassword;
       }
-      const { user } = await API.auth.updateProfile(body);
+      const { user, token } = await API.auth.updateProfile(body);
+      if (token)
+      {
+        // Passwortänderung invalidiert alte Tokens — frischen Token übernehmen
+        localStorage.setItem('aniga_token', token);
+        S.token = token;
+      }
       S.user = { ...S.user, ...user };
       closeModal();
       const initials = (user.username || '?').substring(0, 2).toUpperCase();

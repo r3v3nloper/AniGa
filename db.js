@@ -14,6 +14,7 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     is_admin INTEGER DEFAULT 0,
+    token_version INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -76,33 +77,23 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
 `);
 
-// Migrate: add is_admin column for existing databases
-try
+// Migrations for existing databases (no-op when the column already exists)
+function addColumnIfMissing(table, columnDef)
 {
-  db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
-}
-catch
-{
-  // Column already exists
+  try
+  {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+  }
+  catch
+  {
+    // Column already exists
+  }
 }
 
-// Migrate: add ownership columns for existing databases
-try
-{
-  db.exec('ALTER TABLE user_list ADD COLUMN owned INTEGER DEFAULT 0');
-}
-catch
-{
-  // Column already exists
-}
-try
-{
-  db.exec('ALTER TABLE user_list ADD COLUMN owned_volumes INTEGER DEFAULT 0');
-}
-catch
-{
-  // Column already exists
-}
+addColumnIfMissing('users', 'is_admin INTEGER DEFAULT 0');
+addColumnIfMissing('users', 'token_version INTEGER DEFAULT 0');
+addColumnIfMissing('user_list', 'owned INTEGER DEFAULT 0');
+addColumnIfMissing('user_list', 'owned_volumes INTEGER DEFAULT 0');
 
 // Seed admin user if not exists
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@aniga.local';

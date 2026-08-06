@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('../middleware/auth');
 const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
 const anilist = require('../utils/anilist');
 const { withFallback } = anilist;
+
+// Kein offener Proxy: externe API-Zugriffe nur für eingeloggte Nutzer
+router.use(authMiddleware);
 
 function clampPage(raw)
 {

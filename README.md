@@ -239,6 +239,7 @@ aniga/
 ├── utils/
 │   ├── anilist.js             # AniList GraphQL-Client (Fallback-Provider)
 │   ├── jikan.js               # Jikan-Client mit Rate-Limiter + formatMedia()
+│   ├── mediaStore.js          # Persistenz für media_entries (Upsert-Logik)
 │   └── sql.js                 # Wiederverwendbare SQL-Subqueries
 ├── .dockerignore
 ├── .env.example
@@ -276,14 +277,14 @@ aniga/
 ### Suche (`/api/search`)
 | Methode | Pfad | Auth | Beschreibung |
 |---|---|---|---|
-| `GET` | `/anime` | — | Anime suchen (`?q=...&page=1`) |
-| `GET` | `/manga` | — | Manga suchen |
-| `GET` | `/anime/:id` | — | Anime-Details |
-| `GET` | `/anime/:id/streaming` | — | Streaming-Dienste für Anime |
-| `GET` | `/manga/:id` | — | Manga-Details |
-| `GET` | `/top/anime` | — | Top-Anime nach Bewertung |
-| `GET` | `/top/manga` | — | Top-Manga |
-| `GET` | `/seasonal` | — | Anime der aktuellen Saison |
+| `GET` | `/anime` | ✅ | Anime suchen (`?q=...&page=1`) |
+| `GET` | `/manga` | ✅ | Manga suchen |
+| `GET` | `/anime/:id` | ✅ | Anime-Details |
+| `GET` | `/anime/:id/streaming` | ✅ | Streaming-Dienste für Anime |
+| `GET` | `/manga/:id` | ✅ | Manga-Details |
+| `GET` | `/top/anime` | ✅ | Top-Anime nach Bewertung |
+| `GET` | `/top/manga` | ✅ | Top-Manga |
+| `GET` | `/seasonal` | ✅ | Anime der aktuellen Saison |
 
 ### Nutzer (`/api/users`)
 | Methode | Pfad | Auth | Beschreibung |
@@ -320,6 +321,7 @@ aniga/
 | `email` | TEXT UNIQUE | Für Login |
 | `password_hash` | TEXT | bcrypt-Hash |
 | `is_admin` | INTEGER | `0` = Nutzer, `1` = Admin |
+| `token_version` | INTEGER | Wird bei Passwortänderung erhöht → invalidiert alte JWTs |
 | `created_at` | DATETIME | Registrierungsdatum |
 
 ### `media_entries`
@@ -439,6 +441,8 @@ CMD ["node", "server.js"]
 | 1.9 | AniList-Fallback: Bei Jikan/MAL-Ausfall springt AniList (GraphQL) automatisch ein — Suche, Details, Top, Seasonal und Empfehlungen bleiben verfügbar; `formatMedia()` nach `utils/jikan.js` extrahiert (DRY) |
 | 1.9 | Security-Hardening: Rate-Limiting auf Login/Registrierung (10 Fehlversuche / 15 Min), Security-Header via `helmet` inkl. CSP, XSS-Fix in `coverImg()` (Inline-`onerror` → delegierter Listener, `esc()` escapt jetzt auch `'`), private Notizen nicht mehr über `GET /users/:id/list` einsehbar |
 | 1.9 | Service Worker: Stale-While-Revalidate für statische Assets — Deploys kommen ohne manuellen Cache-Versions-Bump an; cross-origin Requests (Cover, Fonts) werden nicht mehr vom SW abgefangen |
+| 1.9 | Token-Versionierung: Passwortänderung (Profil oder Admin-Reset) invalidiert alle bestehenden JWTs (`token_version`-Claim); die eigene Sitzung erhält automatisch einen frischen Token |
+| 1.9 | Weitere Härtung & Refactoring: Search-Endpoints erfordern Login (kein offener API-Proxy mehr), Timing-Angleichung beim Login gegen E-Mail-Enumeration, Media-Upsert aus `routes/list.js` nach `utils/mediaStore.js` extrahiert, Migrations-Helper `addColumnIfMissing()` in `db.js` |
 
 ---
 

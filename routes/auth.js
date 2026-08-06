@@ -1,12 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { rateLimit } = require('express-rate-limit');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { signToken } = authMiddleware;
 
 const router = express.Router();
-const JWT_SECRET = authMiddleware.JWT_SECRET;
+
+/* Gleicht das Antwort-Timing bei unbekannter E-Mail an einen echten Hash-Vergleich an,
+   damit sich registrierte E-Mails nicht über die Antwortzeit erraten lassen */
+const DUMMY_HASH = bcrypt.hashSync('timing-equalizer', 10);
 
 /* Brute-Force-Schutz: max. 10 fehlgeschlagene Versuche pro IP in 15 Minuten */
 const authLimiter = rateLimit({
@@ -50,7 +53,7 @@ router.post('/register', authLimiter, async (req, res) =>
       'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)'
     ).run(trimmedName, trimmedEmail, hash);
 
-    const token = jwt.sign({ userId: result.lastInsertRowid }, JWT_SECRET, { expiresIn: '30d' });
+    const token = signToken(result.lastInsertRowid, 0);
     res.json({
       token,
       user: { id: result.lastInsertRowid, username: trimmedName, email: trimmedEmail }
@@ -81,18 +84,13 @@ router.post('/login', authLimiter, async (req, res) =>
   try
   {
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
-    if (!user)
+    const valid = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+    if (!user || !valid)
     {
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid)
-    {
-      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
-    }
-
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = signToken(user.id, user.token_version);
     res.json({
       token,
       user: { id: user.id, username: user.username, email: user.email, is_admin: !!user.is_admin }
@@ -175,12 +173,31 @@ router.put('/profile', authMiddleware, async (req, res) =>
   try
   {
     const safeKeys = Object.keys(updates).filter(k => PROFILE_FIELDS.includes(k));
-    const sets = safeKeys.map(k => `${k} = ?`).join(', ');
+    const passwordChanged = safeKeys.includes('password_hash');
+    let sets = safeKeys.map(k => `${k} = ?`).join(', ');
+    if (passwordChanged)
+    {
+      // Erhöht die Token-Version → alle bestehenden Tokens werden ungültig
+      sets += ', token_version = token_version + 1';
+    }
     const vals = safeKeys.map(k => updates[k]);
     db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...vals, req.userId);
-    const updated = db.prepare('SELECT id, username, email, is_admin FROM users WHERE id = ?')
-      .get(req.userId);
-    res.json({ user: { ...updated, is_admin: !!updated.is_admin } });
+    const updated = db.prepare(
+      'SELECT id, username, email, is_admin, token_version FROM users WHERE id = ?'
+    ).get(req.userId);
+
+    const response = {
+      user: {
+        id: updated.id, username: updated.username,
+        email: updated.email, is_admin: !!updated.is_admin
+      }
+    };
+    if (passwordChanged)
+    {
+      // Frischer Token, damit die aktuelle Sitzung nicht ausgeloggt wird
+      response.token = signToken(updated.id, updated.token_version);
+    }
+    res.json(response);
   }
   catch (err)
   {

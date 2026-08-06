@@ -70,7 +70,9 @@ router.put('/users/:id/password', async (req, res) =>
   }
 
   const hash = await bcrypt.hash(password, 10);
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, targetId);
+  // token_version + 1 → alle bestehenden Sitzungen des Nutzers werden ungültig
+  db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?')
+    .run(hash, targetId);
   res.json({ success: true });
 });
 
