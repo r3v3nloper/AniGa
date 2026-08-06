@@ -30,6 +30,7 @@ const IC = {
   users: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
   shield: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
   key: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+  shelf: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6l3 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>`,
 };
 
 /* ---- STATE ---- */
@@ -1234,6 +1235,7 @@ function renderListCard(e)
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
           <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
+          ${e.owned?`<span class="owned-chip">${IC.shelf} Besitz${e.type!=='anime'&&e.volumes?' '+((e.owned_volumes||0)+'/'+e.volumes):''}</span>`:''}
           ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
         <div class="list-card-progress">${progressText(e)}</div>
@@ -1552,6 +1554,18 @@ function renderMediaCard(media)
     </div>`;
 }
 
+function ownedBadgeHtml(entry)
+{
+  if (!entry.owned)
+  {
+    return '';
+  }
+  const label = entry.type !== 'anime' && entry.volumes
+    ? `${entry.owned_volumes || 0}/${entry.volumes}`
+    : '';
+  return `<div class="owned-badge" title="Physisch im Besitz${label ? ' — ' + label + ' Bände' : ''}">${IC.shelf}${label ? `<span>${label}</span>` : ''}</div>`;
+}
+
 function renderMediaCardFromEntry(entry)
 {
   const pct = progressPct(entry);
@@ -1563,6 +1577,7 @@ function renderMediaCardFromEntry(entry)
         <div class="media-card-badge">
           <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
         </div>
+        ${ownedBadgeHtml(entry)}
         <div class="media-card-overlay">
           <div class="media-card-title">${esc(entry.title)}</div>
         </div>
@@ -1735,6 +1750,27 @@ function renderTrackModalBody(media, existingEntry)
           placeholder="Deine Gedanken…">${esc(entry.notes||'')}</textarea>
       </div>
 
+      <div class="form-group">
+        <label class="form-label toggle-row" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <span>Physisch im Besitz</span>
+          <span class="toggle-switch">
+            <input type="checkbox" id="track-owned" ${entry.owned ? 'checked' : ''}/>
+            <span class="toggle-slider"></span>
+          </span>
+        </label>
+      </div>
+
+      ${!isAnime ? `
+      <div class="form-group" id="owned-volumes-group" style="display:${entry.owned?'block':'none'}">
+        <label class="form-label">Bände im Besitz${media.volumes?' / '+media.volumes:''}</label>
+        <div class="num-input-wrap">
+          <button class="num-btn" id="ov-m">−</button>
+          <input class="num-input" type="number" id="track-owned-vol"
+            min="0" max="${media.volumes||99999}" value="${entry.owned_volumes||0}"/>
+          <button class="num-btn" id="ov-p">+</button>
+        </div>
+      </div>` : ''}
+
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Startdatum</label>
@@ -1836,6 +1872,21 @@ function bindTrackModalNumbers(isAnime, maxEp, maxCh)
     bindNum('pg-m', 'pg-p', 'track-pg');
   }
 
+  // Ownership toggle & volumes
+  const ownedCb = $('#track-owned');
+  const volGroup = $('#owned-volumes-group');
+  if (ownedCb)
+  {
+    ownedCb.addEventListener('change', () =>
+    {
+      if (volGroup)
+      {
+        volGroup.style.display = ownedCb.checked ? 'block' : 'none';
+      }
+    });
+  }
+  bindNum('ov-m', 'ov-p', 'track-owned-vol', 0, 99999);
+
   $('#track-status')?.addEventListener('change', () =>
   {
     if ($('#track-status').value !== 'completed')
@@ -1906,6 +1957,8 @@ function bindTrackModalSave(media, existingEntry, isAnime)
         notes: $('#track-notes').value.trim() || null,
         startedAt: $('#track-start').value || null,
         completedAt: $('#track-end').value || null,
+        owned: $('#track-owned')?.checked || false,
+        ownedVolumes: !isAnime ? +($('#track-owned-vol')?.value || 0) : 0,
       };
       if (existingEntry)
       {
@@ -2575,6 +2628,7 @@ function renderUserMediaCard(entry)
         <div class="media-card-badge">
           <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
         </div>
+        ${ownedBadgeHtml(entry)}
         <div class="media-card-overlay">
           <div class="media-card-title">${esc(entry.title)}</div>
         </div>
@@ -2599,6 +2653,7 @@ function renderUserListCard(e)
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
           <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
+          ${e.owned?`<span class="owned-chip">${IC.shelf} Besitz${e.type!=='anime'&&e.volumes?' '+((e.owned_volumes||0)+'/'+e.volumes):''}</span>`:''}
           ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
         <div class="list-card-progress">${progressText(e)}</div>

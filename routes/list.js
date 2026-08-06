@@ -12,6 +12,7 @@ router.get('/', (req, res) =>
   let query = `
     SELECT ul.id, ul.list_status, ul.current_episode, ul.current_chapter, ul.current_page,
            ul.user_score, ul.notes, ul.started_at, ul.completed_at, ul.updated_at,
+           ul.owned, ul.owned_volumes,
            me.title, me.title_english, me.image_url, me.synopsis,
            me.media_status, me.episodes, me.chapters, me.volumes,
            me.api_score, me.genres, me.year, me.season, me.type,
@@ -116,7 +117,8 @@ router.post('/', (req, res) =>
 {
   const {
     mediaData, listStatus, currentEpisode, currentChapter,
-    currentPage, userScore, notes, startedAt, completedAt
+    currentPage, userScore, notes, startedAt, completedAt,
+    owned, ownedVolumes
   } = req.body;
   if (!mediaData || !['anime', 'manga'].includes(mediaData.type))
   {
@@ -186,8 +188,8 @@ router.post('/', (req, res) =>
 
       db.prepare(`
         INSERT INTO user_list (user_id, media_id, list_status, current_episode, current_chapter,
-          current_page, user_score, notes, started_at, completed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          current_page, user_score, notes, started_at, completed_at, owned, owned_volumes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id, media_id) DO UPDATE SET
           list_status = excluded.list_status,
           current_episode = excluded.current_episode,
@@ -197,11 +199,14 @@ router.post('/', (req, res) =>
           notes = excluded.notes,
           started_at = excluded.started_at,
           completed_at = excluded.completed_at,
+          owned = excluded.owned,
+          owned_volumes = excluded.owned_volumes,
           updated_at = CURRENT_TIMESTAMP
       `).run(
         req.userId, mid, listStatus || (mediaData.type === 'anime' ? 'plan_to_watch' : 'plan_to_read'),
         currentEpisode || 0, currentChapter || 0, currentPage || 0,
-        userScore || null, notes || null, startedAt || null, completedAt || null
+        userScore || null, notes || null, startedAt || null, completedAt || null,
+        owned ? 1 : 0, ownedVolumes || 0
       );
 
       return mid;
@@ -227,7 +232,8 @@ router.put('/:id', (req, res) =>
 
   const {
     listStatus, currentEpisode, currentChapter,
-    currentPage, userScore, notes, startedAt, completedAt
+    currentPage, userScore, notes, startedAt, completedAt,
+    owned, ownedVolumes
   } = req.body;
   try
   {
@@ -241,11 +247,16 @@ router.put('/:id', (req, res) =>
         notes = COALESCE(?, notes),
         started_at = COALESCE(?, started_at),
         completed_at = COALESCE(?, completed_at),
+        owned = COALESCE(?, owned),
+        owned_volumes = COALESCE(?, owned_volumes),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND user_id = ?
     `).run(listStatus, currentEpisode, currentChapter, currentPage,
       userScore !== undefined ? userScore : null,
-      notes, startedAt, completedAt, id, req.userId);
+      notes, startedAt, completedAt,
+      owned !== undefined ? (owned ? 1 : 0) : null,
+      ownedVolumes !== undefined ? ownedVolumes : null,
+      id, req.userId);
 
     if (result.changes === 0)
     {

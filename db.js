@@ -86,6 +86,24 @@ catch
   // Column already exists
 }
 
+// Migrate: add ownership columns for existing databases
+try
+{
+  db.exec('ALTER TABLE user_list ADD COLUMN owned INTEGER DEFAULT 0');
+}
+catch
+{
+  // Column already exists
+}
+try
+{
+  db.exec('ALTER TABLE user_list ADD COLUMN owned_volumes INTEGER DEFAULT 0');
+}
+catch
+{
+  // Column already exists
+}
+
 // Seed admin user if not exists
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@aniga.local';
 const adminPassword = process.env.ADMIN_PASSWORD;

@@ -2,7 +2,9 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { jFetch, JIKAN } = require('../utils/jikan');
+const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
+const anilist = require('../utils/anilist');
+const { withFallback } = anilist;
 
 // MAL genre name → ID lookup
 const GENRE_IDS = {
@@ -71,41 +73,37 @@ router.get('/', authMiddleware, async (req, res) =>
 
     if (topGenreIds.length > 0)
     {
-      const data = await jFetch(
-        `${JIKAN}/${type}?genres=${topGenreIds.join(',')}`
-        + `&order_by=score&sort=desc&limit=25&page=${page}&sfw=true`
+      const data = await withFallback(
+        async () =>
+        {
+          const raw = await jFetch(
+            `${JIKAN}/${type}?genres=${topGenreIds.join(',')}`
+            + `&order_by=score&sort=desc&limit=25&page=${page}&sfw=true`
+          );
+          return { results: raw.data?.map(i => formatMedia(i, type)) || [] };
+        },
+        () => anilist.byGenres(type, usedGenres, page)
       );
-      results = data.data || [];
+      results = data.results;
     }
     else
     {
-      const data = await jFetch(
-        `${JIKAN}/top/${type}?limit=25&page=${page}&filter=bypopularity`
+      const data = await withFallback(
+        async () =>
+        {
+          const raw = await jFetch(
+            `${JIKAN}/top/${type}?limit=25&page=${page}&filter=bypopularity`
+          );
+          return { results: raw.data?.map(i => formatMedia(i, type)) || [] };
+        },
+        () => anilist.topMedia(type, page)
       );
-      results = data.data || [];
+      results = data.results;
     }
 
     const filtered = results
       .filter(item => !allMalIds.has(item.mal_id))
-      .slice(0, 12)
-      .map(item => ({
-        mal_id:        item.mal_id,
-        type,
-        title:         item.title,
-        title_english: item.title_english || null,
-        image_url:     item.images?.jpg?.large_image_url
-                       || item.images?.jpg?.image_url || null,
-        synopsis:      item.synopsis || null,
-        media_status:  item.status || null,
-        episodes:      item.episodes || null,
-        chapters:      item.chapters || null,
-        volumes:       item.volumes || null,
-        api_score:     item.score || null,
-        genres:        item.genres?.map(g => g.name) || [],
-        year:          item.year || null,
-        season:        item.season || null,
-        source:        'jikan',
-      }));
+      .slice(0, 12);
 
     res.json({ results: filtered, basedOn: usedGenres });
   }

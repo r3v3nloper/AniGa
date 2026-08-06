@@ -677,6 +677,78 @@ select.form-input
   background: rgba(76,175,80,.85); color: #fff;
 }
 
+/* Owned badge on media cards */
+.owned-badge
+{
+  position: absolute; bottom: 42px; right: 7px;
+  background: rgba(255, 193, 7, .9);
+  color: #1a1a1a;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: .62rem; font-weight: 700;
+  display: flex; align-items: center; gap: 3px;
+  z-index: 2;
+  line-height: 1.3;
+}
+.owned-badge svg
+{
+  width: 11px; height: 11px;
+}
+
+/* Owned chip in list view */
+.owned-chip
+{
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(255, 193, 7, .18);
+  color: #ffc107;
+  padding: 1px 8px; border-radius: 20px;
+  font-size: .7rem; font-weight: 600;
+  white-space: nowrap;
+}
+.owned-chip svg
+{
+  width: 11px; height: 11px;
+}
+
+/* Toggle switch */
+.toggle-switch
+{
+  position: relative;
+  display: inline-block;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.toggle-switch input
+{
+  opacity: 0; width: 0; height: 0;
+}
+.toggle-slider
+{
+  position: absolute; cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg3);
+  border-radius: 22px;
+  transition: background .2s;
+}
+.toggle-slider::before
+{
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  left: 3px; bottom: 3px;
+  background: var(--text2);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.toggle-switch input:checked + .toggle-slider
+{
+  background: var(--accent);
+}
+.toggle-switch input:checked + .toggle-slider::before
+{
+  transform: translateX(18px);
+  background: #fff;
+}
+
 .media-card-overlay
 {
   position: absolute; bottom: 0; left: 0; right: 0;

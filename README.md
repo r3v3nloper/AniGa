@@ -19,7 +19,8 @@
 | 👤 **Profil bearbeiten** | Benutzername, E-Mail und Passwort ändern |
 | 🎬 **Anime tracken** | Status, aktuelle Episode, Bewertung (1–5 Sterne), Notizen |
 | 📚 **Manga tracken** | Status, aktuelles Kapitel + Seite, Bewertung, Notizen |
-| 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite |
+| 📦 **Physischer Besitz** | Pro Eintrag markieren, ob man ihn physisch besitzt; bei Manga inkl. Bände-Zähler (y / x); Badge auf den Karten |
+| 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback |
 | 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Grid- oder Listenansicht |
 | ✏️ **Manueller Eintrag** | Eigene Einträge ohne MAL-Verknüpfung anlegen |
 
@@ -49,6 +50,7 @@
 | 📱 **PWA** | Installierbar auf Mobilgeräten, Offline-fähig via Service Worker |
 | 🌙 **Dark Theme** | Durchgängiges dunkles Design mit CSS-Variablen |
 | 📐 **Responsiv** | Sidebar-Layout auf Desktop, Bottom-Navigation auf Mobil |
+| 🔄 **API-Fallback** | Wenn Jikan/MyAnimeList nicht erreichbar ist, springt AniList (GraphQL) transparent ein |
 | 🐳 **Docker-ready** | Multi-Stage Dockerfile, docker-compose, GitHub Container Registry |
 
 ---
@@ -71,10 +73,15 @@
 - Service Worker (`sw.js`) für Offline-Cache
 - PWA Manifest (`manifest.json`)
 
-### Externe API
-- **[Jikan v4](https://jikan.moe/)** — Kostenlose MyAnimeList-API, kein API-Key nötig
+### Externe APIs
+- **[Jikan v4](https://jikan.moe/)** — Kostenlose MyAnimeList-API, kein API-Key nötig (primär)
   - Rate Limit: 450 ms zwischen Anfragen (serverseitig umgesetzt)
   - Endpunkte: Suche, Details, Streaming, Top, Seasonal
+- **[AniList GraphQL](https://docs.anilist.co/)** — Kostenlose GraphQL-API, kein API-Key nötig (Fallback)
+  - Springt automatisch ein, wenn Jikan/MAL nicht erreichbar ist (z.B. MAL-Ausfall)
+  - Liefert MAL-IDs mit (`idMal`), daher bleibt die `mal_id`-basierte Datenbank konsistent
+  - Ergebnisse ohne MAL-ID werden verworfen; AniList-Status wird auf MAL-Status-Strings gemappt
+  - Rate Limit: 700 ms zwischen Anfragen (serverseitig umgesetzt)
 
 ---
 
@@ -225,8 +232,12 @@ aniga/
 │   ├── auth.js                # /api/auth — Register, Login, Profil
 │   ├── list.js                # /api/list — CRUD Nutzerliste + Stats
 │   ├── recommendations.js     # /api/recommendations — Genre-Empfehlungen
-│   ├── search.js              # /api/search — Jikan-Proxy
+│   ├── search.js              # /api/search — Jikan-Proxy mit AniList-Fallback
 │   └── users.js               # /api/users — Profile, Folgen, Vergleich
+├── utils/
+│   ├── anilist.js             # AniList GraphQL-Client (Fallback-Provider)
+│   ├── jikan.js               # Jikan-Client mit Rate-Limiter + formatMedia()
+│   └── sql.js                 # Wiederverwendbare SQL-Subqueries
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
@@ -343,6 +354,8 @@ Verknüpft Nutzer mit Medien.
 | `current_episode` / `current_chapter` / `current_page` | INTEGER | Fortschritt |
 | `user_score` | REAL | Eigene Bewertung (0.5 – 5.0) |
 | `notes` | TEXT | Eigene Notizen |
+| `owned` | INTEGER | 1 = physisch im Besitz |
+| `owned_volumes` | INTEGER | Anzahl besessener Bände (nur Manga relevant) |
 | `started_at` / `completed_at` / `updated_at` | DATETIME | |
 
 > **UNIQUE-Constraint:** `(user_id, media_id)`.
@@ -420,6 +433,8 @@ CMD ["node", "server.js"]
 | 1.8 | Security-Refactoring: JWT_SECRET via Env-Var, Admin-Credentials via Env-Var, SQL-Feld-Whitelist bei Profil-Update, Input-Validierung aller Route-Parameter, CORS-Origin-Einschränkung, Admin-Selbstlöschung verhindert |
 | 1.8 | Performance-Refactoring: DB-Indexes, Jikan-Rate-Limiter mit Queue + 8s Timeout, Such-Lock gegen Race Conditions, Empfehlungs-Abort bei Typwechsel |
 | 1.8 | Code-Refactoring: `fmtAnime`/`fmtManga` → `formatMedia()`, SQL-Subqueries in `utils/sql.js`, Admin-Middleware als Komposition, `showTrackModal` aufgeteilt in 4 Funktionen, SW-Offline-Response mit Status 503, `defer`-Attribute für Scripts, ARIA-Labels für alle Modals |
+| 1.9 | Physischer Besitz: Toggle „Physisch im Besitz" im Track-Modal, Bände-Zähler für Manga (y / x), Besitz-Badge auf Grid-Karten und Besitz-Chip in Listenansicht |
+| 1.9 | AniList-Fallback: Bei Jikan/MAL-Ausfall springt AniList (GraphQL) automatisch ein — Suche, Details, Top, Seasonal und Empfehlungen bleiben verfügbar; `formatMedia()` nach `utils/jikan.js` extrahiert (DRY) |
 
 ---
 

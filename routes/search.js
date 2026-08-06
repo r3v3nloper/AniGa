@@ -1,97 +1,96 @@
 const express = require('express');
 const router = express.Router();
-const { jFetch, JIKAN } = require('../utils/jikan');
-
-function formatMedia(item, type)
-{
-  const isAnime = type === 'anime';
-  return {
-    mal_id: item.mal_id,
-    type,
-    title: item.title,
-    title_english: item.title_english || null,
-    title_japanese: item.title_japanese || null,
-    image_url: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null,
-    synopsis: item.synopsis || null,
-    media_status: item.status || null,
-    ...(isAnime
-      ? { episodes: item.episodes || null, year: item.year || null, season: item.season || null }
-      : { chapters: item.chapters || null, volumes: item.volumes || null,
-          year: item.published?.prop?.from?.year || null }),
-    api_score: item.score || null,
-    genres: item.genres?.map(g => g.name) || [],
-    mal_url: item.url || null,
-    source: 'jikan'
-  };
-}
+const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
+const anilist = require('../utils/anilist');
+const { withFallback } = anilist;
 
 function clampPage(raw)
 {
   return Math.max(1, Math.min(100, parseInt(raw) || 1));
 }
 
-router.get('/anime', async (req, res) =>
+async function searchViaJikan(type, q, page)
 {
-  const { q } = req.query;
-  const page = clampPage(req.query.page);
-  if (!q || q.length > 200)
-  {
-    return res.status(400).json({ error: 'Suchbegriff erforderlich' });
-  }
-  try
-  {
-    const data = await jFetch(
-      `${JIKAN}/anime?q=${encodeURIComponent(q)}&page=${page}&limit=20&sfw=true`
-    );
-    res.json({ results: data.data?.map(a => formatMedia(a, 'anime')) || [], pagination: data.pagination });
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Suche fehlgeschlagen' });
-  }
-});
+  const data = await jFetch(
+    `${JIKAN}/${type}?q=${encodeURIComponent(q)}&page=${page}&limit=20&sfw=true`
+  );
+  return { results: data.data?.map(m => formatMedia(m, type)) || [], pagination: data.pagination };
+}
 
-router.get('/manga', async (req, res) =>
+function handleSearch(type)
 {
-  const { q } = req.query;
-  const page = clampPage(req.query.page);
-  if (!q || q.length > 200)
+  return async (req, res) =>
   {
-    return res.status(400).json({ error: 'Suchbegriff erforderlich' });
-  }
-  try
-  {
-    const data = await jFetch(
-      `${JIKAN}/manga?q=${encodeURIComponent(q)}&page=${page}&limit=20&sfw=true`
-    );
-    res.json({
-      results: data.data?.map(m => formatMedia(m, 'manga')) || [],
-      pagination: data.pagination
-    });
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Suche fehlgeschlagen' });
-  }
-});
+    const { q } = req.query;
+    const page = clampPage(req.query.page);
+    if (!q || q.length > 200)
+    {
+      return res.status(400).json({ error: 'Suchbegriff erforderlich' });
+    }
+    try
+    {
+      const data = await withFallback(
+        () => searchViaJikan(type, q, page),
+        () => anilist.searchMedia(type, q, page)
+      );
+      res.json(data);
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Suche fehlgeschlagen' });
+    }
+  };
+}
 
-router.get('/anime/:id', async (req, res) =>
+function handleById(type)
 {
-  const id = parseInt(req.params.id);
-  if (!Number.isInteger(id))
+  return async (req, res) =>
   {
-    return res.status(400).json({ error: 'Ungültige ID' });
-  }
-  try
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id))
+    {
+      return res.status(400).json({ error: 'Ungültige ID' });
+    }
+    try
+    {
+      const media = await withFallback(
+        async () => formatMedia((await jFetch(`${JIKAN}/${type}/${id}`)).data, type),
+        () => anilist.getByMalId(type, id)
+      );
+      res.json(media);
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Nicht gefunden' });
+    }
+  };
+}
+
+function handleTop(type)
+{
+  return async (req, res) =>
   {
-    const data = await jFetch(`${JIKAN}/anime/${id}`);
-    res.json(formatMedia(data.data, 'anime'));
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Nicht gefunden' });
-  }
-});
+    try
+    {
+      const data = await withFallback(
+        async () =>
+        {
+          const raw = await jFetch(`${JIKAN}/top/${type}?limit=20&filter=bypopularity`);
+          return { results: raw.data?.map(m => formatMedia(m, type)) || [] };
+        },
+        () => anilist.topMedia(type)
+      );
+      res.json(data);
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Laden fehlgeschlagen' });
+    }
+  };
+}
+
+router.get('/anime', handleSearch('anime'));
+router.get('/manga', handleSearch('manga'));
 
 router.get('/anime/:id/streaming', async (req, res) =>
 {
@@ -111,56 +110,25 @@ router.get('/anime/:id/streaming', async (req, res) =>
   }
 });
 
-router.get('/manga/:id', async (req, res) =>
-{
-  const id = parseInt(req.params.id);
-  if (!Number.isInteger(id))
-  {
-    return res.status(400).json({ error: 'Ungültige ID' });
-  }
-  try
-  {
-    const data = await jFetch(`${JIKAN}/manga/${id}`);
-    res.json(formatMedia(data.data, 'manga'));
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Nicht gefunden' });
-  }
-});
+router.get('/anime/:id', handleById('anime'));
+router.get('/manga/:id', handleById('manga'));
 
-router.get('/top/anime', async (req, res) =>
-{
-  try
-  {
-    const data = await jFetch(`${JIKAN}/top/anime?limit=20&filter=bypopularity`);
-    res.json({ results: data.data?.map(a => formatMedia(a, 'anime')) || [] });
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Laden fehlgeschlagen' });
-  }
-});
-
-router.get('/top/manga', async (req, res) =>
-{
-  try
-  {
-    const data = await jFetch(`${JIKAN}/top/manga?limit=20&filter=bypopularity`);
-    res.json({ results: data.data?.map(m => formatMedia(m, 'manga')) || [] });
-  }
-  catch
-  {
-    res.status(500).json({ error: 'Laden fehlgeschlagen' });
-  }
-});
+router.get('/top/anime', handleTop('anime'));
+router.get('/top/manga', handleTop('manga'));
 
 router.get('/seasonal', async (req, res) =>
 {
   try
   {
-    const data = await jFetch(`${JIKAN}/seasons/now?limit=20`);
-    res.json({ results: data.data?.map(a => formatMedia(a, 'anime')) || [] });
+    const data = await withFallback(
+      async () =>
+      {
+        const raw = await jFetch(`${JIKAN}/seasons/now?limit=20`);
+        return { results: raw.data?.map(a => formatMedia(a, 'anime')) || [] };
+      },
+      () => anilist.seasonal()
+    );
+    res.json(data);
   }
   catch
   {

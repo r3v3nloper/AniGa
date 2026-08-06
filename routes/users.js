@@ -135,8 +135,8 @@ router.get('/:id/compare', (req, res) =>
 
   const fetchList = (userId) => db.prepare(`
     SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode,
-           ul.current_chapter, ul.user_score,
-           me.mal_id, me.title, me.image_url, me.episodes, me.chapters, me.type
+           ul.current_chapter, ul.user_score, ul.owned, ul.owned_volumes,
+           me.mal_id, me.title, me.image_url, me.episodes, me.chapters, me.volumes, me.type
     FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
     WHERE ul.user_id = ? AND me.type = ?
