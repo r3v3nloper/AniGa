@@ -81,8 +81,11 @@ router.get('/:id/list', (req, res) =>
   }
 
   const { type, status } = req.query;
+  /* Explizite Spaltenliste — private Felder (notes, Daten) bleiben beim Besitzer */
   let sql = `
-    SELECT ul.*, me.mal_id, me.title, me.title_english, me.image_url,
+    SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode, ul.current_chapter,
+           ul.current_page, ul.user_score, ul.owned, ul.owned_volumes, ul.updated_at,
+           me.mal_id, me.title, me.title_english, me.image_url,
            me.type, me.episodes, me.chapters, me.volumes, me.api_score,
            me.genres, me.media_status, me.year, me.is_manual
     FROM user_list ul

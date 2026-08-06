@@ -1,16 +1,27 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { rateLimit } = require('express-rate-limit');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 const JWT_SECRET = authMiddleware.JWT_SECRET;
 
+/* Brute-Force-Schutz: max. 10 fehlgeschlagene Versuche pro IP in 15 Minuten */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Zu viele Versuche — bitte in 15 Minuten erneut versuchen' },
+});
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PROFILE_FIELDS = ['username', 'email', 'password_hash'];
 
-router.post('/register', async (req, res) =>
+router.post('/register', authLimiter, async (req, res) =>
 {
   const { username, email, password } = req.body;
   if (!username || !email || !password)
@@ -59,7 +70,7 @@ router.post('/register', async (req, res) =>
   }
 });
 
-router.post('/login', async (req, res) =>
+router.post('/login', authLimiter, async (req, res) =>
 {
   const { email, password } = req.body;
   if (!email || !password)

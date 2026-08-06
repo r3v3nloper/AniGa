@@ -66,6 +66,8 @@
 | `bcryptjs` | ^2.4 | Passwort-Hashing |
 | `cors` | ^2.8 | Cross-Origin-Anfragen |
 | `dotenv` | ^16.4 | Umgebungsvariablen |
+| `helmet` | ^8.3 | Security-Header (CSP, X-Frame-Options, …) |
+| `express-rate-limit` | ^8.6 | Brute-Force-Schutz auf Auth-Routen |
 
 ### Frontend
 - **Vanilla JavaScript** (kein Framework)
@@ -435,6 +437,8 @@ CMD ["node", "server.js"]
 | 1.8 | Code-Refactoring: `fmtAnime`/`fmtManga` → `formatMedia()`, SQL-Subqueries in `utils/sql.js`, Admin-Middleware als Komposition, `showTrackModal` aufgeteilt in 4 Funktionen, SW-Offline-Response mit Status 503, `defer`-Attribute für Scripts, ARIA-Labels für alle Modals |
 | 1.9 | Physischer Besitz: Toggle „Physisch im Besitz" im Track-Modal, Bände-Zähler für Manga (y / x), Besitz-Badge auf Grid-Karten und Besitz-Chip in Listenansicht |
 | 1.9 | AniList-Fallback: Bei Jikan/MAL-Ausfall springt AniList (GraphQL) automatisch ein — Suche, Details, Top, Seasonal und Empfehlungen bleiben verfügbar; `formatMedia()` nach `utils/jikan.js` extrahiert (DRY) |
+| 1.9 | Security-Hardening: Rate-Limiting auf Login/Registrierung (10 Fehlversuche / 15 Min), Security-Header via `helmet` inkl. CSP, XSS-Fix in `coverImg()` (Inline-`onerror` → delegierter Listener, `esc()` escapt jetzt auch `'`), private Notizen nicht mehr über `GET /users/:id/list` einsehbar |
+| 1.9 | Service Worker: Stale-While-Revalidate für statische Assets — Deploys kommen ohne manuellen Cache-Versions-Bump an; cross-origin Requests (Cover, Fonts) werden nicht mehr vom SW abgefangen |
 
 ---
 

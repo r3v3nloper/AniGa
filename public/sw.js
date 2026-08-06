@@ -1,4 +1,4 @@
-const CACHE = 'aniga-v6';
+const CACHE = 'aniga-v8';
 const STATIC = [
   '/',
   '/index.html',
@@ -30,6 +30,19 @@ self.addEventListener('activate', e =>
 self.addEventListener('fetch', e =>
 {
   const url = new URL(e.request.url);
+
+  // Cross-origin (Cover-Bilder, Font-Dateien): nicht abfangen — der Browser lädt sie
+  // direkt unter der Seiten-CSP. SW-fetch() wäre durch die SW-eigene connect-src blockiert.
+  // Ausnahme: beim Install vorgecachte URLs (Google-Fonts-CSS) werden aus dem Cache bedient.
+  if (url.origin !== self.location.origin)
+  {
+    if (STATIC.includes(e.request.url))
+    {
+      e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
+    }
+    return;
+  }
+
   // Network-first for API calls
   if (url.pathname.startsWith('/api/'))
   {
@@ -44,15 +57,12 @@ self.addEventListener('fetch', e =>
     );
     return;
   }
-  // Cache-first for static assets
+  // Stale-while-revalidate for static assets: serve from cache instantly,
+  // refresh the cache in the background so deploys arrive without a version bump
   e.respondWith(
     caches.match(e.request).then(cached =>
     {
-      if (cached)
-      {
-        return cached;
-      }
-      return fetch(e.request).then(res =>
+      const network = fetch(e.request).then(res =>
       {
         if (res && res.status === 200 && res.type === 'basic')
         {
@@ -60,7 +70,13 @@ self.addEventListener('fetch', e =>
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => caches.match('/index.html'));
+      });
+      if (cached)
+      {
+        network.catch(() => {});
+        return cached;
+      }
+      return network.catch(() => caches.match('/index.html'));
     })
   );
 });

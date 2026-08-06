@@ -83,7 +83,8 @@ function esc(str)
     .replace(/&/g,'&amp;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
 }
 
 function timeAgo(dateStr)
@@ -124,14 +125,33 @@ function debounce(fn, ms)
 
 function coverImg(url, title)
 {
-  const safe = esc(title || '').substring(0, 12);
+  const short = (title || '').substring(0, 12);
   if (url)
   {
-    return `<img src="${esc(url)}" alt="${esc(title||'')}" loading="lazy"
-      onerror="this.outerHTML='<div class=\\'no-cover\\'><span>🖼️</span><span>${safe}</span></div>'" />`;
+    return `<img class="cover-img" src="${esc(url)}" alt="${esc(title||'')}"
+      data-fb="${esc(short)}" loading="lazy"/>`;
   }
-  return `<div class="no-cover"><span>🖼️</span><span>${safe}</span></div>`;
+  return `<div class="no-cover"><span>🖼️</span><span>${esc(short)}</span></div>`;
 }
+
+/* Delegierter Fallback für kaputte Cover-Bilder — ersetzt Inline-onerror (XSS-sicher,
+   da der Fallback-Text via textContent gesetzt wird statt als HTML interpretiert) */
+document.addEventListener('error', e =>
+{
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.classList.contains('cover-img'))
+  {
+    return;
+  }
+  const fallback = document.createElement('div');
+  fallback.className = 'no-cover';
+  const icon = document.createElement('span');
+  icon.textContent = '🖼️';
+  const label = document.createElement('span');
+  label.textContent = img.dataset.fb || '';
+  fallback.append(icon, label);
+  img.replaceWith(fallback);
+}, true);
 
 /* ---- STATUS MAPPING ---- */
 const STATUS_LABELS = {
