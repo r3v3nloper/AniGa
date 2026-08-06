@@ -39,9 +39,9 @@ function insertFromApi(mediaData)
   const result = db.prepare(`
     INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
       image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
-    VALUES (?, 'jikan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    mediaData.mal_id, mediaData.type, mediaData.title,
+    mediaData.mal_id, mediaData.source || 'jikan', mediaData.type, mediaData.title,
     mediaData.title_english || null, mediaData.title_japanese || null,
     mediaData.image_url || null, mediaData.synopsis || null,
     mediaData.media_status || null, mediaData.episodes || null,

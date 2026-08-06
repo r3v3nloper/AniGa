@@ -107,16 +107,16 @@ export const API = (() =>
     },
 
     search: {
-      anime: (q, page) =>
-        req('GET', `/search/anime?q=${encodeURIComponent(q)}&page=${page || 1}`),
-      manga: (q, page) =>
-        req('GET', `/search/manga?q=${encodeURIComponent(q)}&page=${page || 1}`),
+      /* type: anime | manga | movie | tv — Backend wählt den passenden Provider */
+      query: (type, q, page) =>
+        req('GET', `/search/${type}?q=${encodeURIComponent(q)}&page=${page || 1}`),
+      getDetail: (type, id) => req('GET', `/search/${type}/${id}`),
+      top: (type) => req('GET', `/search/top/${type}`),
       getAnime: (id) => req('GET', `/search/anime/${id}`),
       getStreaming: (id) => req('GET', `/search/anime/${id}/streaming`),
       getManga: (id) => req('GET', `/search/manga/${id}`),
-      topAnime: () => req('GET', '/search/top/anime'),
-      topManga: () => req('GET', '/search/top/manga'),
-      seasonal: () => req('GET', '/search/seasonal')
+      seasonal: () => req('GET', '/search/seasonal'),
+      trending: (type) => req('GET', `/search/trending?type=${type || 'movie'}`)
     }
   };
 })();

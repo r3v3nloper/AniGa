@@ -3,14 +3,25 @@
    Modal für manuelle Einträge (ohne MAL-Verknüpfung)
    ===================================================== */
 import { IC } from '../icons.js';
+import { S } from '../state.js';
 import { $, $$, toast } from '../dom.js';
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
+import { AREAS, TYPE_META } from '../media.js';
 import { refreshAfterSave } from './track.js';
+
+/* Beschriftung der Zähl-Felder pro Typ (movie hat keine) */
+const COUNT_LABELS = {
+  anime: { count: 'Episoden', vol: 'Staffeln' },
+  manga: { count: 'Kapitel', vol: 'Bände' },
+  tv:    { count: 'Episoden', vol: 'Staffeln' },
+  movie: null,
+};
 
 export function showManualModal(type = 'anime')
 {
   let curType = type;
+  const types = AREAS[S.area].types;
 
   const html = `
     <div class="modal-head">
@@ -19,8 +30,10 @@ export function showManualModal(type = 'anime')
     </div>
     <div class="modal-body">
       <div class="type-toggle" style="margin-bottom:16px">
-        <button class="type-btn${type==='anime'?' active':''}" data-mtype="anime">🎬 Anime</button>
-        <button class="type-btn${type==='manga'?' active':''}" data-mtype="manga">📚 Manga</button>
+        ${types.map(t => `
+          <button class="type-btn${type===t?' active':''}" data-mtype="${t}">
+            ${TYPE_META[t].emoji} ${TYPE_META[t].short}
+          </button>`).join('')}
       </div>
       <div class="form-group">
         <label class="form-label">Titel *</label>
@@ -30,13 +43,13 @@ export function showManualModal(type = 'anime')
         <label class="form-label">Englischer Titel</label>
         <input class="form-input" id="m-title-en" type="text" placeholder="Englischer Titel (optional)"/>
       </div>
-      <div class="form-row">
+      <div class="form-row" id="m-counts-row" style="display:${COUNT_LABELS[type]?'':'none'}">
         <div class="form-group">
-          <label class="form-label" id="m-count-label">${type==='anime'?'Episoden':'Kapitel'}</label>
+          <label class="form-label" id="m-count-label">${COUNT_LABELS[type]?.count||''}</label>
           <input class="form-input" id="m-count" type="number" min="0" placeholder="?"/>
         </div>
         <div class="form-group">
-          <label class="form-label" id="m-vol-label">${type==='anime'?'Staffeln':'Bände'}</label>
+          <label class="form-label" id="m-vol-label">${COUNT_LABELS[type]?.vol||''}</label>
           <input class="form-input" id="m-vol" type="number" min="0" placeholder="?"/>
         </div>
       </div>
@@ -82,10 +95,13 @@ export function showManualModal(type = 'anime')
       {
         curType = btn.dataset.mtype;
         $$('[data-mtype]').forEach(b => b.classList.toggle('active', b===btn));
-        $('#m-count-label').textContent = curType==='anime'
-          ? 'Episoden' : 'Kapitel';
-        $('#m-vol-label').textContent = curType==='anime'
-          ? 'Staffeln' : 'Bände';
+        const labels = COUNT_LABELS[curType];
+        $('#m-counts-row').style.display = labels ? '' : 'none';
+        if (labels)
+        {
+          $('#m-count-label').textContent = labels.count;
+          $('#m-vol-label').textContent = labels.vol;
+        }
       });
     });
 
@@ -108,16 +124,16 @@ export function showManualModal(type = 'anime')
         image_url: $('#m-img').value.trim()||null,
         synopsis: $('#m-synopsis').value.trim()||null,
         media_status: $('#m-status').value||null,
-        episodes: curType==='anime' ? +$('#m-count').value||null : null,
+        episodes: (curType==='anime'||curType==='tv') ? +$('#m-count').value||null : null,
         chapters: curType==='manga' ? +$('#m-count').value||null : null,
-        volumes: +$('#m-vol').value||null,
+        volumes: curType==='movie' ? null : +$('#m-vol').value||null,
         year: +$('#m-year').value||null,
         genres: [],
       };
       try
       {
         await API.list.save(mediaData, {
-          listStatus: curType==='anime' ? 'plan_to_watch' : 'plan_to_read'
+          listStatus: curType==='manga' ? 'plan_to_read' : 'plan_to_watch'
         });
         toast(`„${title}" manuell hinzugefügt!`, 'success');
         closeModal();

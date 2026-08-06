@@ -3,10 +3,21 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
 const anilist = require('../utils/anilist');
+const tmdb = require('../utils/tmdb');
 const { withFallback } = anilist;
 
 // Kein offener Proxy: externe API-Zugriffe nur für eingeloggte Nutzer
 router.use(authMiddleware);
+
+/* Filme/Serien laufen über TMDB und brauchen einen konfigurierten Token */
+function requireTmdb(req, res, next)
+{
+  if (!tmdb.isConfigured())
+  {
+    return res.status(503).json({ error: 'TMDB ist nicht konfiguriert (TMDB_API_TOKEN in .env setzen)' });
+  }
+  next();
+}
 
 function clampPage(raw)
 {
@@ -93,6 +104,83 @@ function handleTop(type)
   };
 }
 
+/* ── TMDB: Filme & Serien ─────────────────────────────── */
+function handleTmdbSearch(type)
+{
+  return async (req, res) =>
+  {
+    const { q } = req.query;
+    const page = clampPage(req.query.page);
+    if (!q || q.length > 200)
+    {
+      return res.status(400).json({ error: 'Suchbegriff erforderlich' });
+    }
+    try
+    {
+      res.json(await tmdb.searchMedia(type, q, page));
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Suche fehlgeschlagen' });
+    }
+  };
+}
+
+function handleTmdbById(type)
+{
+  return async (req, res) =>
+  {
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id))
+    {
+      return res.status(400).json({ error: 'Ungültige ID' });
+    }
+    try
+    {
+      res.json(await tmdb.getById(type, id));
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Nicht gefunden' });
+    }
+  };
+}
+
+function handleTmdbTop(type)
+{
+  return async (req, res) =>
+  {
+    try
+    {
+      res.json(await tmdb.topMedia(type));
+    }
+    catch
+    {
+      res.status(500).json({ error: 'Laden fehlgeschlagen' });
+    }
+  };
+}
+
+router.get('/movie', requireTmdb, handleTmdbSearch('movie'));
+router.get('/tv', requireTmdb, handleTmdbSearch('tv'));
+router.get('/movie/:id', requireTmdb, handleTmdbById('movie'));
+router.get('/tv/:id', requireTmdb, handleTmdbById('tv'));
+router.get('/top/movie', requireTmdb, handleTmdbTop('movie'));
+router.get('/top/tv', requireTmdb, handleTmdbTop('tv'));
+
+router.get('/trending', requireTmdb, async (req, res) =>
+{
+  try
+  {
+    res.json(await tmdb.trending(req.query.type === 'tv' ? 'tv' : 'movie'));
+  }
+  catch
+  {
+    res.status(500).json({ error: 'Laden fehlgeschlagen' });
+  }
+});
+
+/* ── Jikan/AniList: Anime & Manga ─────────────────────── */
 router.get('/anime', handleSearch('anime'));
 router.get('/manga', handleSearch('manga'));
 

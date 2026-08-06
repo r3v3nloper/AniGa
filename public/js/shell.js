@@ -5,22 +5,37 @@
 import { IC } from './icons.js';
 import { S } from './state.js';
 import { $, $$, esc } from './dom.js';
+import { AREAS, TYPE_META } from './media.js';
 
 /* Views, die mobil hinter dem „Mehr"-Sheet liegen (Bottom-Nav max. 5 Items) */
 const MORE_VIEWS = ['collections', 'users', 'profile', 'admin'];
 
 function allNavItems()
 {
+  const areaTypes = AREAS[S.area].types;
   return [
     { id:'home',    icon:IC.home,   label:'Übersicht', short:'Start' },
     { id:'search',  icon:IC.search, label:'Suche', short:'Suche' },
-    { id:'anime',   icon:IC.tv,     label:'Anime-Liste', short:'Anime' },
-    { id:'manga',   icon:IC.book,   label:'Manga-Liste', short:'Manga' },
+    ...areaTypes.map(t =>
+    {
+      const m = TYPE_META[t];
+      return { id: m.view, icon: IC[m.icon], label: m.label, short: m.short };
+    }),
     { id:'collections', icon:IC.folder, label:'Collections' },
     { id:'users',   icon:IC.users,  label:'Nutzer' },
     { id:'profile', icon:IC.user,   label:'Profil' },
     ...(S.user?.is_admin ? [{ id:'admin', icon:IC.shield, label:'Admin', admin:true }] : []),
   ];
+}
+
+function areaSwitcherHtml()
+{
+  return `
+    <div class="area-switcher">
+      ${Object.entries(AREAS).map(([id, a]) => `
+        <button class="area-btn${S.area===id?' active':''}" data-area="${id}">${a.label}</button>
+      `).join('')}
+    </div>`;
 }
 
 export function renderShell()
@@ -37,6 +52,7 @@ export function renderShell()
         <img src="/icons/logo.jpeg" class="logo-img" alt="AniGa Logo"/>
         <span class="logo-text">AniGa</span>
       </div>
+      ${areaSwitcherHtml()}
       <nav class="sidebar-nav">
         ${navItems.map(n=>`
           <button class="nav-item${v===n.id?' active':''}${n.admin?' nav-item-admin':''}" data-nav="${n.id}">
@@ -92,6 +108,7 @@ export function openMoreSheet()
   overlay.innerHTML = `
     <div class="more-sheet">
       <div class="more-sheet-handle"></div>
+      ${areaSwitcherHtml()}
       ${items.map(n => `
         <button class="more-sheet-item${S.view===n.id?' active':''}" data-nav="${n.id}">
           ${n.icon}<span>${n.label}</span>
@@ -99,10 +116,10 @@ export function openMoreSheet()
     </div>`;
   document.body.appendChild(overlay);
 
-  // Schließt bei Overlay-Tipp und bei Navigation (data-nav übernimmt die globale Delegation)
+  // Schließt bei Overlay-Tipp, Navigation und Bereichswechsel (globale Delegation übernimmt die Aktion)
   overlay.addEventListener('click', e =>
   {
-    if (e.target === overlay || e.target.closest('[data-nav]'))
+    if (e.target === overlay || e.target.closest('[data-nav]') || e.target.closest('[data-area]'))
     {
       closeMoreSheet();
     }

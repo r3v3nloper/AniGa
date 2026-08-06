@@ -6,7 +6,7 @@ import { IC } from '../icons.js';
 import { S } from '../state.js';
 import { $, $$, esc, coverImg, toast, renderEmptyState, bindStatusTabs } from '../dom.js';
 import { API } from '../api.js';
-import { STATUS_LABELS, STATUS_CSS } from '../media.js';
+import { STATUS_LABELS, STATUS_CSS, TYPE_META } from '../media.js';
 import { renderAndBindUserListView } from './users.js';
 
 export async function showCompareView(user)
@@ -58,8 +58,10 @@ function renderCompareView()
     </div>
 
     <div class="type-toggle" style="margin-bottom:16px">
-      <button class="type-btn${type==='anime'?' active':''}" data-ctype="anime">🎬 Anime</button>
-      <button class="type-btn${type==='manga'?' active':''}" data-ctype="manga">📚 Manga</button>
+      ${Object.keys(TYPE_META).map(t => `
+        <button class="type-btn${type===t?' active':''}" data-ctype="${t}">
+          ${TYPE_META[t].emoji} ${TYPE_META[t].short}
+        </button>`).join('')}
     </div>
 
     <div class="compare-summary">
@@ -130,21 +132,23 @@ function renderCompareContent()
 function renderCompareCard(item, type, myName, theirName)
 {
   const { media, me, them } = item;
-  const total   = type === 'anime' ? media.episodes : media.chapters;
-  const myProg  = type === 'anime' ? me.episode  : me.chapter;
-  const thProg  = type === 'anime' ? them.episode : them.chapter;
+  const isEpisodic = type === 'anime' || type === 'tv';
+  const isMovie = type === 'movie';
+  const total   = isEpisodic ? media.episodes : media.chapters;
+  const myProg  = isEpisodic ? me.episode  : me.chapter;
+  const thProg  = isEpisodic ? them.episode : them.chapter;
   const myPct   = total ? Math.round((myProg  / total) * 100) : 0;
   const thPct   = total ? Math.round((thProg  / total) * 100) : 0;
-  const progLabel = type === 'anime' ? 'Ep.' : 'Kap.';
+  const progLabel = isEpisodic ? 'Ep.' : 'Kap.';
   const totalTxt  = total ? `/${total}` : '';
 
   const sideHtml = (name, status, prog, pct, score) => `
     <div class="compare-side">
       <div class="compare-side-name">${esc(name)}</div>
       <span class="status-badge ${STATUS_CSS[status]||'status-default'}">${STATUS_LABELS[status]||status}</span>
-      <div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>
+      ${isMovie ? '' : `<div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>`}
       ${score ? `<div class="compare-side-score">${IC.star} ${score}.0</div>` : ''}
-      ${total
+      ${total && !isMovie
         ? `<div class="progress-bar" style="margin-top:4px">` +
           `<div class="progress-fill" style="width:${pct}%"></div></div>`
         : ''}
@@ -166,8 +170,10 @@ function renderCompareCard(item, type, myName, theirName)
 
 function renderCompareSimpleCard(e, type)
 {
-  const total = type === 'anime' ? e.episodes : e.chapters;
-  const prog  = type === 'anime' ? e.current_episode : e.current_chapter;
+  const isEpisodic = type === 'anime' || type === 'tv';
+  const isMovie = type === 'movie';
+  const total = isEpisodic ? e.episodes : e.chapters;
+  const prog  = isEpisodic ? e.current_episode : e.current_chapter;
   const pct   = total ? Math.round((prog / total) * 100) : 0;
   return `
     <div class="compare-card">
@@ -179,7 +185,7 @@ function renderCompareSimpleCard(e, type)
             <span class="status-badge ${STATUS_CSS[e.list_status]||'status-default'}">
               ${STATUS_LABELS[e.list_status]||e.list_status}
             </span>
-            <div class="compare-side-prog">${type==='anime'?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>
+            ${isMovie ? '' : `<div class="compare-side-prog">${isEpisodic?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>`}
             ${e.user_score ? `<div class="compare-side-score">${IC.star} ${e.user_score}.0</div>` : ''}
             ${total
         ? `<div class="progress-bar" style="margin-top:4px">` +

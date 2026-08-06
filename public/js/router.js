@@ -5,6 +5,7 @@
 import { S } from './state.js';
 import { $, esc, renderEmptyState } from './dom.js';
 import { API } from './api.js';
+import { AREAS, setUserList } from './media.js';
 import { updateNav, closeSidebar } from './shell.js';
 import { renderHome, bindHome, loadRecommendations } from './views/home.js';
 import { renderSearch, bindSearch, loadTopContent } from './views/search.js';
@@ -39,30 +40,30 @@ export async function navigate(view)
           loadRecommendations();
         }
         break;
-      case 'search':
+      case 'search': {
         main.innerHTML = renderSearch();
         bindSearch();
-        if (!S.topAnime.length)
+        const topCache = S.area === 'screen' ? S.topMovie : S.topAnime;
+        if (!topCache.length)
         {
           loadTopContent();
         }
         break;
+      }
       case 'anime':
-        [S.animeList, S.collections] = await Promise.all([
-          API.list.getAll('anime'),
-          API.collections.getAll()
-        ]);
-        main.innerHTML = renderList('anime');
-        bindList('anime');
-        break;
       case 'manga':
-        [S.mangaList, S.collections] = await Promise.all([
-          API.list.getAll('manga'),
+      case 'movie':
+      case 'tv': {
+        const [list, collections] = await Promise.all([
+          API.list.getAll(view),
           API.collections.getAll()
         ]);
-        main.innerHTML = renderList('manga');
-        bindList('manga');
+        setUserList(view, list);
+        S.collections = collections;
+        main.innerHTML = renderList(view);
+        bindList(view);
         break;
+      }
       case 'profile':
         S.stats = await API.list.getStats();
         main.innerHTML = renderProfile();
@@ -107,12 +108,10 @@ export async function navigate(view)
 
 async function loadAllLists()
 {
-  const [a, m] = await Promise.all([
-    API.list.getAll('anime'),
-    API.list.getAll('manga')
-  ]);
-  S.animeList = a;
-  S.mangaList = m;
+  // Lädt die Listen des aktiven Bereichs (Anime/Manga bzw. Filme/Serien)
+  const types = AREAS[S.area].types;
+  const lists = await Promise.all(types.map(t => API.list.getAll(t)));
+  types.forEach((t, i) => setUserList(t, lists[i]));
 }
 
 async function loadStats()

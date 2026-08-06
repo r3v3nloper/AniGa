@@ -8,7 +8,7 @@ import { $, $$, esc, coverImg, debounce, toast, renderEmptyState, bindStatusTabs
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
 import {
-  STATUS_LABELS, STATUS_CSS, ANIME_STATUSES, MANGA_STATUSES,
+  STATUS_LABELS, STATUS_CSS, TYPE_META, statusesFor,
   starsHtml, progressText, progressPct, ownedBadgeHtml, ownedChipHtml
 } from '../media.js';
 import { navigate } from '../router.js';
@@ -189,7 +189,7 @@ function renderUserListView()
   });
   const statuses = [
     {val:'all',label:'Alle'},
-    ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)
+    ...statusesFor(type)
   ];
   const filtered = curStatus==='all'
     ? list
@@ -211,8 +211,10 @@ function renderUserListView()
     </div>
 
     <div class="type-toggle" style="margin-bottom:16px">
-      <button class="type-btn${type==='anime'?' active':''}" data-utype="anime">🎬 Anime</button>
-      <button class="type-btn${type==='manga'?' active':''}" data-utype="manga">📚 Manga</button>
+      ${Object.keys(TYPE_META).map(t => `
+        <button class="type-btn${type===t?' active':''}" data-utype="${t}">
+          ${TYPE_META[t].emoji} ${TYPE_META[t].short}
+        </button>`).join('')}
     </div>
 
     <div class="status-tabs">
@@ -238,7 +240,7 @@ function renderUserListContent(filtered, curView)
   if (!filtered.length)
   {
     return renderEmptyState(
-      S.userListType==='anime'?'🎬':'📚', 'Keine Einträge',
+      TYPE_META[S.userListType].emoji, 'Keine Einträge',
       'Dieser Nutzer hat noch nichts in dieser Kategorie.');
   }
   return curView === 'grid'

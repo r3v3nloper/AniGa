@@ -19,6 +19,7 @@
 | 👤 **Profil bearbeiten** | Benutzername, E-Mail und Passwort ändern |
 | 🎬 **Anime tracken** | Status, aktuelle Episode, Bewertung (1–5 Sterne), Notizen |
 | 📚 **Manga tracken** | Status, aktuelles Kapitel + Seite, Bewertung, Notizen |
+| 🎥 **Filme & Serien tracken** | Eigener Bereich mit Umschalter in der Sidebar — Serien mit Episoden-Fortschritt und Staffeln, Filme ohne Fortschritt; Daten via TMDB (deutsch) |
 | 📦 **Physischer Besitz** | Pro Eintrag markieren, ob man ihn physisch besitzt; bei Manga inkl. Bände-Zähler (y / x); Badge auf den Karten |
 | 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback |
 | 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Collection-Filter, Grid- oder Listenansicht |
@@ -85,6 +86,11 @@
   - Liefert MAL-IDs mit (`idMal`), daher bleibt die `mal_id`-basierte Datenbank konsistent
   - Ergebnisse ohne MAL-ID werden verworfen; AniList-Status wird auf MAL-Status-Strings gemappt
   - Rate Limit: 700 ms zwischen Anfragen (serverseitig umgesetzt)
+- **[TMDB](https://www.themoviedb.org/)** — Filme & Serien (kostenloser API-Token nötig)
+  - `TMDB_API_TOKEN` in `.env` setzen (v4-Lesezugriffstoken `eyJ…` **oder** v3-Schlüssel — Format wird automatisch erkannt)
+  - Deutsche Titel/Beschreibungen (`language=de-DE`); TMDB-Status wird auf die vorhandenen Badge-Strings gemappt
+  - Die TMDB-ID wird im `mal_id`-Feld gespeichert, `source='tmdb'` unterscheidet die Provider
+  - Ohne konfigurierten Token liefern die Film/Serien-Endpoints 503
 
 ---
 
@@ -209,6 +215,7 @@ docker pull ghcr.io/DEIN-USERNAME/aniga:latest
 | `ADMIN_EMAIL` | Nein | `admin@aniga.local` | E-Mail des Admin-Kontos (nur beim ersten Start relevant) |
 | `ADMIN_PASSWORD` | Nein | — | Passwort des Admin-Kontos. Wird nur gesetzt, wenn noch kein Admin existiert |
 | `CORS_ORIGIN` | Nein | `http://localhost:PORT` | Erlaubte Origin für CORS-Anfragen |
+| `TMDB_API_TOKEN` | Nein | — | TMDB-Token für Filme & Serien (v4-Lesezugriffstoken oder v3-Schlüssel). Ohne Token liefern die Film/Serien-Endpoints 503 |
 
 `.env.example`:
 ```env
@@ -216,6 +223,7 @@ PORT=3000
 JWT_SECRET=your-super-secret-key-change-this
 ADMIN_EMAIL=admin@aniga.local
 ADMIN_PASSWORD=MeinSicheresPasswort123
+TMDB_API_TOKEN=eyJ...
 ```
 
 ---
@@ -272,7 +280,8 @@ aniga/
 │   ├── anilist.js             # AniList GraphQL-Client (Fallback-Provider)
 │   ├── jikan.js               # Jikan-Client mit Rate-Limiter + formatMedia()
 │   ├── mediaStore.js          # Persistenz für media_entries (Upsert-Logik)
-│   └── sql.js                 # Wiederverwendbare SQL-Subqueries
+│   ├── sql.js                 # Wiederverwendbare SQL-Subqueries
+│   └── tmdb.js                # TMDB-Client für Filme & Serien (de-DE)
 ├── tests/                     # Testsuite (node:test, keine Extra-Dependency)
 │   ├── helpers/
 │   │   └── setup.js           # Temp-DB + Testserver auf ephemerem Port
@@ -330,6 +339,13 @@ aniga/
 | `GET` | `/top/anime` | ✅ | Top-Anime nach Bewertung |
 | `GET` | `/top/manga` | ✅ | Top-Manga |
 | `GET` | `/seasonal` | ✅ | Anime der aktuellen Saison |
+| `GET` | `/movie` | ✅ | Filme suchen via TMDB (`?q=...&page=1`) |
+| `GET` | `/tv` | ✅ | Serien suchen via TMDB |
+| `GET` | `/movie/:id` | ✅ | Film-Details (TMDB-ID) |
+| `GET` | `/tv/:id` | ✅ | Serien-Details (inkl. Episoden + Staffeln) |
+| `GET` | `/top/movie` | ✅ | Beliebte Filme |
+| `GET` | `/top/tv` | ✅ | Beliebte Serien |
+| `GET` | `/trending` | ✅ | Trending der Woche (`?type=movie\|tv`) |
 
 ### Collections (`/api/collections`)
 | Methode | Pfad | Auth | Beschreibung |
@@ -523,6 +539,8 @@ CMD ["node", "server.js"]
 | 2.0 | Testsuite: 30 Tests via eingebautem `node:test` (`npm test`, keine neue Dependency) — Unit-Tests für Jikan/AniList-Mapping, `withFallback`, Media-Upsert; Integrationstests für Auth (inkl. Token-Invalidierung), Listen-CRUD und Notes-Privacy; `server.js` in `app.js` (App) + `server.js` (listen) gesplittet für Testbarkeit |
 | 2.1 | Collections: eigene Sammlungen (z.B. „ReWatch") mit Many-to-Many-Zuordnung — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend; Chips im Track-Modal, eigener Nav-Punkt mit Cover-Mosaik, Collection-Filter in den Listen-Views, Schnell-Entfernen im Detail; `POST /list` liefert jetzt `entryId`; 8 neue Tests (38 gesamt) |
 | 2.1 | Mobile UX: Bottom-Navigation auf 5 Kern-Items reduziert (Start, Suche, Anime, Manga, Mehr) — „Mehr" öffnet ein Bottom-Sheet mit Collections, Nutzer, Profil und Admin; Collection-Karten im Media-Card-Design mit adaptivem Cover-Mosaik (keine leeren Kacheln) |
+| 2.2 | TMDB-Backend für Filme & Serien: `utils/tmdb.js` (deutsche Texte, beide Token-Formate, Genre-/Status-Mapping auf vorhandene Badges), Search-/Detail-/Top-/Trending-Endpoints, `user_list` akzeptiert `movie`/`tv`, Serien speichern Episoden + Staffeln; 5 neue Tests (43 gesamt). Frontend-Bereich folgt in Etappe 3 |
+| 2.3 | Bereichs-Switcher „🌸 Anime & Manga \| 🎬 Filme & Serien" (Sidebar + Mehr-Sheet, persistiert): Navigation, Home-Dashboard, Suche (Trending + Beliebte), Empfehlungen (TMDB-Discover nach Genres), Listen-Views und Track-Modal sind bereichs-/typabhängig — Filme ohne Fortschritts-Inputs, Serien mit Episoden + Staffel-Chip; Nutzerlisten & Vergleich mit 4 Typ-Tabs; manuelle Einträge für Filme/Serien; Stats-Endpoint liefert alle 4 Typen; Modal-Speichern refresht Media-Metadaten (POST-Upsert statt PUT bei API-Einträgen) |
 
 ---
 

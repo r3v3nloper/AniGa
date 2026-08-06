@@ -6,7 +6,7 @@ import { IC } from '../icons.js';
 import { S } from '../state.js';
 import { $, $$, esc, coverImg, debounce, renderEmptyState, bindStatusTabs, bindViewToggle } from '../dom.js';
 import {
-  STATUS_LABELS, STATUS_CSS, ANIME_STATUSES, MANGA_STATUSES,
+  STATUS_LABELS, STATUS_CSS, TYPE_META, statusesFor, getUserList,
   starsHtml, progressText, progressPct, entryToMedia, ownedChipHtml,
   renderMediaCardFromEntry, bindMediaCards
 } from '../media.js';
@@ -39,7 +39,8 @@ function applyFilters(list, type)
 
 export function renderList(type)
 {
-  const list = type === 'anime' ? S.animeList : S.mangaList;
+  const meta = TYPE_META[type];
+  const list = getUserList(type);
   const curStatus = S.listStatus[type] || 'all';
   const curView = S.listView[type] || 'grid';
   const curFilter = S.listFilter[type] || '';
@@ -51,7 +52,7 @@ export function renderList(type)
   });
   const statuses = [
     {val:'all',label:'Alle'},
-    ...(type==='anime'?ANIME_STATUSES:MANGA_STATUSES)
+    ...statusesFor(type)
   ];
 
   const filtered = applyFilters(list, type);
@@ -59,10 +60,10 @@ export function renderList(type)
   return `
     <div class="page-header">
       <div class="page-title-row">
-        <div class="page-icon">${type==='anime'?IC.tv:IC.book}</div>
+        <div class="page-icon">${IC[meta.icon]}</div>
         <div>
-          <div class="page-title">${type==='anime'?'Anime-Liste':'Manga-Liste'}</div>
-          <div class="page-sub">${list.length} ${type==='anime'?'Anime':'Manga'} in deiner Liste</div>
+          <div class="page-title">${meta.label}</div>
+          <div class="page-sub">${list.length} ${list.length === 1 ? meta.singular : meta.plural} in deiner Liste</div>
         </div>
       </div>
       <button class="btn btn-primary btn-sm" id="btn-add-new">${IC.plus} Hinzufügen</button>
@@ -100,7 +101,7 @@ function renderListContent(filtered, curView, type)
   if (!filtered.length)
   {
     return renderEmptyState(
-      type==='anime'?'🎬':'📚',
+      TYPE_META[type].emoji,
       `Keine Einträge${S.listFilter[type]?' für diesen Filter':''}`,
       S.listFilter[type]?'Probiere einen anderen Filter.':'Füge über die Suche neue Einträge hinzu!',
       `<button class="btn btn-primary" id="go-search-btn">${IC.search} Suche</button>`
@@ -169,7 +170,7 @@ export function bindList(type)
 
 function refreshListContent(type)
 {
-  const list = type==='anime' ? S.animeList : S.mangaList;
+  const list = getUserList(type);
   const curView = S.listView[type]||'grid';
   const filtered = applyFilters(list, type);
 
@@ -190,8 +191,7 @@ function bindListCards()
     c.addEventListener('click', () =>
     {
       const type = c.dataset.type;
-      const entry = (type==='anime'?S.animeList:S.mangaList)
-        .find(e=>e.id==c.dataset.entryId);
+      const entry = getUserList(type).find(e=>e.id==c.dataset.entryId);
       if (entry)
       {
         showTrackModal(entryToMedia(entry), entry);

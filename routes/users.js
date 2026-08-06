@@ -134,7 +134,9 @@ router.get('/:id/compare', (req, res) =>
   }
 
   const myId = req.userId;
-  const type = req.query.type === 'manga' ? 'manga' : 'anime';
+  const type = ['anime', 'manga', 'movie', 'tv'].includes(req.query.type)
+    ? req.query.type
+    : 'anime';
 
   const fetchList = (userId) => db.prepare(`
     SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode,

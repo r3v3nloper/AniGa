@@ -1,25 +1,55 @@
 /* =====================================================
    AniGa – views/home.js
-   Dashboard: Statistiken, Empfehlungen, zuletzt aktualisiert
+   Dashboard des aktiven Bereichs: Statistiken, Empfehlungen, zuletzt aktualisiert
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
 import { $, $$, esc, coverImg, timeAgo, toast, renderEmptyState } from '../dom.js';
 import { API } from '../api.js';
 import {
-  STATUS_LABELS, STATUS_CSS, starsHtml, progressText,
-  entryToMedia, renderMediaCardFromEntry, bindMediaCards
+  STATUS_LABELS, STATUS_CSS, AREAS, TYPE_META, getUserList,
+  starsHtml, progressText, entryToMedia, renderMediaCardFromEntry, bindMediaCards
 } from '../media.js';
 import { showTrackModal } from '../modals/track.js';
 import { navigate } from '../router.js';
 
+/* Bereichsspezifische Dashboard-Konfiguration */
+function areaConfig()
+{
+  if (S.area === 'screen')
+  {
+    return {
+      statCards: [
+        { num: () => S.stats?.movie?.total || 0, label: 'Filme gesamt' },
+        { num: () => S.stats?.movie?.completed || 0, label: 'Filme gesehen' },
+        { num: () => S.stats?.tv?.total || 0, label: 'Serien gesamt' },
+        { num: () => S.stats?.tv?.total_episodes || 0, label: 'Episoden gesehen' },
+      ],
+      sections: [
+        { type: 'tv', status: 'watching', icon: IC.monitor, title: 'Serien am Schauen' },
+        { type: 'movie', status: 'plan_to_watch', icon: IC.film, title: 'Film-Watchlist' },
+      ],
+    };
+  }
+  return {
+    statCards: [
+      { num: () => S.stats?.anime?.total || 0, label: 'Anime gesamt' },
+      { num: () => S.stats?.anime?.total_episodes || 0, label: 'Episoden gesehen' },
+      { num: () => S.stats?.manga?.total || 0, label: 'Manga gesamt' },
+      { num: () => S.stats?.manga?.total_chapters || 0, label: 'Kapitel gelesen' },
+    ],
+    sections: [
+      { type: 'anime', status: 'watching', icon: IC.tv, title: 'Aktuell am Schauen' },
+      { type: 'manga', status: 'reading', icon: IC.book, title: 'Aktuell am Lesen' },
+    ],
+  };
+}
+
 export function renderHome()
 {
-  const a = S.stats?.anime || {};
-  const m = S.stats?.manga || {};
-  const watching = S.animeList.filter(e => e.list_status === 'watching').slice(0, 6);
-  const reading = S.mangaList.filter(e => e.list_status === 'reading').slice(0, 6);
-  const recent = [...S.animeList, ...S.mangaList]
+  const cfg = areaConfig();
+  const types = AREAS[S.area].types;
+  const recent = types.flatMap(t => getUserList(t))
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 8);
 
   return `
@@ -35,49 +65,39 @@ export function renderHome()
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-num">${a.total||0}</div>
-        <div class="stat-label">Anime gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${a.total_episodes||0}</div>
-        <div class="stat-label">Episoden gesehen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${m.total||0}</div>
-        <div class="stat-label">Manga gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${m.total_chapters||0}</div>
-        <div class="stat-label">Kapitel gelesen</div>
-      </div>
+      ${cfg.statCards.map(c => `
+        <div class="stat-card">
+          <div class="stat-num">${c.num()}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>`).join('')}
     </div>
 
-    ${watching.length ? `
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">${IC.tv} Aktuell am Schauen</div>
-        <button class="btn btn-ghost btn-sm" data-nav="anime">Alle ansehen ${IC.chevR}</button>
-      </div>
-      <div class="media-grid">${watching.map(e=>renderMediaCardFromEntry(e)).join('')}</div>
-    </div>` : ''}
-
-    ${reading.length ? `
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">${IC.book} Aktuell am Lesen</div>
-        <button class="btn btn-ghost btn-sm" data-nav="manga">Alle ansehen ${IC.chevR}</button>
-      </div>
-      <div class="media-grid">${reading.map(e=>renderMediaCardFromEntry(e)).join('')}</div>
-    </div>` : ''}
+    ${cfg.sections.map(sec =>
+    {
+      const items = getUserList(sec.type).filter(e => e.list_status === sec.status).slice(0, 6);
+      if (!items.length)
+      {
+        return '';
+      }
+      return `
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">${sec.icon} ${sec.title}</div>
+          <button class="btn btn-ghost btn-sm" data-nav="${sec.type}">Alle ansehen ${IC.chevR}</button>
+        </div>
+        <div class="media-grid">${items.map(e=>renderMediaCardFromEntry(e)).join('')}</div>
+      </div>`;
+    }).join('')}
 
     <div class="section" id="rec-section">
       <div class="section-head rec-head">
         <div class="section-title">✨ Empfohlen für dich</div>
         <div style="display:flex;gap:6px;align-items:center">
           <div class="type-toggle" style="margin:0">
-            <button class="type-btn${S.recommendType==='anime'?' active':''}" id="rec-btn-anime">Anime</button>
-            <button class="type-btn${S.recommendType==='manga'?' active':''}" id="rec-btn-manga">Manga</button>
+            ${types.map(t => `
+              <button class="type-btn${S.recommendType===t?' active':''}" data-rectype="${t}">
+                ${TYPE_META[t].short}
+              </button>`).join('')}
           </div>
           <button class="btn btn-ghost btn-sm" id="rec-refresh" title="Neu laden">↺</button>
         </div>
@@ -105,7 +125,7 @@ export function renderHome()
               <div class="recent-updated">${timeAgo(e.updated_at)}</div>
             </div>`).join('')}
         </div>` : renderEmptyState('🌸', 'Noch nichts in deiner Liste',
-          'Suche nach Animes und Mangas und starte deinen Tracker!',
+          'Suche nach neuen Titeln und starte deinen Tracker!',
           `<button class="btn btn-primary" data-nav="search">${IC.search} Jetzt suchen</button>`)}
     </div>`;
 }
@@ -122,7 +142,7 @@ function renderRecommendationContent()
   if (!r.results.length)
   {
     return renderEmptyState('🔍', 'Keine Empfehlungen',
-      'Füge Anime oder Manga zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.',
+      'Füge Titel zu deiner Liste hinzu, um personalisierte Empfehlungen zu erhalten.',
       '', 'padding:20px 0');
   }
 
@@ -147,9 +167,11 @@ function renderRecommendCard(m)
       </div>
       <div class="media-card-footer">
         <span class="media-card-type">${
-          m.type==='anime'
-            ? (m.episodes ? `${m.episodes} Ep.` : 'Anime')
-            : (m.chapters ? `${m.chapters} Kap.` : 'Manga')
+          m.type==='manga'
+            ? (m.chapters ? `${m.chapters} Kap.` : 'Manga')
+            : m.type==='movie'
+              ? (m.year || 'Film')
+              : (m.episodes ? `${m.episodes} Ep.` : TYPE_META[m.type].singular)
         }</span>
         <button class="btn-add-rec" title="Hinzufügen">${IC.plus}</button>
       </div>
@@ -163,9 +185,7 @@ export function bindHome()
   {
     el.addEventListener('click', () =>
     {
-      const type = el.dataset.type;
-      const entry = (type==='anime'?S.animeList:S.mangaList)
-        .find(e=>e.id==el.dataset.entryId);
+      const entry = getUserList(el.dataset.type).find(e=>e.id==el.dataset.entryId);
       if (entry)
       {
         showTrackModal(entryToMedia(entry), entry);
@@ -174,34 +194,23 @@ export function bindHome()
   });
   bindMediaCards();
 
-  // Recommendation controls
-  $('#rec-btn-anime')?.addEventListener('click', () =>
+  // Empfehlungs-Typ umschalten (Typen des aktiven Bereichs)
+  $$('[data-rectype]').forEach(b =>
   {
-    if (S.recommendType === 'anime')
+    b.addEventListener('click', () =>
     {
-      return;
-    }
-    S.recommendType = 'anime';
-    S.recommendations = null;
-    S.recommendPage = 1;
-    $('#rec-btn-anime').classList.add('active');
-    $('#rec-btn-manga').classList.remove('active');
-    $('#rec-content').innerHTML = renderRecommendationContent();
-    loadRecommendations();
-  });
-  $('#rec-btn-manga')?.addEventListener('click', () =>
-  {
-    if (S.recommendType === 'manga')
-    {
-      return;
-    }
-    S.recommendType = 'manga';
-    S.recommendations = null;
-    S.recommendPage = 1;
-    $('#rec-btn-manga').classList.add('active');
-    $('#rec-btn-anime').classList.remove('active');
-    $('#rec-content').innerHTML = renderRecommendationContent();
-    loadRecommendations();
+      const t = b.dataset.rectype;
+      if (S.recommendType === t)
+      {
+        return;
+      }
+      S.recommendType = t;
+      S.recommendations = null;
+      S.recommendPage = 1;
+      $$('[data-rectype]').forEach(x => x.classList.toggle('active', x === b));
+      $('#rec-content').innerHTML = renderRecommendationContent();
+      loadRecommendations();
+    });
   });
   $('#rec-refresh')?.addEventListener('click', () =>
   {
@@ -224,9 +233,7 @@ function bindRecCards()
       const type  = card.dataset.type;
       try
       {
-        const media = type === 'anime'
-          ? await API.search.getAnime(malId)
-          : await API.search.getManga(malId);
+        const media = await API.search.getDetail(type, malId);
         const existing = await API.list.check(malId, type).catch(() => null);
         showTrackModal(media, existing || null);
       }

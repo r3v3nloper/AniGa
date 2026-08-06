@@ -8,6 +8,39 @@ import { $$, esc, coverImg, toast } from './dom.js';
 import { API } from './api.js';
 import { showTrackModal } from './modals/track.js';
 
+/* ---- BEREICHE & TYP-METADATEN ---- */
+export const AREAS = {
+  otaku:  { label: '🌸 Anime & Manga',  types: ['anime', 'manga'] },
+  screen: { label: '🎬 Filme & Serien', types: ['movie', 'tv'] },
+};
+
+export const TYPE_META = {
+  anime: { view: 'anime', label: 'Anime-Liste',  short: 'Anime',  singular: 'Anime', plural: 'Anime',  emoji: '🎬', icon: 'tv' },
+  manga: { view: 'manga', label: 'Manga-Liste',  short: 'Manga',  singular: 'Manga', plural: 'Manga',  emoji: '📚', icon: 'book' },
+  movie: { view: 'movie', label: 'Film-Liste',   short: 'Filme',  singular: 'Film',  plural: 'Filme',  emoji: '🎥', icon: 'film' },
+  tv:    { view: 'tv',    label: 'Serien-Liste', short: 'Serien', singular: 'Serie', plural: 'Serien', emoji: '📺', icon: 'monitor' },
+};
+
+export function areaOf(type)
+{
+  return AREAS.screen.types.includes(type) ? 'screen' : 'otaku';
+}
+
+/* Zentrale Zuordnung Typ → State-Liste (ersetzt verstreute anime/manga-Ternaries) */
+export function getUserList(type)
+{
+  return { anime: S.animeList, manga: S.mangaList, movie: S.movieList, tv: S.tvList }[type] || [];
+}
+
+export function setUserList(type, list)
+{
+  const key = { anime: 'animeList', manga: 'mangaList', movie: 'movieList', tv: 'tvList' }[type];
+  if (key)
+  {
+    S[key] = list;
+  }
+}
+
 export const STATUS_LABELS = {
   watching:'Schaut gerade', reading:'Liest gerade',
   completed:'Abgeschlossen', on_hold:'Pausiert', dropped:'Abgebrochen',
@@ -26,6 +59,12 @@ export const MANGA_STATUSES = [
   {val:'reading',label:'Liest gerade'},{val:'plan_to_read',label:'Geplant'},
   {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
 ];
+
+/* Filme/Serien nutzen dieselben Stati wie Anime (watching/plan_to_watch/…) */
+export function statusesFor(type)
+{
+  return type === 'manga' ? MANGA_STATUSES : ANIME_STATUSES;
+}
 
 export function mediaStatusBadge(status)
 {
@@ -58,7 +97,11 @@ export function starsHtml(score, sm='')
 
 export function progressText(e)
 {
-  if (e.type === 'anime')
+  if (e.type === 'movie')
+  {
+    return e.year ? `Film · ${e.year}` : 'Film';
+  }
+  if (e.type === 'anime' || e.type === 'tv')
   {
     return `Ep. ${e.current_episode||0} / ${e.episodes||'?'}`;
   }
@@ -72,7 +115,11 @@ export function progressText(e)
 
 export function progressPct(e)
 {
-  if (e.type === 'anime')
+  if (e.type === 'movie')
+  {
+    return 0;
+  }
+  if (e.type === 'anime' || e.type === 'tv')
   {
     return e.episodes
       ? Math.min(100, ((e.current_episode||0)/e.episodes)*100)
@@ -89,8 +136,7 @@ export function isInList(media)
   {
     return false;
   }
-  const list = media.type === 'anime' ? S.animeList : S.mangaList;
-  return list.some(e => String(e.mal_id) === String(media.mal_id));
+  return getUserList(media.type).some(e => String(e.mal_id) === String(media.mal_id));
 }
 
 export function findInList(media)
@@ -99,13 +145,13 @@ export function findInList(media)
   {
     return null;
   }
-  const list = media.type === 'anime' ? S.animeList : S.mangaList;
-  return list.find(e => String(e.mal_id) === String(media.mal_id)) || null;
+  return getUserList(media.type).find(e => String(e.mal_id) === String(media.mal_id)) || null;
 }
 
 export function findMediaInCache(malId, type)
 {
-  return [...S.searchResults, ...S.topAnime, ...S.topManga, ...S.seasonal]
+  return [...S.searchResults, ...S.topAnime, ...S.topManga, ...S.seasonal,
+          ...S.topMovie, ...S.topTv, ...S.trendingMovie]
     .find(m => String(m.mal_id) === String(malId) && m.type === type) || null;
 }
 
@@ -160,7 +206,7 @@ export function renderMediaCard(media)
         </div>
       </div>
       <div class="media-card-footer">
-        <span class="media-card-type">${media.type==='anime'?'Anime':'Manga'}${media.year?' · '+media.year:''}</span>
+        <span class="media-card-type">${TYPE_META[media.type]?.singular || media.type}${media.year?' · '+media.year:''}</span>
         <button class="btn-add-to-list${inList?' in-list':''}" title="${inList?'Bearbeiten':'Hinzufügen'}">
           ${inList?IC.check:IC.plus}
         </button>
@@ -205,8 +251,7 @@ export function bindMediaCard(card)
 
     if (entryId)
     {
-      const entry = (type==='anime'?S.animeList:S.mangaList)
-        .find(e=>e.id==entryId);
+      const entry = getUserList(type).find(e=>e.id==entryId);
       if (entry)
       {
         showTrackModal(entryToMedia(entry), entry);
@@ -218,13 +263,13 @@ export function bindMediaCard(card)
       return;
     }
 
+    // TMDB-Suchergebnisse enthalten keine Episoden/Staffeln — für movie/tv immer Details holen
     let media = findMediaInCache(malId, type);
-    if (!media)
+    if (!media || type === 'movie' || type === 'tv')
     {
       try
       {
-        const fn = type==='anime' ? API.search.getAnime : API.search.getManga;
-        media = await fn(malId);
+        media = await API.search.getDetail(type, malId);
       }
       catch
       {

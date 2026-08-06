@@ -99,6 +99,40 @@ test('GET /list/check erkennt vorhandene Einträge', async () =>
   assert.equal(stats.data.manga.total, 1);
 });
 
+test('POST /list akzeptiert Filme und Serien (TMDB-Typen)', async () =>
+{
+  // Act — Film (TMDB-ID im mal_id-Feld, source tmdb)
+  const movie = await srv.req('POST', '/api/list', {
+    mediaData: { mal_id: 27205, type: 'movie', title: 'Inception', source: 'tmdb', year: 2010 },
+    listStatus: 'completed', userScore: 5, owned: true,
+  }, token);
+  assert.equal(movie.status, 200);
+
+  // Serie mit Episoden
+  const tv = await srv.req('POST', '/api/list', {
+    mediaData: { mal_id: 1396, type: 'tv', title: 'Breaking Bad', source: 'tmdb',
+      episodes: 62, volumes: 5 },
+    currentEpisode: 30,
+  }, token);
+  assert.equal(tv.status, 200);
+
+  // Assert — Typ-Filter + Default-Status + source
+  const movies = await srv.req('GET', '/api/list?type=movie', undefined, token);
+  assert.equal(movies.data.length, 1);
+  assert.equal(movies.data[0].source, 'tmdb');
+  assert.equal(movies.data[0].owned, 1);
+
+  const tvs = await srv.req('GET', '/api/list?type=tv', undefined, token);
+  assert.equal(tvs.data[0].list_status, 'plan_to_watch', 'Default für tv ist plan_to_watch');
+  assert.equal(tvs.data[0].current_episode, 30);
+
+  // Ungültiger Typ bleibt abgelehnt
+  const bad = await srv.req('POST', '/api/list', {
+    mediaData: { mal_id: 1, type: 'buch', title: 'Nope' },
+  }, token);
+  assert.equal(bad.status, 400);
+});
+
 test('DELETE /list/:id entfernt den Eintrag — aber nur den eigenen', async () =>
 {
   // Arrange: zweiter Nutzer darf fremde Einträge nicht löschen

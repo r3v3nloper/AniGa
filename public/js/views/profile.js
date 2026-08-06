@@ -15,6 +15,8 @@ export function renderProfile()
   const u = S.user || {};
   const a = S.stats?.anime || {};
   const m = S.stats?.manga || {};
+  const mo = S.stats?.movie || {};
+  const tv = S.stats?.tv || {};
   const joined = u.created_at
     ? new Date(u.created_at).toLocaleDateString('de-DE', {
         day:'2-digit', month:'2-digit', year:'numeric'
@@ -64,6 +66,26 @@ export function renderProfile()
         <div class="stat-label">Manga abgeschlossen</div>
       </div>
     </div>
+
+    ${(mo.total || tv.total) ? `
+    <div class="stats-grid" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-num">${mo.total||0}</div>
+        <div class="stat-label">Filme gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${mo.completed||0}</div>
+        <div class="stat-label">Filme gesehen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${tv.total||0}</div>
+        <div class="stat-label">Serien gesamt</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${tv.total_episodes||0}</div>
+        <div class="stat-label">Serien-Episoden</div>
+      </div>
+    </div>` : ''}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
       <div class="stats-detail">

@@ -72,46 +72,54 @@ router.get('/', (req, res) =>
   res.json(entries);
 });
 
-// Get stats
+// Get stats — pro Medientyp gruppiert (statische Konfiguration, keine User-Eingaben im SQL)
+const STATS_CONFIG = {
+  anime: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
+    sumCol: 'current_episode', sumKey: 'total_episodes' },
+  manga: { statuses: ['reading', 'completed', 'on_hold', 'dropped', 'plan_to_read'],
+    sumCol: 'current_chapter', sumKey: 'total_chapters' },
+  movie: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
+    sumCol: null, sumKey: null },
+  tv: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
+    sumCol: 'current_episode', sumKey: 'total_episodes' },
+};
+
 router.get('/stats', (req, res) =>
 {
-  const stats = {
-    anime: { watching: 0, completed: 0, on_hold: 0, dropped: 0, plan_to_watch: 0, total: 0, total_episodes: 0 },
-    manga: { reading: 0, completed: 0, on_hold: 0, dropped: 0, plan_to_read: 0, total: 0, total_chapters: 0 }
-  };
-
-  const animeRows = db.prepare(`
-    SELECT ul.list_status, COUNT(*) as cnt, COALESCE(SUM(ul.current_episode), 0) as ep_sum
-    FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-    WHERE ul.user_id = ? AND me.type = 'anime' GROUP BY ul.list_status
-  `).all(req.userId);
-
-  animeRows.forEach(r =>
+  const stats = {};
+  for (const [type, cfg] of Object.entries(STATS_CONFIG))
   {
-    if (r.list_status in stats.anime)
+    const s = { total: 0 };
+    cfg.statuses.forEach(st =>
     {
-      stats.anime[r.list_status] = r.cnt;
-    }
-    stats.anime.total += r.cnt;
-    stats.anime.total_episodes += r.ep_sum;
-  });
-
-  const mangaRows = db.prepare(`
-    SELECT ul.list_status, COUNT(*) as cnt, COALESCE(SUM(ul.current_chapter), 0) as ch_sum
-    FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-    WHERE ul.user_id = ? AND me.type = 'manga' GROUP BY ul.list_status
-  `).all(req.userId);
-
-  mangaRows.forEach(r =>
-  {
-    if (r.list_status in stats.manga)
+      s[st] = 0;
+    });
+    if (cfg.sumKey)
     {
-      stats.manga[r.list_status] = r.cnt;
+      s[cfg.sumKey] = 0;
     }
-    stats.manga.total += r.cnt;
-    stats.manga.total_chapters += r.ch_sum;
-  });
 
+    const rows = db.prepare(`
+      SELECT ul.list_status, COUNT(*) as cnt,
+             COALESCE(SUM(ul.${cfg.sumCol || 'current_episode'}), 0) as sum_val
+      FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
+      WHERE ul.user_id = ? AND me.type = ? GROUP BY ul.list_status
+    `).all(req.userId, type);
+
+    rows.forEach(r =>
+    {
+      if (r.list_status in s)
+      {
+        s[r.list_status] = r.cnt;
+      }
+      s.total += r.cnt;
+      if (cfg.sumKey)
+      {
+        s[cfg.sumKey] += r.sum_val;
+      }
+    });
+    stats[type] = s;
+  }
   res.json(stats);
 });
 
@@ -120,7 +128,7 @@ router.get('/check', (req, res) =>
 {
   const malId = parseInt(req.query.malId);
   const type = req.query.type;
-  if (!Number.isInteger(malId) || !['anime', 'manga'].includes(type))
+  if (!Number.isInteger(malId) || !['anime', 'manga', 'movie', 'tv'].includes(type))
   {
     return res.json(null);
   }
@@ -149,7 +157,7 @@ router.post('/', (req, res) =>
     currentPage, userScore, notes, startedAt, completedAt,
     owned, ownedVolumes
   } = req.body;
-  if (!mediaData || !['anime', 'manga'].includes(mediaData.type))
+  if (!mediaData || !['anime', 'manga', 'movie', 'tv'].includes(mediaData.type))
   {
     return res.status(400).json({ error: 'Mediendaten erforderlich' });
   }
@@ -177,7 +185,7 @@ router.post('/', (req, res) =>
           owned_volumes = excluded.owned_volumes,
           updated_at = CURRENT_TIMESTAMP
       `).run(
-        req.userId, mid, listStatus || (mediaData.type === 'anime' ? 'plan_to_watch' : 'plan_to_read'),
+        req.userId, mid, listStatus || (mediaData.type === 'manga' ? 'plan_to_read' : 'plan_to_watch'),
         currentEpisode || 0, currentChapter || 0, currentPage || 0,
         userScore || null, notes || null, startedAt || null, completedAt || null,
         owned ? 1 : 0, ownedVolumes || 0

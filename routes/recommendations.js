@@ -4,6 +4,7 @@ const db      = require('../db');
 const authMiddleware = require('../middleware/auth');
 const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
 const anilist = require('../utils/anilist');
+const tmdb = require('../utils/tmdb');
 const { withFallback } = anilist;
 
 // MAL genre name → ID lookup
@@ -21,7 +22,9 @@ const GENRE_IDS = {
 /* ── GET /api/recommendations?type=anime&page=1 ──────────── */
 router.get('/', authMiddleware, async (req, res) =>
 {
-  const type = req.query.type === 'manga' ? 'manga' : 'anime';
+  const type = ['anime', 'manga', 'movie', 'tv'].includes(req.query.type)
+    ? req.query.type
+    : 'anime';
   const page = Math.max(1, Math.min(5, parseInt(req.query.page) || 1));
 
   // Single query: covers both genre weighting and mal_id filtering
@@ -55,6 +58,33 @@ router.get('/', authMiddleware, async (req, res) =>
     for (const g of genres)
     {
       genreWeights[g] = (genreWeights[g] || 0) + weight;
+    }
+  }
+
+  // Filme/Serien: TMDB-Discover nach den meistgesehenen Genres (deutsche Namen)
+  if (type === 'movie' || type === 'tv')
+  {
+    if (!tmdb.isConfigured())
+    {
+      return res.status(503).json({ error: 'TMDB ist nicht konfiguriert' });
+    }
+    const topGenres = Object.entries(genreWeights)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name)
+      .slice(0, 3);
+    try
+    {
+      const data = topGenres.length
+        ? await tmdb.byGenres(type, topGenres, page)
+        : await tmdb.topMedia(type, page);
+      const filtered = data.results
+        .filter(item => !allMalIds.has(item.mal_id))
+        .slice(0, 12);
+      return res.json({ results: filtered, basedOn: topGenres });
+    }
+    catch
+    {
+      return res.status(500).json({ error: 'Empfehlungen konnten nicht geladen werden' });
     }
   }
 

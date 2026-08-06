@@ -1,34 +1,42 @@
 /* =====================================================
    AniGa – views/search.js
-   Suche (Anime/Manga), Top-Listen, Seasonal
+   Suche für den aktiven Bereich (Anime/Manga bzw. Filme/Serien)
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
 import { $, $$, esc, renderEmptyState } from '../dom.js';
 import { API } from '../api.js';
-import { renderMediaCard, bindMediaCards } from '../media.js';
+import { AREAS, TYPE_META, renderMediaCard, bindMediaCards } from '../media.js';
 import { showManualModal } from '../modals/manual.js';
+
+function searchPlaceholder()
+{
+  return `${TYPE_META[S.searchType].plural} suchen…`;
+}
 
 export function renderSearch()
 {
   const hasResults = S.searchResults.length > 0 && S.searchQ;
+  const types = AREAS[S.area].types;
   return `
     <div class="page-header">
       <div class="page-title-row">
         <div class="page-icon">${IC.search}</div>
         <div>
           <div class="page-title">Suche</div>
-          <div class="page-sub">Anime &amp; Manga entdecken</div>
+          <div class="page-sub">${S.area==='screen' ? 'Filme &amp; Serien entdecken' : 'Anime &amp; Manga entdecken'}</div>
         </div>
       </div>
     </div>
     <div class="type-toggle">
-      <button class="type-btn${S.searchType==='anime'?' active':''}" data-type="anime">🎬 Anime</button>
-      <button class="type-btn${S.searchType==='manga'?' active':''}" data-type="manga">📚 Manga</button>
+      ${types.map(t => `
+        <button class="type-btn${S.searchType===t?' active':''}" data-type="${t}">
+          ${TYPE_META[t].emoji} ${TYPE_META[t].short}
+        </button>`).join('')}
     </div>
     <div class="search-bar">
       <input class="search-input" id="search-input" type="text"
-        placeholder="${S.searchType==='anime'?'Anime suchen…':'Manga suchen…'}"
+        placeholder="${searchPlaceholder()}"
         value="${esc(S.searchQ)}" autocomplete="off" />
       <button class="search-submit" id="search-submit">${IC.search} Suchen</button>
     </div>
@@ -36,6 +44,15 @@ export function renderSearch()
 }
 
 function renderSearchDefault()
+{
+  if (S.area === 'screen')
+  {
+    return renderScreenDefault();
+  }
+  return renderOtakuDefault();
+}
+
+function renderOtakuDefault()
 {
   const loading = !S.topAnime.length && !S.topManga.length;
   if (loading)
@@ -59,6 +76,39 @@ function renderSearchDefault()
       </div>
       <div class="media-grid">${top.slice(0,20).map(renderMediaCard).join('')}</div>
     </div>
+    ${manualHintHtml()}`;
+}
+
+function renderScreenDefault()
+{
+  const loading = !S.topMovie.length && !S.topTv.length;
+  if (loading)
+  {
+    return '<div class="loader-wrap"><div class="spinner"></div></div>';
+  }
+  const isMovie = S.searchType === 'movie';
+  const top = isMovie ? S.topMovie : S.topTv;
+
+  return `
+    ${isMovie && S.trendingMovie.length ? `
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">${IC.flame} Trending diese Woche</div>
+      </div>
+      <div class="media-grid">${S.trendingMovie.slice(0,10).map(renderMediaCard).join('')}</div>
+    </div>` : ''}
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">${IC.star} ${isMovie?'Beliebte Filme':'Beliebte Serien'}</div>
+      </div>
+      <div class="media-grid">${top.slice(0,20).map(renderMediaCard).join('')}</div>
+    </div>
+    ${manualHintHtml()}`;
+}
+
+function manualHintHtml()
+{
+  return `
     <div style="text-align:center;margin-top:20px">
       <p class="text-muted" style="font-size:.85rem;margin-bottom:10px">Nicht gefunden?</p>
       <button class="btn btn-secondary" id="btn-manual">Manuell eintragen</button>
@@ -113,9 +163,7 @@ export function bindSearch()
       $$('.type-btn').forEach(x => x.classList.toggle('active', x===b));
       if (input)
       {
-        input.placeholder = S.searchType==='anime'
-          ? 'Anime suchen…'
-          : 'Manga suchen…';
+        input.placeholder = searchPlaceholder();
       }
       $('#search-results').innerHTML = renderSearchDefault();
       bindSearchResults();
@@ -154,8 +202,7 @@ async function doSearch()
   res.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
   try
   {
-    const fn = S.searchType === 'anime' ? API.search.anime : API.search.manga;
-    const data = await fn(q, S.searchPage);
+    const data = await API.search.query(S.searchType, q, S.searchPage);
     S.searchResults = data.results || [];
     S.searchPagination = data.pagination || null;
     res.innerHTML = renderSearchResults();
@@ -175,15 +222,28 @@ async function doSearch()
 
 export async function loadTopContent()
 {
+  const area = S.area;
   try
   {
-    const [ta, tm, sea] = await Promise.all([
-      API.search.topAnime(), API.search.topManga(), API.search.seasonal()
-    ]);
-    S.topAnime = ta.results || [];
-    S.topManga = tm.results || [];
-    S.seasonal = sea.results || [];
-    if (S.view === 'search')
+    if (area === 'screen')
+    {
+      const [tm, tt, tr] = await Promise.all([
+        API.search.top('movie'), API.search.top('tv'), API.search.trending('movie')
+      ]);
+      S.topMovie = tm.results || [];
+      S.topTv = tt.results || [];
+      S.trendingMovie = tr.results || [];
+    }
+    else
+    {
+      const [ta, tm, sea] = await Promise.all([
+        API.search.top('anime'), API.search.top('manga'), API.search.seasonal()
+      ]);
+      S.topAnime = ta.results || [];
+      S.topManga = tm.results || [];
+      S.seasonal = sea.results || [];
+    }
+    if (S.view === 'search' && S.area === area)
     {
       const main = $('#main-content');
       if (main && !S.searchQ)

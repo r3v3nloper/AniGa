@@ -7,16 +7,26 @@ import { S } from '../state.js';
 import { $, $$, esc, coverImg, toast } from '../dom.js';
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
-import { ANIME_STATUSES, MANGA_STATUSES } from '../media.js';
+import { statusesFor, getUserList, setUserList } from '../media.js';
 import { navigate } from '../router.js';
 import { refreshCollectionsAfterSave } from '../views/collections.js';
 
+/* Fortschritts-Art pro Medientyp: Episoden (anime/tv), Kapitel+Seiten (manga), keine (movie) */
+function kindOf(type)
+{
+  return {
+    hasEpisodes: type === 'anime' || type === 'tv',
+    isManga: type === 'manga',
+    isMovie: type === 'movie',
+  };
+}
+
 function renderTrackModalBody(media, existingEntry)
 {
-  const isAnime = media.type === 'anime';
-  const statuses = isAnime ? ANIME_STATUSES : MANGA_STATUSES;
+  const { hasEpisodes, isManga } = kindOf(media.type);
+  const statuses = statusesFor(media.type);
   const entry = existingEntry || {};
-  const curStatus = entry.list_status || (isAnime ? 'watching' : 'reading');
+  const curStatus = entry.list_status || (isManga ? 'reading' : 'watching');
   const synopsis = media.synopsis || '';
   const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
@@ -44,11 +54,12 @@ function renderTrackModalBody(media, existingEntry)
       <div class="media-meta">
         ${media.api_score
           ? `<div class="meta-chip">${IC.star}` +
-            `<span style="color:var(--star)">${media.api_score.toFixed(1)}</span> MAL</div>`
+            `<span style="color:var(--star)">${media.api_score.toFixed(1)}</span> ${media.source==='tmdb'?'TMDB':'MAL'}</div>`
           : ''}
-        ${isAnime&&media.episodes?`<div class="meta-chip">${IC.play} ${media.episodes} Folgen</div>`:''}
-        ${!isAnime&&media.chapters?`<div class="meta-chip">${IC.book} ${media.chapters} Kapitel</div>`:''}
-        ${!isAnime&&media.volumes?`<div class="meta-chip">📦 ${media.volumes} Bände</div>`:''}
+        ${hasEpisodes&&media.episodes?`<div class="meta-chip">${IC.play} ${media.episodes} Folgen</div>`:''}
+        ${media.type==='tv'&&media.volumes?`<div class="meta-chip">${IC.monitor} ${media.volumes} Staffeln</div>`:''}
+        ${isManga&&media.chapters?`<div class="meta-chip">${IC.book} ${media.chapters} Kapitel</div>`:''}
+        ${isManga&&media.volumes?`<div class="meta-chip">📦 ${media.volumes} Bände</div>`:''}
         ${media.media_status?`<div class="meta-chip">${IC.info} ${esc(media.media_status)}</div>`:''}
         ${media.year?`<div class="meta-chip">${IC.calendar} ${media.year}</div>`:''}
       </div>
@@ -64,7 +75,7 @@ function renderTrackModalBody(media, existingEntry)
           ${synopsis.length>220?`<button class="btn-synopsis" id="btn-expand">Mehr anzeigen</button>`:''}
         </div>`:''}
 
-      ${isAnime && media.mal_id ? `
+      ${media.type === 'anime' && media.mal_id ? `
         <div id="streaming-section" style="margin-bottom:14px">
           <div class="streaming-loading">${IC.play} Streaming wird geladen…</div>
         </div>` : ''}
@@ -79,7 +90,7 @@ function renderTrackModalBody(media, existingEntry)
         </select>
       </div>
 
-      ${isAnime ? `
+      ${hasEpisodes ? `
         <div class="form-group">
           <label class="form-label">Aktuelle Episode${media.episodes?' / '+media.episodes:''}</label>
           <div class="num-input-wrap">
@@ -88,7 +99,8 @@ function renderTrackModalBody(media, existingEntry)
               min="0" max="${maxEp}" value="${entry.current_episode||0}"/>
             <button class="num-btn" id="ep-p">+</button>
           </div>
-        </div>` : `
+        </div>` : ''}
+      ${isManga ? `
         <div class="form-group">
           <label class="form-label">Aktuelles Kapitel${media.chapters?' / '+media.chapters:''}</label>
           <div class="num-input-wrap">
@@ -105,7 +117,7 @@ function renderTrackModalBody(media, existingEntry)
             <input class="num-input" type="number" id="track-pg" min="0" value="${entry.current_page||0}"/>
             <button class="num-btn" id="pg-p">+</button>
           </div>
-        </div>`}
+        </div>` : ''}
 
       <div class="form-group">
         <label class="form-label">Meine Bewertung</label>
@@ -133,7 +145,7 @@ function renderTrackModalBody(media, existingEntry)
         </label>
       </div>
 
-      ${!isAnime ? `
+      ${isManga ? `
       <div class="form-group" id="owned-volumes-group" style="display:${entry.owned?'block':'none'}">
         <label class="form-label">Bände im Besitz${media.volumes?' / '+media.volumes:''}</label>
         <div class="num-input-wrap">
@@ -223,8 +235,9 @@ function bindTrackModalStreaming(media)
   });
 }
 
-function bindTrackModalNumbers(isAnime, maxEp, maxCh)
+function bindTrackModalNumbers(kind, maxEp, maxCh)
 {
+  const { hasEpisodes, isManga } = kind;
   function bindNum(mId, pId, inputId, min = 0, max = 99999)
   {
     const inp = document.getElementById(inputId);
@@ -242,11 +255,11 @@ function bindTrackModalNumbers(isAnime, maxEp, maxCh)
     });
   }
 
-  if (isAnime)
+  if (hasEpisodes)
   {
     bindNum('ep-m', 'ep-p', 'track-ep', 0, maxEp);
   }
-  else
+  if (isManga)
   {
     bindNum('ch-m', 'ch-p', 'track-ch', 0, maxCh);
     bindNum('pg-m', 'pg-p', 'track-pg');
@@ -273,7 +286,7 @@ function bindTrackModalNumbers(isAnime, maxEp, maxCh)
     {
       return;
     }
-    if (isAnime && maxEp < 99999)
+    if (hasEpisodes && maxEp < 99999)
     {
       const el = $('#track-ep');
       if (el)
@@ -281,7 +294,7 @@ function bindTrackModalNumbers(isAnime, maxEp, maxCh)
         el.value = maxEp;
       }
     }
-    else if (!isAnime && maxCh < 99999)
+    else if (isManga && maxCh < 99999)
     {
       const el = $('#track-ch');
       if (el)
@@ -427,8 +440,9 @@ function bindTrackModalStars()
   });
 }
 
-function bindTrackModalSave(media, existingEntry, isAnime, colState)
+function bindTrackModalSave(media, existingEntry, kind, colState)
 {
+  const { hasEpisodes, isManga } = kind;
   $('#btn-save')?.addEventListener('click', async () =>
   {
     const btn = $('#btn-save');
@@ -438,27 +452,29 @@ function bindTrackModalSave(media, existingEntry, isAnime, colState)
     {
       const listData = {
         listStatus: $('#track-status').value,
-        currentEpisode: isAnime ? +($('#track-ep')?.value || 0) : 0,
-        currentChapter: !isAnime ? +($('#track-ch')?.value || 0) : 0,
-        currentPage: !isAnime ? +($('#track-pg')?.value || 0) : 0,
+        currentEpisode: hasEpisodes ? +($('#track-ep')?.value || 0) : 0,
+        currentChapter: isManga ? +($('#track-ch')?.value || 0) : 0,
+        currentPage: isManga ? +($('#track-pg')?.value || 0) : 0,
         userScore: +($('#track-score').value) || null,
         notes: $('#track-notes').value.trim() || null,
         startedAt: $('#track-start').value || null,
         completedAt: $('#track-end').value || null,
         owned: $('#track-owned')?.checked || false,
-        ownedVolumes: !isAnime ? +($('#track-owned-vol')?.value || 0) : 0,
+        ownedVolumes: isManga ? +($('#track-owned-vol')?.value || 0) : 0,
       };
       let entryId = existingEntry?.id;
-      if (existingEntry)
+      if (existingEntry && (media.is_manual || !media.mal_id))
       {
+        // Manuelle Einträge nur per PUT — POST würde eine neue media-Zeile anlegen
         await API.list.update(existingEntry.id, listData);
         toast('Eintrag aktualisiert!', 'success');
       }
       else
       {
+        // POST-Upsert refresht nebenbei die Media-Metadaten (Episoden, Status, …)
         const saved = await API.list.save(media, listData);
         entryId = saved.entryId;
-        toast(`„${media.title}" zur Liste hinzugefügt!`, 'success');
+        toast(existingEntry ? 'Eintrag aktualisiert!' : `„${media.title}" zur Liste hinzugefügt!`, 'success');
       }
       await syncCollections(entryId, colState);
       closeModal();
@@ -494,7 +510,7 @@ function bindTrackModalSave(media, existingEntry, isAnime, colState)
 
 export function showTrackModal(media, existingEntry)
 {
-  const isAnime = media.type === 'anime';
+  const kind = kindOf(media.type);
   const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
 
@@ -515,22 +531,15 @@ export function showTrackModal(media, existingEntry)
       $('#btn-expand').textContent = exp ? 'Weniger anzeigen' : 'Mehr anzeigen';
     });
 
-    bindTrackModalNumbers(isAnime, maxEp, maxCh);
+    bindTrackModalNumbers(kind, maxEp, maxCh);
     bindTrackModalStars();
-    bindTrackModalSave(media, existingEntry, isAnime, colState);
+    bindTrackModalSave(media, existingEntry, kind, colState);
   });
 }
 
 export async function refreshAfterSave(type)
 {
-  if (type === 'anime')
-  {
-    S.animeList = await API.list.getAll('anime');
-  }
-  else
-  {
-    S.mangaList = await API.list.getAll('manga');
-  }
+  setUserList(type, await API.list.getAll(type));
   S.stats = await API.list.getStats();
   if (S.view === 'home')
   {
@@ -558,7 +567,7 @@ export async function refreshAfterSave(type)
     const ctype = card.dataset.type;
     if (ctype === type)
     {
-      const inList = (type==='anime'?S.animeList:S.mangaList)
+      const inList = getUserList(type)
         .some(e=>String(e.mal_id)===card.dataset.malId);
       btn.classList.toggle('in-list', inList);
       btn.innerHTML = inList ? IC.check : IC.plus;
