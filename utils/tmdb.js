@@ -143,6 +143,12 @@ function formatMedia(item, type)
       ? { episodes: null, year: date ? +date.substring(0, 4) : null, season: null }
       : { episodes: item.number_of_episodes || null,
           volumes: item.number_of_seasons || null,
+          // Episodenzahl pro Staffel (nur im Detail-Response; Staffel 0 = Specials wird übersprungen)
+          seasons_data: Array.isArray(item.seasons)
+            ? item.seasons
+                .filter(s => s.season_number > 0 && s.episode_count)
+                .map(s => ({ season: s.season_number, episodes: s.episode_count }))
+            : null,
           year: date ? +date.substring(0, 4) : null }),
     api_score: item.vote_average ? Math.round(item.vote_average * 10) / 10 : null,
     genres: mapGenres(item, type),

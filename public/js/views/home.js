@@ -8,7 +8,7 @@ import { $, $$, esc, coverImg, timeAgo, toast, renderEmptyState } from '../dom.j
 import { API } from '../api.js';
 import {
   STATUS_LABELS, STATUS_CSS, AREAS, TYPE_META, getUserList,
-  starsHtml, progressText, entryToMedia, renderMediaCardFromEntry, bindMediaCards
+  starsHtml, progressText, renderMediaCardFromEntry, bindMediaCards, openEntryTrackModal
 } from '../media.js';
 import { showTrackModal } from '../modals/track.js';
 import { navigate } from '../router.js';
@@ -23,7 +23,7 @@ function areaConfig()
         { num: () => S.stats?.movie?.total || 0, label: 'Filme gesamt' },
         { num: () => S.stats?.movie?.completed || 0, label: 'Filme gesehen' },
         { num: () => S.stats?.tv?.total || 0, label: 'Serien gesamt' },
-        { num: () => S.stats?.tv?.total_episodes || 0, label: 'Episoden gesehen' },
+        { num: () => S.stats?.tv?.completed || 0, label: 'Serien abgeschlossen' },
       ],
       sections: [
         { type: 'tv', status: 'watching', icon: IC.monitor, title: 'Serien am Schauen' },
@@ -188,7 +188,7 @@ export function bindHome()
       const entry = getUserList(el.dataset.type).find(e=>e.id==el.dataset.entryId);
       if (entry)
       {
-        showTrackModal(entryToMedia(entry), entry);
+        openEntryTrackModal(entry);
       }
     });
   });

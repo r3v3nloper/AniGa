@@ -82,8 +82,8 @@ export function renderProfile()
         <div class="stat-label">Serien gesamt</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">${tv.total_episodes||0}</div>
-        <div class="stat-label">Serien-Episoden</div>
+        <div class="stat-num">${tv.completed||0}</div>
+        <div class="stat-label">Serien abgeschlossen</div>
       </div>
     </div>` : ''}
 

@@ -65,10 +65,10 @@ router.get('/:id', (req, res) =>
 
   const items = db.prepare(`
     SELECT ul.id, ul.list_status, ul.current_episode, ul.current_chapter, ul.current_page,
-           ul.user_score, ul.notes, ul.started_at, ul.completed_at, ul.owned, ul.owned_volumes,
-           ul.updated_at,
+           ul.current_season, ul.user_score, ul.notes, ul.started_at, ul.completed_at,
+           ul.owned, ul.owned_volumes, ul.updated_at,
            me.title, me.title_english, me.image_url, me.synopsis, me.media_status,
-           me.episodes, me.chapters, me.volumes, me.api_score, me.genres,
+           me.episodes, me.chapters, me.volumes, me.seasons_data, me.api_score, me.genres,
            me.type, me.mal_id, me.year, me.season, me.is_manual, me.source
     FROM collection_items ci
     JOIN user_list ul ON ul.id = ci.list_entry_id
@@ -106,6 +106,17 @@ router.get('/:id', (req, res) =>
       catch
       {
         i.genres = [];
+      }
+    }
+    if (i.seasons_data)
+    {
+      try
+      {
+        i.seasons_data = JSON.parse(i.seasons_data);
+      }
+      catch
+      {
+        i.seasons_data = null;
       }
     }
   });

@@ -1,4 +1,4 @@
-const CACHE = 'aniga-v12';
+const CACHE = 'aniga-v13';
 const STATIC = [
   '/',
   '/index.html',

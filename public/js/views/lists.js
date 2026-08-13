@@ -7,10 +7,9 @@ import { S } from '../state.js';
 import { $, $$, esc, coverImg, debounce, renderEmptyState, bindStatusTabs, bindViewToggle } from '../dom.js';
 import {
   STATUS_LABELS, STATUS_CSS, TYPE_META, statusesFor, getUserList,
-  starsHtml, progressText, progressPct, entryToMedia, ownedChipHtml,
-  renderMediaCardFromEntry, bindMediaCards
+  starsHtml, progressText, progressPct, ownedChipHtml,
+  renderMediaCardFromEntry, bindMediaCards, openEntryTrackModal
 } from '../media.js';
-import { showTrackModal } from '../modals/track.js';
 import { navigate } from '../router.js';
 
 function applyFilters(list, type)
@@ -194,7 +193,7 @@ function bindListCards()
       const entry = getUserList(type).find(e=>e.id==c.dataset.entryId);
       if (entry)
       {
-        showTrackModal(entryToMedia(entry), entry);
+        openEntryTrackModal(entry);
       }
     });
   });

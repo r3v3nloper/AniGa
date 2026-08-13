@@ -117,6 +117,8 @@ addColumnIfMissing('users', 'is_admin INTEGER DEFAULT 0');
 addColumnIfMissing('users', 'token_version INTEGER DEFAULT 0');
 addColumnIfMissing('user_list', 'owned INTEGER DEFAULT 0');
 addColumnIfMissing('user_list', 'owned_volumes INTEGER DEFAULT 0');
+addColumnIfMissing('user_list', 'current_season INTEGER');
+addColumnIfMissing('media_entries', 'seasons_data TEXT');
 
 // Seed admin user if not exists
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@aniga.local';

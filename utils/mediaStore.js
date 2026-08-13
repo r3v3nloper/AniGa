@@ -18,19 +18,26 @@ function insertManual(mediaData)
   return result.lastInsertRowid;
 }
 
+function seasonsJson(mediaData)
+{
+  return Array.isArray(mediaData.seasons_data) && mediaData.seasons_data.length
+    ? JSON.stringify(mediaData.seasons_data)
+    : null;
+}
+
 function updateApiData(id, mediaData)
 {
   db.prepare(`
     UPDATE media_entries SET title=?, title_english=?, title_japanese=?, image_url=?,
     synopsis=?, media_status=?, episodes=?, chapters=?, volumes=?, api_score=?,
-    genres=?, year=?, season=? WHERE id=?
+    genres=?, year=?, season=?, seasons_data=COALESCE(?, seasons_data) WHERE id=?
   `).run(
     mediaData.title, mediaData.title_english || null, mediaData.title_japanese || null,
     mediaData.image_url || null, mediaData.synopsis || null,
     mediaData.media_status || null, mediaData.episodes || null,
     mediaData.chapters || null, mediaData.volumes || null,
     mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-    mediaData.year || null, mediaData.season || null, id
+    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData), id
   );
 }
 
@@ -38,8 +45,9 @@ function insertFromApi(mediaData)
 {
   const result = db.prepare(`
     INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
-      image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres, year, season)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres,
+      year, season, seasons_data)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     mediaData.mal_id, mediaData.source || 'jikan', mediaData.type, mediaData.title,
     mediaData.title_english || null, mediaData.title_japanese || null,
@@ -47,7 +55,7 @@ function insertFromApi(mediaData)
     mediaData.media_status || null, mediaData.episodes || null,
     mediaData.chapters || null, mediaData.volumes || null,
     mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-    mediaData.year || null, mediaData.season || null
+    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData)
   );
   return result.lastInsertRowid;
 }

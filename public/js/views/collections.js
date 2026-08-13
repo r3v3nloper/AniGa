@@ -6,8 +6,7 @@ import { IC } from '../icons.js';
 import { S } from '../state.js';
 import { $, $$, esc, coverImg, toast, renderEmptyState } from '../dom.js';
 import { API } from '../api.js';
-import { entryToMedia, renderMediaCardFromEntry } from '../media.js';
-import { showTrackModal } from '../modals/track.js';
+import { renderMediaCardFromEntry, openEntryTrackModal } from '../media.js';
 
 export function renderCollectionsView()
 {
@@ -244,7 +243,7 @@ function bindCollectionDetail()
       const entry = S.viewingCollection.items.find(e => e.id === entryId);
       if (entry)
       {
-        showTrackModal(entryToMedia(entry), entry);
+        openEntryTrackModal(entry);
       }
     });
   });

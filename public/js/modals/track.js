@@ -16,20 +16,56 @@ function kindOf(type)
 {
   return {
     hasEpisodes: type === 'anime' || type === 'tv',
+    isTv: type === 'tv',
     isManga: type === 'manga',
     isMovie: type === 'movie',
   };
 }
 
+/* Episodenzahl einer bestimmten Staffel (aus TMDB seasons_data) */
+function episodesOfSeason(seasons, seasonNum)
+{
+  return seasons?.find(s => s.season === +seasonNum)?.episodes || null;
+}
+
+/* Zerlegt eine absolute Episodennummer in Staffel + Episode-in-Staffel
+   (Migration alter Serien-Einträge, die noch absolut gezählt haben) */
+function splitAbsoluteEpisode(abs, seasons)
+{
+  let rest = abs;
+  for (const s of seasons)
+  {
+    if (rest <= s.episodes)
+    {
+      return { season: s.season, episode: rest };
+    }
+    rest -= s.episodes;
+  }
+  const last = seasons[seasons.length - 1];
+  return { season: last.season, episode: last.episodes };
+}
+
 function renderTrackModalBody(media, existingEntry)
 {
-  const { hasEpisodes, isManga } = kindOf(media.type);
+  const { hasEpisodes, isTv, isManga } = kindOf(media.type);
   const statuses = statusesFor(media.type);
   const entry = existingEntry || {};
   const curStatus = entry.list_status || (isManga ? 'reading' : 'watching');
   const synopsis = media.synopsis || '';
-  const maxEp = media.episodes || 99999;
   const maxCh = media.chapters || 99999;
+
+  // Serien: Staffel + Episode-in-Staffel; alte absolute Werte werden einmalig umgerechnet
+  const seasons = isTv && Array.isArray(media.seasons_data) ? media.seasons_data : null;
+  let curSeason = entry.current_season || 1;
+  let curEp = entry.current_episode || 0;
+  if (isTv && !entry.current_season && curEp > 0 && seasons)
+  {
+    ({ season: curSeason, episode: curEp } = splitAbsoluteEpisode(curEp, seasons));
+  }
+  const maxSeason = seasons ? seasons[seasons.length - 1].season : (media.volumes || 99999);
+  const maxEp = isTv
+    ? (episodesOfSeason(seasons, curSeason) || 99999)
+    : (media.episodes || 99999);
 
   return `
     <div class="modal-head">
@@ -90,7 +126,31 @@ function renderTrackModalBody(media, existingEntry)
         </select>
       </div>
 
-      ${hasEpisodes ? `
+      ${isTv ? `
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Staffel${maxSeason<99999?' / '+maxSeason:''}</label>
+            <div class="num-input-wrap">
+              <button class="num-btn" id="se-m">−</button>
+              <input class="num-input" type="number" id="track-season"
+                min="1" max="${maxSeason}" value="${curSeason}"/>
+              <button class="num-btn" id="se-p">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="track-ep-label">Episode${maxEp<99999?' / '+maxEp:''}</label>
+            <div class="num-input-wrap">
+              <button class="num-btn" id="ep-m">−</button>
+              <input class="num-input" type="number" id="track-ep"
+                min="0" max="${maxEp}" value="${curEp}"/>
+              <button class="num-btn" id="ep-p">+</button>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:.75rem;color:var(--text3);margin:-8px 0 14px">
+          Episode innerhalb der Staffel — wie bei deinem Streaming-Dienst angezeigt
+        </p>` : ''}
+      ${hasEpisodes && !isTv ? `
         <div class="form-group">
           <label class="form-label">Aktuelle Episode${media.episodes?' / '+media.episodes:''}</label>
           <div class="num-input-wrap">
@@ -235,33 +295,69 @@ function bindTrackModalStreaming(media)
   });
 }
 
-function bindTrackModalNumbers(kind, maxEp, maxCh)
+function bindTrackModalNumbers(kind, media)
 {
-  const { hasEpisodes, isManga } = kind;
-  function bindNum(mId, pId, inputId, min = 0, max = 99999)
+  const { hasEpisodes, isTv, isManga } = kind;
+
+  /* Grenzen kommen aus den min/max-Attributen des Inputs (können dynamisch wechseln) */
+  function bindNum(mId, pId, inputId)
   {
     const inp = document.getElementById(inputId);
     if (!inp)
     {
       return;
     }
+    const min = () => inp.min !== '' ? +inp.min : 0;
+    const max = () => inp.max !== '' ? +inp.max : 99999;
     document.getElementById(mId)?.addEventListener('click', () =>
     {
-      inp.value = Math.max(min, +inp.value - 1);
+      inp.value = Math.max(min(), +inp.value - 1);
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
     });
     document.getElementById(pId)?.addEventListener('click', () =>
     {
-      inp.value = Math.min(max, +inp.value + 1);
+      inp.value = Math.min(max(), +inp.value + 1);
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
 
   if (hasEpisodes)
   {
-    bindNum('ep-m', 'ep-p', 'track-ep', 0, maxEp);
+    bindNum('ep-m', 'ep-p', 'track-ep');
   }
+
+  const seasons = isTv && Array.isArray(media.seasons_data) ? media.seasons_data : null;
+  if (isTv)
+  {
+    bindNum('se-m', 'se-p', 'track-season');
+    const seasonInp = $('#track-season');
+    const epInp = $('#track-ep');
+    seasonInp?.addEventListener('input', () =>
+    {
+      const eps = episodesOfSeason(seasons, seasonInp.value);
+      const label = $('#track-ep-label');
+      if (eps)
+      {
+        epInp.max = eps;
+        if (+epInp.value > eps)
+        {
+          epInp.value = eps;
+        }
+        if (label)
+        {
+          label.textContent = `Episode / ${eps}`;
+        }
+      }
+      else if (label)
+      {
+        label.textContent = 'Episode';
+      }
+    });
+  }
+
   if (isManga)
   {
-    bindNum('ch-m', 'ch-p', 'track-ch', 0, maxCh);
+    bindNum('ch-m', 'ch-p', 'track-ch');
     bindNum('pg-m', 'pg-p', 'track-pg');
   }
 
@@ -278,7 +374,7 @@ function bindTrackModalNumbers(kind, maxEp, maxCh)
       }
     });
   }
-  bindNum('ov-m', 'ov-p', 'track-owned-vol', 0, 99999);
+  bindNum('ov-m', 'ov-p', 'track-owned-vol');
 
   $('#track-status')?.addEventListener('change', () =>
   {
@@ -286,20 +382,34 @@ function bindTrackModalNumbers(kind, maxEp, maxCh)
     {
       return;
     }
-    if (hasEpisodes && maxEp < 99999)
+    if (isTv && seasons)
+    {
+      // Komplett gesehen: letzte Staffel, letzte Episode
+      const last = seasons[seasons.length - 1];
+      const seasonInp = $('#track-season');
+      const epInp = $('#track-ep');
+      if (seasonInp && epInp)
+      {
+        seasonInp.value = last.season;
+        seasonInp.dispatchEvent(new Event('input', { bubbles: true }));
+        epInp.value = last.episodes;
+      }
+      return;
+    }
+    if (hasEpisodes && media.episodes)
     {
       const el = $('#track-ep');
       if (el)
       {
-        el.value = maxEp;
+        el.value = media.episodes;
       }
     }
-    else if (isManga && maxCh < 99999)
+    else if (isManga && media.chapters)
     {
       const el = $('#track-ch');
       if (el)
       {
-        el.value = maxCh;
+        el.value = media.chapters;
       }
     }
   });
@@ -442,7 +552,7 @@ function bindTrackModalStars()
 
 function bindTrackModalSave(media, existingEntry, kind, colState)
 {
-  const { hasEpisodes, isManga } = kind;
+  const { hasEpisodes, isTv, isManga } = kind;
   $('#btn-save')?.addEventListener('click', async () =>
   {
     const btn = $('#btn-save');
@@ -455,6 +565,7 @@ function bindTrackModalSave(media, existingEntry, kind, colState)
         currentEpisode: hasEpisodes ? +($('#track-ep')?.value || 0) : 0,
         currentChapter: isManga ? +($('#track-ch')?.value || 0) : 0,
         currentPage: isManga ? +($('#track-pg')?.value || 0) : 0,
+        currentSeason: isTv ? +($('#track-season')?.value || 1) : undefined,
         userScore: +($('#track-score').value) || null,
         notes: $('#track-notes').value.trim() || null,
         startedAt: $('#track-start').value || null,
@@ -511,9 +622,6 @@ function bindTrackModalSave(media, existingEntry, kind, colState)
 export function showTrackModal(media, existingEntry)
 {
   const kind = kindOf(media.type);
-  const maxEp = media.episodes || 99999;
-  const maxCh = media.chapters || 99999;
-
   const colState = { initial: new Set(), selected: new Set() };
 
   openModal(renderTrackModalBody(media, existingEntry), () =>
@@ -531,7 +639,7 @@ export function showTrackModal(media, existingEntry)
       $('#btn-expand').textContent = exp ? 'Weniger anzeigen' : 'Mehr anzeigen';
     });
 
-    bindTrackModalNumbers(kind, maxEp, maxCh);
+    bindTrackModalNumbers(kind, media);
     bindTrackModalStars();
     bindTrackModalSave(media, existingEntry, kind, colState);
   });

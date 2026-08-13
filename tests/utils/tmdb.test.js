@@ -34,7 +34,7 @@ test('formatMedia mappt einen TMDB-Film ins App-Format', () =>
   assert.equal(media.episodes, null, 'Filme haben keine Episoden');
 });
 
-test('formatMedia mappt eine TMDB-Serie mit Episoden und Staffeln', () =>
+test('formatMedia mappt eine TMDB-Serie mit Episoden, Staffeln und seasons_data', () =>
 {
   // Arrange
   const raw = {
@@ -46,6 +46,14 @@ test('formatMedia mappt eine TMDB-Serie mit Episoden und Staffeln', () =>
     number_of_seasons: 5,
     status: 'Ended',
     vote_average: 8.9,
+    seasons: [
+      { season_number: 0, episode_count: 11 },
+      { season_number: 1, episode_count: 7 },
+      { season_number: 2, episode_count: 13 },
+      { season_number: 3, episode_count: 13 },
+      { season_number: 4, episode_count: 13 },
+      { season_number: 5, episode_count: 16 },
+    ],
   };
 
   // Act
@@ -58,6 +66,10 @@ test('formatMedia mappt eine TMDB-Serie mit Episoden und Staffeln', () =>
   assert.equal(media.volumes, 5, 'Staffeln landen im volumes-Feld');
   assert.equal(media.media_status, 'Finished Airing', 'Ended → Badge „Abgeschlossen"');
   assert.equal(media.year, 2008);
+  // Staffel 0 (Specials) wird übersprungen, Rest als {season, episodes}
+  assert.equal(media.seasons_data.length, 5);
+  assert.deepEqual(media.seasons_data[0], { season: 1, episodes: 7 });
+  assert.deepEqual(media.seasons_data[4], { season: 5, episodes: 16 });
 });
 
 test('formatMedia leitet Film-Status aus Suchergebnissen übers Datum ab', () =>

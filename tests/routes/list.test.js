@@ -108,11 +108,12 @@ test('POST /list akzeptiert Filme und Serien (TMDB-Typen)', async () =>
   }, token);
   assert.equal(movie.status, 200);
 
-  // Serie mit Episoden
+  // Serie mit Staffel-Tracking (Episode innerhalb der Staffel) + seasons_data
   const tv = await srv.req('POST', '/api/list', {
     mediaData: { mal_id: 1396, type: 'tv', title: 'Breaking Bad', source: 'tmdb',
-      episodes: 62, volumes: 5 },
-    currentEpisode: 30,
+      episodes: 62, volumes: 5,
+      seasons_data: [{ season: 1, episodes: 7 }, { season: 2, episodes: 13 }] },
+    currentEpisode: 5, currentSeason: 2,
   }, token);
   assert.equal(tv.status, 200);
 
@@ -124,7 +125,11 @@ test('POST /list akzeptiert Filme und Serien (TMDB-Typen)', async () =>
 
   const tvs = await srv.req('GET', '/api/list?type=tv', undefined, token);
   assert.equal(tvs.data[0].list_status, 'plan_to_watch', 'Default für tv ist plan_to_watch');
-  assert.equal(tvs.data[0].current_episode, 30);
+  assert.equal(tvs.data[0].current_episode, 5, 'Episode innerhalb der Staffel');
+  assert.equal(tvs.data[0].current_season, 2);
+  assert.deepEqual(tvs.data[0].seasons_data,
+    [{ season: 1, episodes: 7 }, { season: 2, episodes: 13 }],
+    'seasons_data wird gespeichert und geparst zurückgeliefert');
 
   // Ungültiger Typ bleibt abgelehnt
   const bad = await srv.req('POST', '/api/list', {

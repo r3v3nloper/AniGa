@@ -19,7 +19,7 @@
 | 👤 **Profil bearbeiten** | Benutzername, E-Mail und Passwort ändern |
 | 🎬 **Anime tracken** | Status, aktuelle Episode, Bewertung (1–5 Sterne), Notizen |
 | 📚 **Manga tracken** | Status, aktuelles Kapitel + Seite, Bewertung, Notizen |
-| 🎥 **Filme & Serien tracken** | Eigener Bereich mit Umschalter in der Sidebar — Serien mit Episoden-Fortschritt und Staffeln, Filme ohne Fortschritt; Daten via TMDB (deutsch) |
+| 🎥 **Filme & Serien tracken** | Eigener Bereich mit Umschalter in der Sidebar — Serien mit **Staffel + Episode** (wie beim Streaming-Dienst angezeigt, z.B. „S12 · E5"), Filme ohne Fortschritt; Daten via TMDB (deutsch) |
 | 📦 **Physischer Besitz** | Pro Eintrag markieren, ob man ihn physisch besitzt; bei Manga inkl. Bände-Zähler (y / x); Badge auf den Karten |
 | 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback |
 | 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Collection-Filter, Grid- oder Listenansicht |
@@ -427,7 +427,8 @@ Verknüpft Nutzer mit Medien.
 | `user_id` | INTEGER FK | → `users.id` |
 | `media_id` | INTEGER FK | → `media_entries.id` |
 | `list_status` | TEXT | `watching`, `completed`, `on_hold`, `dropped`, `plan_to_watch` |
-| `current_episode` / `current_chapter` / `current_page` | INTEGER | Fortschritt |
+| `current_episode` / `current_chapter` / `current_page` | INTEGER | Fortschritt (bei Serien: Episode **innerhalb** der Staffel) |
+| `current_season` | INTEGER | Aktuelle Staffel (nur Serien) |
 | `user_score` | REAL | Eigene Bewertung (0.5 – 5.0) |
 | `notes` | TEXT | Eigene Notizen |
 | `owned` | INTEGER | 1 = physisch im Besitz |
@@ -541,6 +542,7 @@ CMD ["node", "server.js"]
 | 2.1 | Mobile UX: Bottom-Navigation auf 5 Kern-Items reduziert (Start, Suche, Anime, Manga, Mehr) — „Mehr" öffnet ein Bottom-Sheet mit Collections, Nutzer, Profil und Admin; Collection-Karten im Media-Card-Design mit adaptivem Cover-Mosaik (keine leeren Kacheln) |
 | 2.2 | TMDB-Backend für Filme & Serien: `utils/tmdb.js` (deutsche Texte, beide Token-Formate, Genre-/Status-Mapping auf vorhandene Badges), Search-/Detail-/Top-/Trending-Endpoints, `user_list` akzeptiert `movie`/`tv`, Serien speichern Episoden + Staffeln; 5 neue Tests (43 gesamt). Frontend-Bereich folgt in Etappe 3 |
 | 2.3 | Bereichs-Switcher „🌸 Anime & Manga \| 🎬 Filme & Serien" (Sidebar + Mehr-Sheet, persistiert): Navigation, Home-Dashboard, Suche (Trending + Beliebte), Empfehlungen (TMDB-Discover nach Genres), Listen-Views und Track-Modal sind bereichs-/typabhängig — Filme ohne Fortschritts-Inputs, Serien mit Episoden + Staffel-Chip; Nutzerlisten & Vergleich mit 4 Typ-Tabs; manuelle Einträge für Filme/Serien; Stats-Endpoint liefert alle 4 Typen; Modal-Speichern refresht Media-Metadaten (POST-Upsert statt PUT bei API-Einträgen) |
+| 2.4 | Staffel-Tracking für Serien: Eingabe als **Staffel + Episode innerhalb der Staffel** (wie bei Streaming-Diensten) statt absoluter Episodennummer — TMDB liefert Episodenzahlen pro Staffel (`seasons_data`), das Episoden-Maximum passt sich der gewählten Staffel an, „Abgeschlossen" springt auf letzte Staffel/Episode, Fortschrittsbalken rechnet absolut über alle Staffeln; Alt-Einträge mit absoluter Zählung werden beim Öffnen automatisch umgerechnet (`user_list.current_season`, `media_entries.seasons_data`) |
 
 ---
 

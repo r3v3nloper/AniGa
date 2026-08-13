@@ -95,11 +95,34 @@ export function starsHtml(score, sm='')
   return `<div class="stars">${stars}</div>`;
 }
 
+/* Absolute Episodennummer über alle Staffeln (Serien mit Staffel-Tracking).
+   Fällt auf current_episode zurück, wenn keine Staffel-Daten vorliegen. */
+export function absoluteEpisode(e)
+{
+  if (!e.current_season || !Array.isArray(e.seasons_data) || !e.seasons_data.length)
+  {
+    return e.current_episode || 0;
+  }
+  let sum = 0;
+  for (const s of e.seasons_data)
+  {
+    if (s.season < e.current_season)
+    {
+      sum += s.episodes;
+    }
+  }
+  return sum + (e.current_episode || 0);
+}
+
 export function progressText(e)
 {
   if (e.type === 'movie')
   {
     return e.year ? `Film · ${e.year}` : 'Film';
+  }
+  if (e.type === 'tv' && e.current_season)
+  {
+    return `S${e.current_season} · E${e.current_episode||0}`;
   }
   if (e.type === 'anime' || e.type === 'tv')
   {
@@ -122,7 +145,7 @@ export function progressPct(e)
   if (e.type === 'anime' || e.type === 'tv')
   {
     return e.episodes
-      ? Math.min(100, ((e.current_episode||0)/e.episodes)*100)
+      ? Math.min(100, (absoluteEpisode(e)/e.episodes)*100)
       : 0;
   }
   return e.chapters
@@ -164,6 +187,7 @@ export function entryToMedia(entry)
     image_url: entry.image_url, synopsis: entry.synopsis,
     media_status: entry.media_status, episodes: entry.episodes,
     chapters: entry.chapters, volumes: entry.volumes,
+    seasons_data: entry.seasons_data || null,
     api_score: entry.api_score, genres: entry.genres || [],
     year: entry.year, season: entry.season,
     is_manual: entry.is_manual, source: entry.source,
@@ -241,6 +265,26 @@ export function renderMediaCardFromEntry(entry)
     </div>`;
 }
 
+/* Öffnet das Track-Modal für einen eigenen Listen-Eintrag.
+   Serien ohne gespeicherte Staffel-Daten holen einmalig die TMDB-Details nach
+   (heilt Alt-Einträge mit absoluter Episodenzählung). */
+export async function openEntryTrackModal(entry)
+{
+  let media = entryToMedia(entry);
+  if (entry.type === 'tv' && !media.seasons_data && media.mal_id && !media.is_manual)
+  {
+    try
+    {
+      media = await API.search.getDetail('tv', media.mal_id);
+    }
+    catch
+    {
+      // Fallback auf die gespeicherten Daten
+    }
+  }
+  showTrackModal(media, entry);
+}
+
 export function bindMediaCard(card)
 {
   card.addEventListener('click', async () =>
@@ -254,7 +298,7 @@ export function bindMediaCard(card)
       const entry = getUserList(type).find(e=>e.id==entryId);
       if (entry)
       {
-        showTrackModal(entryToMedia(entry), entry);
+        openEntryTrackModal(entry);
       }
       return;
     }
