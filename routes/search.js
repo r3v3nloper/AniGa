@@ -4,19 +4,52 @@ const authMiddleware = require('../middleware/auth');
 const { jFetch, JIKAN, formatMedia } = require('../utils/jikan');
 const anilist = require('../utils/anilist');
 const tmdb = require('../utils/tmdb');
+const igdb = require('../utils/igdb');
 const { withFallback } = anilist;
 
 // Kein offener Proxy: externe API-Zugriffe nur für eingeloggte Nutzer
 router.use(authMiddleware);
 
-/* Filme/Serien laufen über TMDB und brauchen einen konfigurierten Token */
-function requireTmdb(req, res, next)
+/* Anbieter mit eigenen Zugangsdaten (TMDB für Filme/Serien, IGDB für Spiele).
+   Ein Eintrag pro Typ kapselt Provider-Aufruf und Fehlermeldung — die Handler
+   darunter bleiben dadurch typ-agnostisch. */
+const KEYED_PROVIDERS = {
+  movie: {
+    api: tmdb,
+    missing: 'TMDB ist nicht konfiguriert (TMDB_API_TOKEN in .env setzen)',
+    search: (q, page) => tmdb.searchMedia('movie', q, page),
+    byId: (id) => tmdb.getById('movie', id),
+    top: () => tmdb.topMedia('movie'),
+    trending: () => tmdb.trending('movie'),
+  },
+  tv: {
+    api: tmdb,
+    missing: 'TMDB ist nicht konfiguriert (TMDB_API_TOKEN in .env setzen)',
+    search: (q, page) => tmdb.searchMedia('tv', q, page),
+    byId: (id) => tmdb.getById('tv', id),
+    top: () => tmdb.topMedia('tv'),
+    trending: () => tmdb.trending('tv'),
+  },
+  game: {
+    api: igdb,
+    missing: 'IGDB ist nicht konfiguriert (IGDB_CLIENT_ID und IGDB_CLIENT_SECRET in .env setzen)',
+    search: (q, page) => igdb.searchMedia(q, page),
+    byId: (id) => igdb.getById(id),
+    top: () => igdb.topMedia(),
+    trending: () => igdb.trending(),
+  },
+};
+
+function requireProvider(type)
 {
-  if (!tmdb.isConfigured())
+  return (req, res, next) =>
   {
-    return res.status(503).json({ error: 'TMDB ist nicht konfiguriert (TMDB_API_TOKEN in .env setzen)' });
-  }
-  next();
+    if (!KEYED_PROVIDERS[type].api.isConfigured())
+    {
+      return res.status(503).json({ error: KEYED_PROVIDERS[type].missing });
+    }
+    next();
+  };
 }
 
 function clampPage(raw)
@@ -104,8 +137,8 @@ function handleTop(type)
   };
 }
 
-/* ── TMDB: Filme & Serien ─────────────────────────────── */
-function handleTmdbSearch(type)
+/* ── TMDB (Filme & Serien) und IGDB (Spiele) ─────────── */
+function handleKeyedSearch(type)
 {
   return async (req, res) =>
   {
@@ -117,7 +150,7 @@ function handleTmdbSearch(type)
     }
     try
     {
-      res.json(await tmdb.searchMedia(type, q, page));
+      res.json(await KEYED_PROVIDERS[type].search(q, page));
     }
     catch
     {
@@ -126,7 +159,7 @@ function handleTmdbSearch(type)
   };
 }
 
-function handleTmdbById(type)
+function handleKeyedById(type)
 {
   return async (req, res) =>
   {
@@ -137,7 +170,7 @@ function handleTmdbById(type)
     }
     try
     {
-      res.json(await tmdb.getById(type, id));
+      res.json(await KEYED_PROVIDERS[type].byId(id));
     }
     catch
     {
@@ -146,13 +179,13 @@ function handleTmdbById(type)
   };
 }
 
-function handleTmdbTop(type)
+function handleKeyedTop(type)
 {
   return async (req, res) =>
   {
     try
     {
-      res.json(await tmdb.topMedia(type));
+      res.json(await KEYED_PROVIDERS[type].top());
     }
     catch
     {
@@ -161,18 +194,24 @@ function handleTmdbTop(type)
   };
 }
 
-router.get('/movie', requireTmdb, handleTmdbSearch('movie'));
-router.get('/tv', requireTmdb, handleTmdbSearch('tv'));
-router.get('/movie/:id', requireTmdb, handleTmdbById('movie'));
-router.get('/tv/:id', requireTmdb, handleTmdbById('tv'));
-router.get('/top/movie', requireTmdb, handleTmdbTop('movie'));
-router.get('/top/tv', requireTmdb, handleTmdbTop('tv'));
-
-router.get('/trending', requireTmdb, async (req, res) =>
+Object.keys(KEYED_PROVIDERS).forEach(type =>
 {
+  router.get(`/${type}`, requireProvider(type), handleKeyedSearch(type));
+  router.get(`/${type}/:id`, requireProvider(type), handleKeyedById(type));
+  router.get(`/top/${type}`, requireProvider(type), handleKeyedTop(type));
+});
+
+router.get('/trending', async (req, res) =>
+{
+  const type = KEYED_PROVIDERS[req.query.type] ? req.query.type : 'movie';
+  const provider = KEYED_PROVIDERS[type];
+  if (!provider.api.isConfigured())
+  {
+    return res.status(503).json({ error: provider.missing });
+  }
   try
   {
-    res.json(await tmdb.trending(req.query.type === 'tv' ? 'tv' : 'movie'));
+    res.json(await provider.trending());
   }
   catch
   {

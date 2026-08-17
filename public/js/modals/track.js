@@ -4,21 +4,23 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, toast } from '../dom.js';
+import { $, $$, esc, toast } from '../dom.js';
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
-import { statusesFor, getUserList, setUserList } from '../media.js';
+import { statusesFor, defaultStatusFor, getUserList, setUserList, TYPE_META, playtimeText,
+  mediaHeroHtml, mediaMetaChipsHtml, genreTagsHtml, synopsisHtml, bindSynopsisToggle } from '../media.js';
 import { navigate } from '../router.js';
-import { refreshCollectionsAfterSave } from '../views/collections.js';
+import { refreshCollectionsAfterSave, createCollection } from '../views/collections.js';
 
-/* Fortschritts-Art pro Medientyp: Episoden (anime/tv), Kapitel+Seiten (manga), keine (movie) */
+/* Fortschritts-Art pro Medientyp — steuert, welche Eingabefelder das Modal zeigt.
+   Ohne Zähler (Filme, Spiele) bleiben Episoden-/Kapitel-Felder komplett weg. */
 function kindOf(type)
 {
+  const meta = TYPE_META[type] || {};
   return {
-    hasEpisodes: type === 'anime' || type === 'tv',
+    hasEpisodes: meta.progress === 'episodes',
     isTv: type === 'tv',
-    isManga: type === 'manga',
-    isMovie: type === 'movie',
+    isManga: meta.progress === 'chapters',
   };
 }
 
@@ -45,197 +47,165 @@ function splitAbsoluteEpisode(abs, seasons)
   return { season: last.season, episode: last.episodes };
 }
 
-function renderTrackModalBody(media, existingEntry)
+/* Ausgangswerte für Serien: Staffel + Episode-in-Staffel.
+   Alte Einträge mit absoluter Zählung werden dabei einmalig umgerechnet. */
+function seasonState(media, entry, isTv)
 {
-  const { hasEpisodes, isTv, isManga } = kindOf(media.type);
-  const statuses = statusesFor(media.type);
-  const entry = existingEntry || {};
-  const curStatus = entry.list_status || (isManga ? 'reading' : 'watching');
-  const synopsis = media.synopsis || '';
-  const maxCh = media.chapters || 99999;
-
-  // Serien: Staffel + Episode-in-Staffel; alte absolute Werte werden einmalig umgerechnet
   const seasons = isTv && Array.isArray(media.seasons_data) ? media.seasons_data : null;
-  let curSeason = entry.current_season || 1;
-  let curEp = entry.current_episode || 0;
-  if (isTv && !entry.current_season && curEp > 0 && seasons)
+  let season = entry.current_season || 1;
+  let episode = entry.current_episode || 0;
+  if (isTv && !entry.current_season && episode > 0 && seasons)
   {
-    ({ season: curSeason, episode: curEp } = splitAbsoluteEpisode(curEp, seasons));
+    ({ season, episode } = splitAbsoluteEpisode(episode, seasons));
   }
-  const maxSeason = seasons ? seasons[seasons.length - 1].season : (media.volumes || 99999);
-  const maxEp = isTv
-    ? (episodesOfSeason(seasons, curSeason) || 99999)
-    : (media.episodes || 99999);
+  return {
+    seasons, season, episode,
+    maxSeason: seasons ? seasons[seasons.length - 1].season : (media.volumes || 99999),
+    maxEpisode: isTv
+      ? (episodesOfSeason(seasons, season) || 99999)
+      : (media.episodes || 99999),
+  };
+}
+
+/* Zähler-Eingabefeld mit −/+-Buttons */
+function numFieldHtml({ label, labelId, id, min = 0, max = 99999, value = 0, minusId, plusId })
+{
+  return `
+    <div class="form-group">
+      <label class="form-label"${labelId ? ` id="${labelId}"` : ''} for="${id}">${label}</label>
+      <div class="num-input-wrap">
+        <button class="num-btn" id="${minusId}" type="button" aria-label="Weniger">−</button>
+        <input class="num-input" type="number" id="${id}" min="${min}" max="${max}" value="${value}"/>
+        <button class="num-btn" id="${plusId}" type="button" aria-label="Mehr">+</button>
+      </div>
+    </div>`;
+}
+
+/* Fortschrittsfelder je Medientyp — Filme und Spiele bekommen gar keine */
+function progressFieldsHtml(media, kind, entry, se)
+{
+  const { hasEpisodes, isTv, isManga } = kind;
+
+  if (isTv)
+  {
+    return `
+      <div class="form-row">
+        ${numFieldHtml({ label: `Staffel${se.maxSeason < 99999 ? ' / ' + se.maxSeason : ''}`,
+          id: 'track-season', min: 1, max: se.maxSeason, value: se.season,
+          minusId: 'se-m', plusId: 'se-p' })}
+        ${numFieldHtml({ label: `Episode${se.maxEpisode < 99999 ? ' / ' + se.maxEpisode : ''}`,
+          labelId: 'track-ep-label', id: 'track-ep', max: se.maxEpisode, value: se.episode,
+          minusId: 'ep-m', plusId: 'ep-p' })}
+      </div>
+      <p style="font-size:.75rem;color:var(--text3);margin:-8px 0 14px">
+        Episode innerhalb der Staffel — wie bei deinem Streaming-Dienst angezeigt
+      </p>`;
+  }
+  if (hasEpisodes)
+  {
+    return numFieldHtml({
+      label: `Aktuelle Episode${media.episodes ? ' / ' + media.episodes : ''}`,
+      id: 'track-ep', max: media.episodes || 99999, value: entry.current_episode || 0,
+      minusId: 'ep-m', plusId: 'ep-p',
+    });
+  }
+  if (isManga)
+  {
+    return numFieldHtml({
+      label: `Aktuelles Kapitel${media.chapters ? ' / ' + media.chapters : ''}`,
+      id: 'track-ch', max: media.chapters || 99999, value: entry.current_chapter || 0,
+      minusId: 'ch-m', plusId: 'ch-p',
+    }) + numFieldHtml({
+      label: 'Aktuelle Seite', id: 'track-pg', value: entry.current_page || 0,
+      minusId: 'pg-m', plusId: 'pg-p',
+    });
+  }
+  return '';
+}
+
+/* Eigene Spielzeit — Eingabe in Stunden, gespeichert werden Minuten.
+   Nur für Typen mit TYPE_META.playtime (aktuell Spiele). */
+function playtimeFieldHtml(media, entry)
+{
+  if (!TYPE_META[media.type]?.playtime)
+  {
+    return '';
+  }
+  const hours = entry.play_minutes
+    ? String(Math.round((entry.play_minutes / 60) * 10) / 10)
+    : '';
+  const hint = media.avg_play_minutes
+    ? `<p style="font-size:.75rem;color:var(--text3);margin:-8px 0 14px">
+        Andere brauchen im Schnitt ${playtimeText(media.avg_play_minutes)} zum Durchspielen
+       </p>`
+    : '';
 
   return `
-    <div class="modal-head">
-      <h2>${existingEntry ? 'Eintrag bearbeiten' : 'Zur Liste hinzufügen'}</h2>
-      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
+    <div class="form-group">
+      <label class="form-label" for="track-playtime">Meine Spielzeit (Stunden)</label>
+      <input class="form-input" type="number" id="track-playtime"
+        min="0" max="10000" step="0.5" value="${hours}" placeholder="z.B. 42.5"/>
     </div>
-    <div class="modal-body">
-      <div class="media-detail-hero">
-        ${media.image_url
-          ? `<img class="media-detail-bg" src="${esc(media.image_url)}" alt=""/>`
-          : '<div style="height:130px;background:var(--bg3)"></div>'}
-        <div class="media-detail-info">
-          <div class="media-detail-cover">${coverImg(media.image_url,media.title)}</div>
-          <div class="media-detail-titles">
-            <div class="media-detail-title">${esc(media.title)}</div>
-            ${media.title_english&&media.title_english!==media.title
-              ?`<div class="media-detail-title-alt">${esc(media.title_english)}</div>`:''}
-          </div>
-        </div>
+    ${hint}`;
+}
+
+function ratingHtml(entry)
+{
+  return `
+    <div class="form-group">
+      <label class="form-label">Meine Bewertung</label>
+      <div class="stars" id="star-rating">
+        ${Array.from({ length: 5 }, (_, i) => `
+          <button class="star-btn ${i < (entry.user_score || 0) ? 'on' : ''}" data-star="${i + 1}">${IC.star}</button>
+        `).join('')}
       </div>
+      <input type="hidden" id="track-score" value="${entry.user_score || 0}"/>
+    </div>`;
+}
 
-      <div class="media-meta">
-        ${media.api_score
-          ? `<div class="meta-chip">${IC.star}` +
-            `<span style="color:var(--star)">${media.api_score.toFixed(1)}</span> ${media.source==='tmdb'?'TMDB':'MAL'}</div>`
-          : ''}
-        ${hasEpisodes&&media.episodes?`<div class="meta-chip">${IC.play} ${media.episodes} Folgen</div>`:''}
-        ${media.type==='tv'&&media.volumes?`<div class="meta-chip">${IC.monitor} ${media.volumes} Staffeln</div>`:''}
-        ${isManga&&media.chapters?`<div class="meta-chip">${IC.book} ${media.chapters} Kapitel</div>`:''}
-        ${isManga&&media.volumes?`<div class="meta-chip">📦 ${media.volumes} Bände</div>`:''}
-        ${media.media_status?`<div class="meta-chip">${IC.info} ${esc(media.media_status)}</div>`:''}
-        ${media.year?`<div class="meta-chip">${IC.calendar} ${media.year}</div>`:''}
-      </div>
+function ownershipHtml(media, kind, entry)
+{
+  const volumes = kind.isManga
+    ? `
+      <div class="form-group" id="owned-volumes-group" style="display:${entry.owned ? 'block' : 'none'}">
+        ${numFieldHtml({ label: `Bände im Besitz${media.volumes ? ' / ' + media.volumes : ''}`,
+          id: 'track-owned-vol', max: media.volumes || 99999, value: entry.owned_volumes || 0,
+          minusId: 'ov-m', plusId: 'ov-p' })}
+      </div>`
+    : '';
 
-      ${media.genres&&media.genres.length?`
-        <div class="genre-tags" style="margin-bottom:12px">
-          ${media.genres.slice(0,8).map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}
-        </div>`:'' }
-
-      ${synopsis?`
-        <div style="margin-bottom:14px">
-          <p class="synopsis-text" id="syn-text">${esc(synopsis)}</p>
-          ${synopsis.length>220?`<button class="btn-synopsis" id="btn-expand">Mehr anzeigen</button>`:''}
-        </div>`:''}
-
-      ${media.type === 'anime' && media.mal_id ? `
-        <div id="streaming-section" style="margin-bottom:14px">
-          <div class="streaming-loading">${IC.play} Streaming wird geladen…</div>
-        </div>` : ''}
-
-      <div class="divider"></div>
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">Meine Liste</h3>
-
-      <div class="form-group">
-        <label class="form-label">Status</label>
-        <select class="form-input" id="track-status">
-          ${statuses.map(s=>`<option value="${s.val}"${curStatus===s.val?' selected':''}>${s.label}</option>`).join('')}
-        </select>
-      </div>
-
-      ${isTv ? `
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Staffel${maxSeason<99999?' / '+maxSeason:''}</label>
-            <div class="num-input-wrap">
-              <button class="num-btn" id="se-m">−</button>
-              <input class="num-input" type="number" id="track-season"
-                min="1" max="${maxSeason}" value="${curSeason}"/>
-              <button class="num-btn" id="se-p">+</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" id="track-ep-label">Episode${maxEp<99999?' / '+maxEp:''}</label>
-            <div class="num-input-wrap">
-              <button class="num-btn" id="ep-m">−</button>
-              <input class="num-input" type="number" id="track-ep"
-                min="0" max="${maxEp}" value="${curEp}"/>
-              <button class="num-btn" id="ep-p">+</button>
-            </div>
-          </div>
-        </div>
-        <p style="font-size:.75rem;color:var(--text3);margin:-8px 0 14px">
-          Episode innerhalb der Staffel — wie bei deinem Streaming-Dienst angezeigt
-        </p>` : ''}
-      ${hasEpisodes && !isTv ? `
-        <div class="form-group">
-          <label class="form-label">Aktuelle Episode${media.episodes?' / '+media.episodes:''}</label>
-          <div class="num-input-wrap">
-            <button class="num-btn" id="ep-m">−</button>
-            <input class="num-input" type="number" id="track-ep"
-              min="0" max="${maxEp}" value="${entry.current_episode||0}"/>
-            <button class="num-btn" id="ep-p">+</button>
-          </div>
-        </div>` : ''}
-      ${isManga ? `
-        <div class="form-group">
-          <label class="form-label">Aktuelles Kapitel${media.chapters?' / '+media.chapters:''}</label>
-          <div class="num-input-wrap">
-            <button class="num-btn" id="ch-m">−</button>
-            <input class="num-input" type="number" id="track-ch"
-              min="0" max="${maxCh}" value="${entry.current_chapter||0}"/>
-            <button class="num-btn" id="ch-p">+</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Aktuelle Seite</label>
-          <div class="num-input-wrap">
-            <button class="num-btn" id="pg-m">−</button>
-            <input class="num-input" type="number" id="track-pg" min="0" value="${entry.current_page||0}"/>
-            <button class="num-btn" id="pg-p">+</button>
-          </div>
-        </div>` : ''}
-
-      <div class="form-group">
-        <label class="form-label">Meine Bewertung</label>
-        <div class="stars" id="star-rating">
-          ${Array.from({length:5},(_,i)=>`
-            <button class="star-btn ${i<(entry.user_score||0)?'on':''}" data-star="${i+1}">${IC.star}</button>
-          `).join('')}
-        </div>
-        <input type="hidden" id="track-score" value="${entry.user_score||0}"/>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Notizen (optional)</label>
-        <textarea class="form-input" id="track-notes" rows="2"
-          placeholder="Deine Gedanken…">${esc(entry.notes||'')}</textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label toggle-row" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-          <span>Physisch im Besitz</span>
-          <span class="toggle-switch">
-            <input type="checkbox" id="track-owned" ${entry.owned ? 'checked' : ''}/>
-            <span class="toggle-slider"></span>
-          </span>
-        </label>
-      </div>
-
-      ${isManga ? `
-      <div class="form-group" id="owned-volumes-group" style="display:${entry.owned?'block':'none'}">
-        <label class="form-label">Bände im Besitz${media.volumes?' / '+media.volumes:''}</label>
-        <div class="num-input-wrap">
-          <button class="num-btn" id="ov-m">−</button>
-          <input class="num-input" type="number" id="track-owned-vol"
-            min="0" max="${media.volumes||99999}" value="${entry.owned_volumes||0}"/>
-          <button class="num-btn" id="ov-p">+</button>
-        </div>
-      </div>` : ''}
-
-      <div class="form-group">
-        <label class="form-label">Collections</label>
-        <div class="collection-chips" id="collection-chips">
-          <span style="color:var(--text3);font-size:.8rem">Wird geladen…</span>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Startdatum</label>
-          <input class="form-input" type="date" id="track-start" value="${entry.started_at||''}"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Enddatum</label>
-          <input class="form-input" type="date" id="track-end" value="${entry.completed_at||''}"/>
-        </div>
-      </div>
+  return `
+    <div class="form-group">
+      <label class="form-label toggle-row" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <span>Physisch im Besitz</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="track-owned" ${entry.owned ? 'checked' : ''}/>
+          <span class="toggle-slider"></span>
+        </span>
+      </label>
     </div>
+    ${volumes}`;
+}
 
-    <div class="modal-foot">
+function datesHtml(entry)
+{
+  return `
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="track-start">Startdatum</label>
+        <input class="form-input" type="date" id="track-start" value="${entry.started_at || ''}"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="track-end">Enddatum</label>
+        <input class="form-input" type="date" id="track-end" value="${entry.completed_at || ''}"/>
+      </div>
+    </div>`;
+}
+
+function footHtml(existingEntry)
+{
+  return `
+    <div class="modal-foot" id="track-foot">
       ${existingEntry
         ? `<button class="btn btn-danger btn-sm" id="btn-delete"
             title="Entfernen">${IC.trash}<span class="btn-label"> Entfernen</span>
@@ -249,6 +219,65 @@ function renderTrackModalBody(media, existingEntry)
         title="Speichern">${IC.check}<span class="btn-label"> Speichern</span>
       </button>
     </div>`;
+}
+
+function renderTrackModalBody(media, existingEntry)
+{
+  const kind = kindOf(media.type);
+  const entry = existingEntry || {};
+  const curStatus = entry.list_status || defaultStatusFor(media.type);
+  const se = seasonState(media, entry, kind.isTv);
+
+  return `
+    <div class="modal-head">
+      <h2>${existingEntry ? 'Eintrag bearbeiten' : 'Zur Liste hinzufügen'}</h2>
+      <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
+    </div>
+    <div class="modal-body">
+      ${mediaHeroHtml(media)}
+      ${mediaMetaChipsHtml(media)}
+      ${genreTagsHtml(media.genres)}
+      ${synopsisHtml(media.synopsis)}
+
+      ${media.type === 'anime' && media.mal_id ? `
+        <div id="streaming-section" style="margin-bottom:14px">
+          <div class="streaming-loading">${IC.play} Streaming wird geladen…</div>
+        </div>` : ''}
+
+      <div class="divider"></div>
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">Meine Liste</h3>
+
+      <div class="form-group">
+        <label class="form-label" for="track-status">Status</label>
+        <select class="form-input" id="track-status">
+          ${statusesFor(media.type)
+            .map(s => `<option value="${s.val}"${curStatus === s.val ? ' selected' : ''}>${s.label}</option>`)
+            .join('')}
+        </select>
+      </div>
+
+      ${progressFieldsHtml(media, kind, entry, se)}
+      ${playtimeFieldHtml(media, entry)}
+      ${ratingHtml(entry)}
+
+      <div class="form-group">
+        <label class="form-label" for="track-notes">Notizen (optional)</label>
+        <textarea class="form-input" id="track-notes" rows="2"
+          placeholder="Deine Gedanken…">${esc(entry.notes || '')}</textarea>
+      </div>
+
+      ${ownershipHtml(media, kind, entry)}
+
+      <div class="form-group">
+        <label class="form-label">Collections</label>
+        <div class="collection-chips" id="collection-chips">
+          <span style="color:var(--text3);font-size:.8rem">Wird geladen…</span>
+        </div>
+      </div>
+
+      ${datesHtml(entry)}
+    </div>
+    ${footHtml(existingEntry)}`;
 }
 
 const STREAMING_COLORS = {
@@ -472,26 +501,55 @@ async function bindTrackModalCollections(existingEntry, colState)
       });
     });
 
-    $('#chip-new-collection', wrap)?.addEventListener('click', async () =>
+    // Inline-Eingabe statt eines zweiten Modals — Modals stapeln sich nicht
+    $('#chip-new-collection', wrap)?.addEventListener('click', showNewCollectionInput);
+  }
+
+  function showNewCollectionInput()
+  {
+    wrap.insertAdjacentHTML('beforeend', `
+      <span class="collection-new-inline">
+        <input class="form-input" id="new-collection-name" type="text" maxlength="50"
+          placeholder="Name der Collection" autocomplete="off"/>
+        <button class="btn btn-primary btn-sm" id="new-collection-ok" type="button">${IC.check}</button>
+        <button class="btn btn-secondary btn-sm" id="new-collection-cancel" type="button">${IC.x}</button>
+      </span>`);
+    $('#chip-new-collection', wrap)?.remove();
+
+    const input = $('#new-collection-name', wrap);
+    const submit = async () =>
     {
-      const name = prompt('Name der neuen Collection (z.B. "ReWatch"):');
-      if (!name || !name.trim())
+      const name = input.value.trim();
+      if (!name)
       {
+        renderChips();
         return;
       }
-      try
+      const created = await createCollection(name);
+      if (created)
       {
-        const created = await API.collections.create(name.trim());
-        S.collections.push(created);
-        S.collections.sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
         colState.selected.add(created.id);
+      }
+      renderChips();
+    };
+
+    $('#new-collection-ok', wrap)?.addEventListener('click', submit);
+    $('#new-collection-cancel', wrap)?.addEventListener('click', renderChips);
+    input?.addEventListener('keydown', e =>
+    {
+      if (e.key === 'Enter')
+      {
+        e.preventDefault();
+        submit();
+      }
+      if (e.key === 'Escape')
+      {
+        // ESC darf hier nur die Eingabe abbrechen, nicht das ganze Modal schließen
+        e.stopPropagation();
         renderChips();
       }
-      catch (e)
-      {
-        toast(e.message, 'error');
-      }
     });
+    input?.focus();
   }
 
   renderChips();
@@ -550,6 +608,19 @@ function bindTrackModalStars()
   });
 }
 
+/* Liefert die eingetragene Spielzeit in Minuten — null, wenn das Feld fehlt oder leer ist
+   (bei PUT bedeutet null „unverändert lassen", bei POST „keine Angabe"). */
+function playMinutesFromInput()
+{
+  const input = $('#track-playtime');
+  if (!input || input.value === '')
+  {
+    return null;
+  }
+  const hours = Math.max(0, +input.value || 0);
+  return Math.round(hours * 60) || null;
+}
+
 function bindTrackModalSave(media, existingEntry, kind, colState)
 {
   const { hasEpisodes, isTv, isManga } = kind;
@@ -572,6 +643,8 @@ function bindTrackModalSave(media, existingEntry, kind, colState)
         completedAt: $('#track-end').value || null,
         owned: $('#track-owned')?.checked || false,
         ownedVolumes: isManga ? +($('#track-owned-vol')?.value || 0) : 0,
+        // Eingabe in Stunden, gespeichert in Minuten
+        playMinutes: playMinutesFromInput(),
       };
       let entryId = existingEntry?.id;
       if (existingEntry && (media.is_manual || !media.mal_id))
@@ -599,12 +672,9 @@ function bindTrackModalSave(media, existingEntry, kind, colState)
     }
   });
 
-  $('#btn-delete')?.addEventListener('click', async () =>
+  const deleteBtn = $('#btn-delete');
+  deleteBtn?.addEventListener('click', () => showDeleteConfirm(deleteBtn, async () =>
   {
-    if (!confirm(`„${media.title}" aus der Liste entfernen?`))
-    {
-      return;
-    }
     try
     {
       await API.list.remove(existingEntry.id);
@@ -616,7 +686,25 @@ function bindTrackModalSave(media, existingEntry, kind, colState)
     {
       toast(e.message, 'error');
     }
-  });
+  }));
+}
+
+/* Löschbestätigung inline im Modal-Footer — ein zweites Modal würde das
+   Track-Modal verdrängen (Modals stapeln sich bewusst nicht).
+   Der Button-Knoten wird nur ausgetauscht, seine Listener bleiben dadurch erhalten. */
+function showDeleteConfirm(deleteBtn, onConfirm)
+{
+  const holder = document.createElement('span');
+  holder.className = 'inline-confirm';
+  holder.innerHTML = `
+    <span class="inline-confirm-text">Wirklich entfernen?</span>
+    <button class="btn btn-danger btn-sm" id="del-ok" type="button">Ja</button>
+    <button class="btn btn-secondary btn-sm" id="del-cancel" type="button">Nein</button>`;
+  deleteBtn.replaceWith(holder);
+
+  holder.querySelector('#del-ok').addEventListener('click', onConfirm);
+  holder.querySelector('#del-cancel').addEventListener('click', () => holder.replaceWith(deleteBtn));
+  holder.querySelector('#del-ok').focus();
 }
 
 export function showTrackModal(media, existingEntry)
@@ -631,14 +719,7 @@ export function showTrackModal(media, existingEntry)
 
     bindTrackModalStreaming(media);
     bindTrackModalCollections(existingEntry, colState);
-
-    $('#btn-expand')?.addEventListener('click', () =>
-    {
-      const st = $('#syn-text');
-      const exp = st.classList.toggle('expanded');
-      $('#btn-expand').textContent = exp ? 'Weniger anzeigen' : 'Mehr anzeigen';
-    });
-
+    bindSynopsisToggle();
     bindTrackModalNumbers(kind, media);
     bindTrackModalStars();
     bindTrackModalSave(media, existingEntry, kind, colState);

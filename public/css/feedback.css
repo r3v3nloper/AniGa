@@ -1,0 +1,108 @@
+/* =====================================================
+   AniGa – feedback.css
+   Toasts, Ladeanzeige, Leerzustände
+   Teil von style.css — Reihenfolge der <link>-Tags in index.html
+   entspricht der Kaskade und darf nicht vertauscht werden.
+   ===================================================== */
+/* ===== TOAST ===== */
+.toast-container
+{
+  position: fixed; top: 18px; right: 18px;
+  z-index: 400; display: flex; flex-direction: column; gap: 8px;
+  max-width: 320px; pointer-events: none;
+}
+.toast
+{
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 13px 15px;
+  display: flex; align-items: flex-start; gap: 10px;
+  box-shadow: var(--shadow); pointer-events: all;
+  border-left: 3px solid var(--accent);
+  animation: toastIn .25s ease;
+}
+@keyframes toastIn
+{
+  from
+  {
+    transform: translateX(120%); opacity: 0;
+  }
+  to
+  {
+    transform: translateX(0); opacity: 1;
+  }
+}
+.toast.t-success
+{
+  border-left-color: var(--success);
+}
+.toast.t-error
+{
+  border-left-color: var(--error);
+}
+.toast.t-warning
+{
+  border-left-color: var(--warning);
+}
+.toast-icon
+{
+  flex-shrink: 0;
+}
+.toast-icon svg
+{
+  width: 17px; height: 17px;
+}
+.toast.t-success .toast-icon
+{
+  color: var(--success);
+}
+.toast.t-error .toast-icon
+{
+  color: var(--error);
+}
+.toast.t-warning .toast-icon
+{
+  color: var(--warning);
+}
+.toast-content .toast-title
+{
+  font-size: .87rem; font-weight: 600;
+}
+.toast-content .toast-msg
+{
+  font-size: .78rem; color: var(--text2); margin-top: 2px;
+}
+
+/* ===== LOADER ===== */
+.loader-wrap
+{
+  display: flex; justify-content: center; align-items: center; padding: 50px 20px;
+}
+.spinner
+{
+  width: 34px; height: 34px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .75s linear infinite;
+}
+@keyframes spin
+{
+  to
+  {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state
+{
+  text-align: center; padding: 60px 20px; color: var(--text3);
+}
+.empty-state-emoji
+{
+  font-size: 3.5rem; margin-bottom: 14px;
+}
+.empty-state h3
+{
+  font-size: 1.05rem; color: var(--text2); margin-bottom: 7px;
+}
+.empty-state p
+{
+  font-size: .87rem; margin-bottom: 18px;
+}

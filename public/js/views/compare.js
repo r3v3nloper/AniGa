@@ -4,31 +4,33 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, toast, renderEmptyState, bindStatusTabs } from '../dom.js';
+import { $, $$, esc, coverImg, toast, renderEmptyState, bindStatusTabs,
+  renderInto, renderMain, showSpinner } from '../dom.js';
 import { API } from '../api.js';
-import { STATUS_LABELS, STATUS_CSS, TYPE_META } from '../media.js';
-import { renderAndBindUserListView } from './users.js';
+import { statusLabel, STATUS_CSS, TYPE_META } from '../media.js';
+import { showUserListView } from './users.js';
+
+function showCompare()
+{
+  renderMain(renderCompareView(), bindCompareView);
+}
 
 export async function showCompareView(user)
 {
   S.compareType = 'anime';
   S.compareTab  = 'both';
-  const main = $('#main-content');
-  main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  showSpinner();
   try
   {
     S.compareData = await API.users.compare(user.id, 'anime');
-    main.innerHTML = renderCompareView();
-    bindCompareView();
+    showCompare();
   }
   catch (e)
   {
-    main.innerHTML = renderEmptyState(
-      '⚠️', 'Fehler beim Laden', esc(e.message),
+    renderMain(renderEmptyState(
+      '⚠️', 'Fehler beim Laden', e.message,
       `<button class="btn btn-primary" id="btn-back-userlist">Zurück</button>`
-    );
-    $('#btn-back-userlist')?.addEventListener('click', () =>
-      renderAndBindUserListView($('#main-content')));
+    ), () => $('#btn-back-userlist')?.addEventListener('click', showUserListView));
   }
 }
 
@@ -104,7 +106,7 @@ function renderCompareContent()
     if (!d.both.length)
     {
       return renderEmptyState('🤝', 'Noch nichts gemeinsam',
-        `Ihr habt noch kein ${type==='anime'?'Anime':'Manga'} auf beiden Listen.`);
+        `Ihr habt noch kein ${TYPE_META[type].singular} auf beiden Listen.`);
     }
     const cards = d.both.map(item =>
       renderCompareCard(item, type, me.username, u.username)
@@ -116,24 +118,30 @@ function renderCompareContent()
     if (!d.onlyMe.length)
     {
       return renderEmptyState('📋', 'Nichts exklusiv bei dir',
-        `Alles was du hast, hat ${esc(u.username)} auch.`);
+        `Alles was du hast, hat ${u.username} auch.`);
     }
     return `<div class="compare-list">${d.onlyMe.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
   }
   if (!d.onlyThem.length)
   {
     return renderEmptyState('📋',
-      `Nichts exklusiv bei ${esc(u.username)}`,
-      `Alles was ${esc(u.username)} hat, hast du auch.`);
+      `Nichts exklusiv bei ${u.username}`,
+      `Alles was ${u.username} hat, hast du auch.`);
   }
   return `<div class="compare-list">${d.onlyThem.map(e => renderCompareSimpleCard(e, type)).join('')}</div>`;
+}
+
+/* Typen ohne Fortschrittszähler (Filme, Spiele) zeigen im Vergleich nur Status + Bewertung */
+function progressOf(type)
+{
+  return TYPE_META[type].progress;
 }
 
 function renderCompareCard(item, type, myName, theirName)
 {
   const { media, me, them } = item;
-  const isEpisodic = type === 'anime' || type === 'tv';
-  const isMovie = type === 'movie';
+  const isEpisodic = progressOf(type) === 'episodes';
+  const noProgress = !progressOf(type);
   const total   = isEpisodic ? media.episodes : media.chapters;
   const myProg  = isEpisodic ? me.episode  : me.chapter;
   const thProg  = isEpisodic ? them.episode : them.chapter;
@@ -145,10 +153,10 @@ function renderCompareCard(item, type, myName, theirName)
   const sideHtml = (name, status, prog, pct, score) => `
     <div class="compare-side">
       <div class="compare-side-name">${esc(name)}</div>
-      <span class="status-badge ${STATUS_CSS[status]||'status-default'}">${STATUS_LABELS[status]||status}</span>
-      ${isMovie ? '' : `<div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>`}
+      <span class="status-badge ${STATUS_CSS[status]||'status-default'}">${statusLabel(status, type)||status}</span>
+      ${noProgress ? '' : `<div class="compare-side-prog">${progLabel} ${prog||0}${totalTxt}</div>`}
       ${score ? `<div class="compare-side-score">${IC.star} ${score}.0</div>` : ''}
-      ${total && !isMovie
+      ${total && !noProgress
         ? `<div class="progress-bar" style="margin-top:4px">` +
           `<div class="progress-fill" style="width:${pct}%"></div></div>`
         : ''}
@@ -170,8 +178,8 @@ function renderCompareCard(item, type, myName, theirName)
 
 function renderCompareSimpleCard(e, type)
 {
-  const isEpisodic = type === 'anime' || type === 'tv';
-  const isMovie = type === 'movie';
+  const isEpisodic = progressOf(type) === 'episodes';
+  const noProgress = !progressOf(type);
   const total = isEpisodic ? e.episodes : e.chapters;
   const prog  = isEpisodic ? e.current_episode : e.current_chapter;
   const pct   = total ? Math.round((prog / total) * 100) : 0;
@@ -183,9 +191,9 @@ function renderCompareSimpleCard(e, type)
         <div class="compare-sides" style="justify-content:flex-start;gap:0">
           <div class="compare-side" style="flex:unset;min-width:0">
             <span class="status-badge ${STATUS_CSS[e.list_status]||'status-default'}">
-              ${STATUS_LABELS[e.list_status]||e.list_status}
+              ${statusLabel(e.list_status, type)||e.list_status}
             </span>
-            ${isMovie ? '' : `<div class="compare-side-prog">${isEpisodic?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>`}
+            ${noProgress ? '' : `<div class="compare-side-prog">${isEpisodic?'Ep.':'Kap.'} ${prog||0}${total?'/'+total:''}</div>`}
             ${e.user_score ? `<div class="compare-side-score">${IC.star} ${e.user_score}.0</div>` : ''}
             ${total
         ? `<div class="progress-bar" style="margin-top:4px">` +
@@ -199,10 +207,7 @@ function renderCompareSimpleCard(e, type)
 
 function bindCompareView()
 {
-  $('#btn-back-compare')?.addEventListener('click', () =>
-  {
-    renderAndBindUserListView($('#main-content'));
-  });
+  $('#btn-back-compare')?.addEventListener('click', showUserListView);
 
   $$('.type-btn[data-ctype]').forEach(b =>
   {
@@ -210,15 +215,13 @@ function bindCompareView()
     {
       S.compareType = b.dataset.ctype;
       S.compareTab  = 'both';
-      const main = $('#main-content');
-      main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+      showSpinner();
       try
       {
         S.compareData = await API.users.compare(
           S.viewingUser.id, S.compareType
         );
-        main.innerHTML = renderCompareView();
-        bindCompareView();
+        showCompare();
       }
       catch (e)
       {
@@ -230,6 +233,6 @@ function bindCompareView()
   bindStatusTabs('.status-tab[data-ctab]', 'ctab', v =>
   {
     S.compareTab = v;
-    $('#compare-content').innerHTML = renderCompareContent();
+    renderInto($('#compare-content'), renderCompareContent());
   });
 }

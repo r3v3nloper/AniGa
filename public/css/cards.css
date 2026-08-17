@@ -1,0 +1,543 @@
+/* =====================================================
+   AniGa – cards.css
+   Medien-Karten, Collections, Bereichs-Switcher, Badges
+   Teil von style.css — Reihenfolge der <link>-Tags in index.html
+   entspricht der Kaskade und darf nicht vertauscht werden.
+   ===================================================== */
+/* ===== MEDIA CARD (grid) ===== */
+.media-card
+{
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden; cursor: pointer;
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+  position: relative;
+}
+.media-card:hover
+{
+  transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow);
+}
+.media-card-cover
+{
+  position: relative; padding-top: 143%; background: var(--bg2);
+}
+.media-card-cover img
+{
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .3s;
+}
+.media-card:hover .media-card-cover img
+{
+  transform: scale(1.06);
+}
+.media-card-score
+{
+  position: absolute; top: 7px; right: 7px;
+  background: rgba(0,0,0,.82);
+  color: var(--star); padding: 2px 7px; border-radius: 20px;
+  font-size: .7rem; font-weight: 700;
+  display: flex; align-items: center; gap: 2px;
+}
+.media-card-score svg
+{
+  width: 10px; height: 10px;
+}
+.media-card-badge
+{
+  position: absolute; top: 7px; left: 7px;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: .65rem; font-weight: 600;
+}
+.badge-airing
+{
+  background: rgba(76,175,80,.85); color: #fff;
+}
+.badge-finished
+{
+  background: rgba(92,53,204,.85); color: #fff;
+}
+.badge-upcoming
+{
+  background: rgba(255,152,0,.85); color: #fff;
+}
+.badge-publishing
+{
+  background: rgba(76,175,80,.85); color: #fff;
+}
+
+/* Owned badge on media cards */
+.owned-badge
+{
+  position: absolute; bottom: 42px; right: 7px;
+  background: rgba(255, 193, 7, .9);
+  color: #1a1a1a;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: .62rem; font-weight: 700;
+  display: flex; align-items: center; gap: 3px;
+  z-index: 2;
+  line-height: 1.3;
+}
+.owned-badge svg
+{
+  width: 11px; height: 11px;
+}
+
+/* Owned chip in list view */
+.owned-chip
+{
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(255, 193, 7, .18);
+  color: #ffc107;
+  padding: 1px 8px; border-radius: 20px;
+  font-size: .7rem; font-weight: 600;
+  white-space: nowrap;
+}
+.owned-chip svg
+{
+  width: 11px; height: 11px;
+}
+
+/* Collections */
+/* Sichtbarer Tastatur-Fokus — ohne den sind die per role="button" bedienbaren
+   Karten zwar erreichbar, aber man sieht nicht, wo man gerade steht. */
+:focus-visible
+{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.media-card:focus-visible,
+.list-card:focus-visible,
+.recent-item:focus-visible,
+.user-card:focus-visible
+{
+  outline-offset: 3px;
+}
+
+/* Inline-Bestätigung im Modal-Footer (ersetzt natives confirm) */
+.inline-confirm
+{
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.inline-confirm-text
+{
+  font-size: .85rem; color: var(--text2);
+}
+
+.collection-chips
+{
+  display: flex; flex-wrap: wrap; gap: 7px;
+}
+/* Inline-Eingabe für eine neue Collection (statt eines zweiten Modals) */
+.collection-new-inline
+{
+  display: flex; align-items: center; gap: 6px; width: 100%;
+}
+.collection-new-inline .form-input
+{
+  flex: 1; min-width: 0; padding: 6px 10px; font-size: .85rem;
+}
+.collection-chip
+{
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 5px 12px; border-radius: 20px;
+  font-size: .8rem; font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.collection-chip:hover
+{
+  border-color: var(--accent);
+}
+.collection-chip.on
+{
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.collection-chip.chip-new
+{
+  border-style: dashed;
+  color: var(--text3);
+}
+
+/* Collection-Karten nutzen das Media-Card-Layout; das Mosaik passt sich
+   der Cover-Anzahl an, damit keine leeren Kacheln entstehen */
+.collection-mosaic
+{
+  position: absolute; inset: 0;
+  display: grid; gap: 2px;
+  background: var(--bg2);
+}
+.collection-mosaic img
+{
+  position: static;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  min-height: 0;
+}
+.collection-mosaic.covers-0
+{
+  display: flex; align-items: center; justify-content: center;
+}
+.collection-mosaic-placeholder
+{
+  color: var(--text3);
+}
+.collection-mosaic-placeholder svg
+{
+  width: 42px; height: 42px; stroke-width: 1.5;
+}
+.collection-mosaic.covers-2
+{
+  grid-template-columns: 1fr 1fr;
+}
+.collection-mosaic.covers-3
+{
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.collection-mosaic.covers-3 img:first-child
+{
+  grid-row: span 2;
+}
+.collection-mosaic.covers-4
+{
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.collection-open-hint
+{
+  color: var(--text3);
+  display: flex; align-items: center;
+}
+
+.collection-select
+{
+  width: auto; max-width: 200px;
+  flex-shrink: 0;
+}
+
+.collection-item-wrap
+{
+  position: relative;
+}
+.btn-remove-from-collection
+{
+  position: absolute; top: -6px; right: -6px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 3;
+  transition: all .15s;
+}
+.btn-remove-from-collection:hover
+{
+  background: #ef5350;
+  border-color: #ef5350;
+  color: #fff;
+}
+.btn-remove-from-collection svg
+{
+  width: 12px; height: 12px;
+}
+
+/* Bereichs-Switcher (Anime & Manga | Filme & Serien) */
+/* Bereichs-Switcher: gestapelt, damit die Labels bei 3+ Bereichen lesbar bleiben */
+.area-switcher
+{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 14px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px;
+}
+.area-btn
+{
+  background: none; border: none;
+  color: var(--text3);
+  font-size: .78rem; font-weight: 700;
+  padding: 8px 10px;
+  border-radius: calc(var(--r-sm) - 3px);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.area-btn.active
+{
+  background: var(--accent);
+  color: #fff;
+}
+.more-sheet .area-switcher
+{
+  margin: 0 0 12px;
+}
+
+/* "Mehr"-Bottom-Sheet (mobile Navigation) */
+.more-sheet-overlay
+{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 150;
+  display: flex; align-items: flex-end;
+}
+.more-sheet
+{
+  width: 100%;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  animation: sheetUp .22s ease;
+}
+@keyframes sheetUp
+{
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.more-sheet-handle
+{
+  width: 38px; height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 0 auto 12px;
+}
+.more-sheet-item
+{
+  display: flex; align-items: center; gap: 14px;
+  width: 100%;
+  padding: 14px 12px;
+  background: none; border: none;
+  color: var(--text);
+  font-size: .95rem; font-weight: 600;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .15s;
+}
+.more-sheet-item:hover
+{
+  background: var(--bg3);
+}
+.more-sheet-item.active
+{
+  color: var(--accent);
+  background: rgba(124, 77, 255, .12);
+}
+.more-sheet-item svg
+{
+  width: 20px; height: 20px; flex-shrink: 0;
+}
+
+/* Toggle switch */
+.toggle-switch
+{
+  position: relative;
+  display: inline-block;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.toggle-switch input
+{
+  opacity: 0; width: 0; height: 0;
+}
+.toggle-slider
+{
+  position: absolute; cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg3);
+  border-radius: 22px;
+  transition: background .2s;
+}
+.toggle-slider::before
+{
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  left: 3px; bottom: 3px;
+  background: var(--text2);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.toggle-switch input:checked + .toggle-slider
+{
+  background: var(--accent);
+}
+.toggle-switch input:checked + .toggle-slider::before
+{
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.media-card-overlay
+{
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,.92));
+  padding: 24px 9px 9px;
+}
+.media-card-title
+{
+  font-size: .8rem; font-weight: 600; color: #fff;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.media-card-footer
+{
+  padding: 9px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.media-card-type
+{
+  font-size: .72rem; color: var(--text3);
+}
+.btn-add-to-list
+{
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform .2s, background .2s; flex-shrink: 0;
+}
+.btn-add-to-list:hover
+{
+  transform: scale(1.18); background: var(--accent2);
+}
+.btn-add-to-list.in-list
+{
+  background: var(--success);
+}
+.btn-add-to-list svg
+{
+  width: 13px; height: 13px;
+}
+
+/* ===== LIST CARD (horizontal) ===== */
+.list-grid
+{
+  display: flex; flex-direction: column; gap: 8px;
+}
+.list-card
+{
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+  display: flex; gap: 0; cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.list-card:hover
+{
+  border-color: var(--accent); box-shadow: 0 2px 14px rgba(0,0,0,.3);
+}
+.list-card-cover
+{
+  width: 58px; min-width: 58px; height: 82px;
+  background: var(--bg2); overflow: hidden; flex-shrink: 0;
+}
+.list-card-cover img
+{
+  width: 100%; height: 100%; object-fit: cover;
+}
+.list-card-body
+{
+  flex: 1; min-width: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px;
+}
+.list-card-title
+{
+  font-size: .9rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.list-card-row
+{
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.list-card-progress
+{
+  font-size: .78rem; color: var(--text2);
+}
+.list-card-actions
+{
+  display: flex; gap: 5px; margin-top: auto;
+}
+.list-card-score
+{
+  display: flex; gap: 1px;
+}
+.list-card-score svg
+{
+  width: 11px; height: 11px;
+}
+
+/* ===== STATUS BADGES ===== */
+.status-badge
+{
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 20px; font-size: .68rem; font-weight: 600;
+  white-space: nowrap;
+}
+.s-watching, .s-reading
+{
+  background: rgba(0,229,255,.12); color: var(--cyan); border: 1px solid rgba(0,229,255,.25);
+}
+.s-completed
+{
+  background: rgba(76,175,80,.12); color: #4caf50; border: 1px solid rgba(76,175,80,.25);
+}
+.s-on_hold
+{
+  background: rgba(255,152,0,.12); color: #ff9800; border: 1px solid rgba(255,152,0,.25);
+}
+.s-dropped
+{
+  background: rgba(239,83,80,.12); color: #ef5350; border: 1px solid rgba(239,83,80,.25);
+}
+.s-plan_to_watch, .s-plan_to_read
+{
+  background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(124,77,255,.25);
+}
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar
+{
+  height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.progress-fill
+{
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  border-radius: 2px; transition: width .4s ease;
+}
+
+/* ===== STAR RATING ===== */
+.stars
+{
+  display: flex; gap: 2px;
+}
+.star-btn
+{
+  background: none; border: none; padding: 1px;
+  color: var(--border); cursor: pointer; transition: color .1s, transform .1s;
+  line-height: 1;
+}
+.star-btn:hover, .star-btn.on
+{
+  color: var(--star);
+}
+.star-btn:hover
+{
+  transform: scale(1.2);
+}
+.star-btn svg
+{
+  width: 22px; height: 22px; display: block;
+}
+.star-btn.sm svg
+{
+  width: 14px; height: 14px;
+}

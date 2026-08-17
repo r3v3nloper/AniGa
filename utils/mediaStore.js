@@ -27,17 +27,21 @@ function seasonsJson(mediaData)
 
 function updateApiData(id, mediaData)
 {
+  // seasons_data und avg_play_minutes nur überschreiben, wenn der Aufruf sie mitbringt:
+  // Suchergebnisse liefern sie nicht, würden sonst also bereits geholte Details löschen
   db.prepare(`
     UPDATE media_entries SET title=?, title_english=?, title_japanese=?, image_url=?,
     synopsis=?, media_status=?, episodes=?, chapters=?, volumes=?, api_score=?,
-    genres=?, year=?, season=?, seasons_data=COALESCE(?, seasons_data) WHERE id=?
+    genres=?, year=?, season=?, seasons_data=COALESCE(?, seasons_data),
+    avg_play_minutes=COALESCE(?, avg_play_minutes) WHERE id=?
   `).run(
     mediaData.title, mediaData.title_english || null, mediaData.title_japanese || null,
     mediaData.image_url || null, mediaData.synopsis || null,
     mediaData.media_status || null, mediaData.episodes || null,
     mediaData.chapters || null, mediaData.volumes || null,
     mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData), id
+    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData),
+    mediaData.avg_play_minutes || null, id
   );
 }
 
@@ -46,8 +50,8 @@ function insertFromApi(mediaData)
   const result = db.prepare(`
     INSERT INTO media_entries (mal_id, source, type, title, title_english, title_japanese,
       image_url, synopsis, media_status, episodes, chapters, volumes, api_score, genres,
-      year, season, seasons_data)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      year, season, seasons_data, avg_play_minutes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     mediaData.mal_id, mediaData.source || 'jikan', mediaData.type, mediaData.title,
     mediaData.title_english || null, mediaData.title_japanese || null,
@@ -55,7 +59,8 @@ function insertFromApi(mediaData)
     mediaData.media_status || null, mediaData.episodes || null,
     mediaData.chapters || null, mediaData.volumes || null,
     mediaData.api_score || null, JSON.stringify(mediaData.genres || []),
-    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData)
+    mediaData.year || null, mediaData.season || null, seasonsJson(mediaData),
+    mediaData.avg_play_minutes || null
   );
   return result.lastInsertRowid;
 }

@@ -4,9 +4,10 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, debounce, renderEmptyState, bindStatusTabs, bindViewToggle } from '../dom.js';
+import { $, $$, esc, coverImg, debounce, renderEmptyState, bindStatusTabs, bindViewToggle,
+  renderInto, bindActivate } from '../dom.js';
 import {
-  STATUS_LABELS, STATUS_CSS, TYPE_META, statusesFor, getUserList,
+  statusLabel, STATUS_CSS, TYPE_META, statusesFor, getUserList,
   starsHtml, progressText, progressPct, ownedChipHtml,
   renderMediaCardFromEntry, bindMediaCards, openEntryTrackModal
 } from '../media.js';
@@ -120,7 +121,7 @@ function renderListCard(e)
       <div class="list-card-body">
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
-          <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
+          <span class="status-badge ${STATUS_CSS[e.list_status]}">${statusLabel(e.list_status, e.type)}</span>
           ${ownedChipHtml(e)}
           ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
@@ -173,13 +174,11 @@ function refreshListContent(type)
   const curView = S.listView[type]||'grid';
   const filtered = applyFilters(list, type);
 
-  const content = $('#list-content');
-  if (content)
+  renderInto($('#list-content'), renderListContent(filtered, curView, type), () =>
   {
-    content.innerHTML = renderListContent(filtered, curView, type);
     bindListCards();
     $('#go-search-btn')?.addEventListener('click', () => navigate('search'));
-  }
+  });
 }
 
 function bindListCards()
@@ -187,7 +186,7 @@ function bindListCards()
   bindMediaCards();
   $$('.list-card').forEach(c =>
   {
-    c.addEventListener('click', () =>
+    bindActivate(c, () =>
     {
       const type = c.dataset.type;
       const entry = getUserList(type).find(e=>e.id==c.dataset.entryId);

@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { ANIME_COUNT_COL, MANGA_COUNT_COL, parseIntParam } = require('../utils/sql');
+const { TYPE_COUNT_COLUMNS, parseIntParam } = require('../utils/sql');
+const { MEDIA_TYPES, isMediaType } = require('../utils/mediaTypes');
+const { parseJsonColumns } = require('../utils/listRows');
 
 router.use(authMiddleware);
 
@@ -11,8 +13,7 @@ router.get('/following', (req, res) =>
 {
   const rows = db.prepare(`
     SELECT u.id, u.username, u.created_at,
-      ${ANIME_COUNT_COL},
-      ${MANGA_COUNT_COL}
+      ${TYPE_COUNT_COLUMNS}
     FROM user_follows f
     JOIN users u ON u.id = f.following_id
     WHERE f.follower_id = ?
@@ -26,8 +27,7 @@ router.get('/', (req, res) =>
 {
   const rows = db.prepare(`
     SELECT u.id, u.username, u.created_at,
-      ${ANIME_COUNT_COL},
-      ${MANGA_COUNT_COL},
+      ${TYPE_COUNT_COLUMNS},
       EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND following_id = u.id) AS isFollowing
     FROM users u
     WHERE u.id != ? AND u.is_admin = 0
@@ -51,18 +51,32 @@ router.get('/:id/profile', (req, res) =>
     return res.status(404).json({ error: 'Nutzer nicht gefunden' });
   }
 
-  const stats = db.prepare(`
-    SELECT
-      SUM(CASE WHEN me.type='anime' THEN 1 ELSE 0 END) AS animeTotal,
-      SUM(CASE WHEN me.type='anime' AND ul.list_status='completed' THEN 1 ELSE 0 END) AS animeCompleted,
-      SUM(CASE WHEN me.type='anime' THEN COALESCE(ul.current_episode,0) ELSE 0 END) AS episodesWatched,
-      SUM(CASE WHEN me.type='manga' THEN 1 ELSE 0 END) AS mangaTotal,
-      SUM(CASE WHEN me.type='manga' AND ul.list_status='completed' THEN 1 ELSE 0 END) AS mangaCompleted,
-      SUM(CASE WHEN me.type='manga' THEN COALESCE(ul.current_chapter,0) ELSE 0 END) AS chaptersRead
+  // Nach Typ gruppiert statt fest verdrahteter anime/manga-Spalten
+  const rows = db.prepare(`
+    SELECT me.type,
+      COUNT(*) AS total,
+      SUM(CASE WHEN ul.list_status='completed' THEN 1 ELSE 0 END) AS completed,
+      COALESCE(SUM(ul.current_episode), 0) AS episodes,
+      COALESCE(SUM(ul.current_chapter), 0) AS chapters
     FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
     WHERE ul.user_id = ?
-  `).get(targetId);
+    GROUP BY me.type
+  `).all(targetId);
+
+  const stats = Object.fromEntries(
+    MEDIA_TYPES.map(type => [type, { total: 0, completed: 0, episodes: 0, chapters: 0 }])
+  );
+  rows.forEach(r =>
+  {
+    if (stats[r.type])
+    {
+      stats[r.type] = {
+        total: r.total, completed: r.completed,
+        episodes: r.episodes, chapters: r.chapters,
+      };
+    }
+  });
 
   const isFollowing = !!db.prepare(
     'SELECT 1 FROM user_follows WHERE follower_id = ? AND following_id = ?'
@@ -84,11 +98,11 @@ router.get('/:id/list', (req, res) =>
   /* Explizite Spaltenliste — private Felder (notes, Daten) bleiben beim Besitzer */
   let sql = `
     SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode, ul.current_chapter,
-           ul.current_page, ul.current_season, ul.user_score, ul.owned, ul.owned_volumes,
+           ul.current_page, ul.current_season, ul.user_score, ul.owned, ul.owned_volumes, ul.play_minutes,
            ul.updated_at,
            me.mal_id, me.title, me.title_english, me.image_url,
            me.type, me.episodes, me.chapters, me.volumes, me.seasons_data, me.api_score,
-           me.genres, me.media_status, me.year, me.is_manual
+           me.genres, me.media_status, me.year, me.is_manual, me.source, me.avg_play_minutes
     FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
     WHERE ul.user_id = ?
@@ -106,34 +120,8 @@ router.get('/:id/list', (req, res) =>
   }
   sql += ' ORDER BY ul.updated_at DESC';
 
-  const rows = db.prepare(sql).all(...params).map(r =>
-  {
-    let genres = [];
-    if (r.genres)
-    {
-      try
-      {
-        genres = JSON.parse(r.genres);
-      }
-      catch
-      {
-        // ignore parse errors
-      }
-    }
-    let seasonsData = null;
-    if (r.seasons_data)
-    {
-      try
-      {
-        seasonsData = JSON.parse(r.seasons_data);
-      }
-      catch
-      {
-        // ignore parse errors
-      }
-    }
-    return { ...r, genres, seasons_data: seasonsData };
-  });
+  // Fremde Liste: JSON-Spalten parsen, aber KEINE Collections anhängen (privat)
+  const rows = db.prepare(sql).all(...params).map(parseJsonColumns);
   res.json(rows);
 });
 
@@ -147,9 +135,7 @@ router.get('/:id/compare', (req, res) =>
   }
 
   const myId = req.userId;
-  const type = ['anime', 'manga', 'movie', 'tv'].includes(req.query.type)
-    ? req.query.type
-    : 'anime';
+  const type = isMediaType(req.query.type) ? req.query.type : 'anime';
 
   const fetchList = (userId) => db.prepare(`
     SELECT ul.id, ul.media_id, ul.list_status, ul.current_episode,

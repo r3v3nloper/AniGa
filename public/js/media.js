@@ -4,81 +4,36 @@
    ===================================================== */
 import { IC } from './icons.js';
 import { S } from './state.js';
-import { $$, esc, coverImg, toast } from './dom.js';
+import { $$, esc, coverImg, toast, bindActivate } from './dom.js';
 import { API } from './api.js';
 import { showTrackModal } from './modals/track.js';
+import { TYPE_META, MEDIA_TYPES, STATUS_CSS, mediaStatusMeta, statusLabel,
+  sourceLabel as sourceLabelOf } from './types.js';
 
-/* ---- BEREICHE & TYP-METADATEN ---- */
-export const AREAS = {
-  otaku:  { label: '🌸 Anime & Manga',  types: ['anime', 'manga'] },
-  screen: { label: '🎬 Filme & Serien', types: ['movie', 'tv'] },
-};
-
-export const TYPE_META = {
-  anime: { view: 'anime', label: 'Anime-Liste',  short: 'Anime',  singular: 'Anime', plural: 'Anime',  emoji: '🎬', icon: 'tv' },
-  manga: { view: 'manga', label: 'Manga-Liste',  short: 'Manga',  singular: 'Manga', plural: 'Manga',  emoji: '📚', icon: 'book' },
-  movie: { view: 'movie', label: 'Film-Liste',   short: 'Filme',  singular: 'Film',  plural: 'Filme',  emoji: '🎥', icon: 'film' },
-  tv:    { view: 'tv',    label: 'Serien-Liste', short: 'Serien', singular: 'Serie', plural: 'Serien', emoji: '📺', icon: 'monitor' },
-};
-
-export function areaOf(type)
-{
-  return AREAS.screen.types.includes(type) ? 'screen' : 'otaku';
-}
+/* Die Typ-Abstraktion selbst liegt in types.js (zyklenfreies Leaf-Modul);
+   media.js bleibt der Einstiegspunkt für alle Views. */
+export {
+  AREAS, TYPE_META, MEDIA_TYPES, STATUS_CSS,
+  areaOf, statusLabel, statusesFor, defaultStatusFor, planStatusFor, sourceLabel,
+} from './types.js';
 
 /* Zentrale Zuordnung Typ → State-Liste (ersetzt verstreute anime/manga-Ternaries) */
 export function getUserList(type)
 {
-  return { anime: S.animeList, manga: S.mangaList, movie: S.movieList, tv: S.tvList }[type] || [];
+  return S.lists[type] || [];
 }
 
 export function setUserList(type, list)
 {
-  const key = { anime: 'animeList', manga: 'mangaList', movie: 'movieList', tv: 'tvList' }[type];
-  if (key)
+  if (type in S.lists)
   {
-    S[key] = list;
+    S.lists[type] = list;
   }
 }
 
-export const STATUS_LABELS = {
-  watching:'Schaut gerade', reading:'Liest gerade',
-  completed:'Abgeschlossen', on_hold:'Pausiert', dropped:'Abgebrochen',
-  plan_to_watch:'Geplant', plan_to_read:'Geplant',
-};
-export const STATUS_CSS = {
-  watching:'s-watching', reading:'s-reading',
-  completed:'s-completed', on_hold:'s-on_hold', dropped:'s-dropped',
-  plan_to_watch:'s-plan_to_watch', plan_to_read:'s-plan_to_read',
-};
-export const ANIME_STATUSES = [
-  {val:'watching',label:'Schaut gerade'},{val:'plan_to_watch',label:'Geplant'},
-  {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
-];
-export const MANGA_STATUSES = [
-  {val:'reading',label:'Liest gerade'},{val:'plan_to_read',label:'Geplant'},
-  {val:'completed',label:'Abgeschlossen'},{val:'on_hold',label:'Pausiert'},{val:'dropped',label:'Abgebrochen'},
-];
-
-/* Filme/Serien nutzen dieselben Stati wie Anime (watching/plan_to_watch/…) */
-export function statusesFor(type)
+export function mediaStatusBadge(status, type)
 {
-  return type === 'manga' ? MANGA_STATUSES : ANIME_STATUSES;
-}
-
-export function mediaStatusBadge(status)
-{
-  const MAP = {
-    'Currently Airing':['Läuft','badge-airing'],
-    'Finished Airing':['Abgeschlossen','badge-finished'],
-    'Not yet aired':['Angekündigt','badge-upcoming'],
-    'Publishing':['Erscheint noch','badge-publishing'],
-    'Finished':['Abgeschlossen','badge-finished'],
-    'On Hiatus':['Hiatus','badge-upcoming'],
-    'Discontinued':['Eingestellt','badge-finished'],
-    'Not yet published':['Angekündigt','badge-upcoming'],
-  };
-  const [label, cls] = MAP[status] || [esc(status), 'badge-finished'];
+  const [label, cls] = mediaStatusMeta(status, type) || [esc(status), 'badge-finished'];
   return `<span class="media-card-badge ${cls}">${label}</span>`;
 }
 
@@ -116,17 +71,19 @@ export function absoluteEpisode(e)
 
 export function progressText(e)
 {
-  if (e.type === 'movie')
+  const meta = TYPE_META[e.type] || {};
+  // Typen ohne Zähler (Filme, Spiele) zeigen stattdessen Art, Jahr und — falls
+  // erfasst — die eigene Spielzeit
+  if (!meta.progress)
   {
-    return e.year ? `Film · ${e.year}` : 'Film';
+    return [meta.singular, e.year, meta.playtime ? playtimeText(e.play_minutes) : '']
+      .filter(Boolean).join(' · ');
   }
-  if (e.type === 'tv' && e.current_season)
+  if (meta.progress === 'episodes')
   {
-    return `S${e.current_season} · E${e.current_episode||0}`;
-  }
-  if (e.type === 'anime' || e.type === 'tv')
-  {
-    return `Ep. ${e.current_episode||0} / ${e.episodes||'?'}`;
+    return e.type === 'tv' && e.current_season
+      ? `S${e.current_season} · E${e.current_episode||0}`
+      : `Ep. ${e.current_episode||0} / ${e.episodes||'?'}`;
   }
   let t = `Kap. ${e.current_chapter||0} / ${e.chapters||'?'}`;
   if (e.current_page)
@@ -138,19 +95,61 @@ export function progressText(e)
 
 export function progressPct(e)
 {
-  if (e.type === 'movie')
-  {
-    return 0;
-  }
-  if (e.type === 'anime' || e.type === 'tv')
+  const meta = TYPE_META[e.type] || {};
+  if (meta.progress === 'episodes')
   {
     return e.episodes
       ? Math.min(100, (absoluteEpisode(e)/e.episodes)*100)
       : 0;
   }
-  return e.chapters
-    ? Math.min(100, ((e.current_chapter||0)/e.chapters)*100)
-    : 0;
+  if (meta.progress === 'chapters')
+  {
+    return e.chapters
+      ? Math.min(100, ((e.current_chapter||0)/e.chapters)*100)
+      : 0;
+  }
+  return 0;
+}
+
+/* „12 Anime · 3 Spiele" — zählt alle Typen, die der Nutzer tatsächlich getrackt hat.
+   Erwartet die `<typ>Count`-Felder aus TYPE_COUNT_COLUMNS (utils/sql.js). */
+export function typeCountsText(counts)
+{
+  const parts = MEDIA_TYPES
+    .map(type => ({ n: counts[`${type}Count`] || 0, meta: TYPE_META[type] }))
+    .filter(({ n }) => n > 0)
+    .map(({ n, meta }) => `${n} ${n === 1 ? meta.singular : meta.plural}`);
+  return parts.length ? parts.join(' · ') : 'Noch keine Einträge';
+}
+
+/* Spielzeit in Minuten → lesbare Angabe („45 Min", „12 Std", „92,3 Std") */
+export function playtimeText(minutes)
+{
+  if (!minutes)
+  {
+    return '';
+  }
+  if (minutes < 60)
+  {
+    return `${minutes} Min`;
+  }
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${String(hours).replace('.', ',')} Std`;
+}
+
+/* Kurzbeschriftung eines Suchergebnisses/einer Empfehlung (Karten-Footer) */
+export function mediaSubtitle(m)
+{
+  const meta = TYPE_META[m.type] || {};
+  if (meta.progress === 'episodes')
+  {
+    return m.episodes ? `${m.episodes} Ep.` : meta.singular;
+  }
+  if (meta.progress === 'chapters')
+  {
+    return m.chapters ? `${m.chapters} Kap.` : meta.singular;
+  }
+  return m.year ? String(m.year) : meta.singular;
 }
 
 export function isInList(media)
@@ -173,8 +172,7 @@ export function findInList(media)
 
 export function findMediaInCache(malId, type)
 {
-  return [...S.searchResults, ...S.topAnime, ...S.topManga, ...S.seasonal,
-          ...S.topMovie, ...S.topTv, ...S.trendingMovie]
+  return [...S.searchResults, ...Object.values(S.top).flat(), ...Object.values(S.highlight).flat()]
     .find(m => String(m.mal_id) === String(malId) && m.type === type) || null;
 }
 
@@ -190,8 +188,106 @@ export function entryToMedia(entry)
     seasons_data: entry.seasons_data || null,
     api_score: entry.api_score, genres: entry.genres || [],
     year: entry.year, season: entry.season,
+    avg_play_minutes: entry.avg_play_minutes || null,
     is_manual: entry.is_manual, source: entry.source,
   };
+}
+
+/* ---- GETEILTE DETAIL-BAUSTEINE ----
+   Werden vom Track-Modal und vom Info-Modal fremder Einträge genutzt.
+   Beide arbeiten auf Objekten mit denselben Feldnamen (Media bzw. Listen-Eintrag). */
+export function mediaHeroHtml(m)
+{
+  return `
+    <div class="media-detail-hero">
+      ${m.image_url
+        ? `<img class="media-detail-bg" src="${esc(m.image_url)}" alt=""/>`
+        : '<div style="height:130px;background:var(--bg3)"></div>'}
+      <div class="media-detail-info">
+        <div class="media-detail-cover">${coverImg(m.image_url, m.title)}</div>
+        <div class="media-detail-titles">
+          <div class="media-detail-title">${esc(m.title)}</div>
+          ${m.title_english && m.title_english !== m.title
+            ? `<div class="media-detail-title-alt">${esc(m.title_english)}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+export function mediaMetaChipsHtml(m)
+{
+  const meta = TYPE_META[m.type] || {};
+  const chips = [];
+  if (m.api_score)
+  {
+    chips.push(`${IC.star}<span style="color:var(--star)">${Number(m.api_score).toFixed(1)}</span> `
+      + sourceLabelOf(m.source));
+  }
+  if (meta.progress === 'episodes' && m.episodes)
+  {
+    chips.push(`${IC.play} ${m.episodes} Folgen`);
+  }
+  if (m.type === 'tv' && m.volumes)
+  {
+    chips.push(`${IC.monitor} ${m.volumes} Staffeln`);
+  }
+  if (meta.progress === 'chapters' && m.chapters)
+  {
+    chips.push(`${IC.book} ${m.chapters} Kapitel`);
+  }
+  if (m.type === 'manga' && m.volumes)
+  {
+    chips.push(`📦 ${m.volumes} Bände`);
+  }
+  if (meta.playtime && m.avg_play_minutes)
+  {
+    chips.push(`${IC.clock} ⌀ ${playtimeText(m.avg_play_minutes)} Spielzeit`);
+  }
+  if (m.media_status)
+  {
+    chips.push(`${IC.info} ${esc(m.media_status)}`);
+  }
+  if (m.year)
+  {
+    chips.push(`${IC.calendar} ${m.year}`);
+  }
+  return `<div class="media-meta">${chips.map(c => `<div class="meta-chip">${c}</div>`).join('')}</div>`;
+}
+
+export function genreTagsHtml(genres)
+{
+  if (!genres || !genres.length)
+  {
+    return '';
+  }
+  return `<div class="genre-tags" style="margin-bottom:12px">
+    ${genres.slice(0, 8).map(g => `<span class="genre-tag">${esc(g)}</span>`).join('')}
+  </div>`;
+}
+
+/* Beschreibung mit „Mehr anzeigen"-Umschalter (bindSynopsisToggle nicht vergessen) */
+export function synopsisHtml(text)
+{
+  if (!text)
+  {
+    return '';
+  }
+  return `
+    <div style="margin-bottom:14px">
+      <p class="synopsis-text" id="syn-text">${esc(text)}</p>
+      ${text.length > 220 ? '<button class="btn-synopsis" id="btn-expand">Mehr anzeigen</button>' : ''}
+    </div>`;
+}
+
+export function bindSynopsisToggle()
+{
+  document.getElementById('btn-expand')?.addEventListener('click', () =>
+  {
+    const st = document.getElementById('syn-text');
+    const expanded = st.classList.toggle('expanded');
+    document.getElementById('btn-expand').textContent =
+      expanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
+  });
 }
 
 /* ---- KARTEN-KOMPONENTEN ---- */
@@ -224,14 +320,15 @@ export function renderMediaCard(media)
       <div class="media-card-cover">
         ${coverImg(media.image_url, media.title)}
         ${media.api_score?`<div class="media-card-score">${IC.star}${media.api_score.toFixed(1)}</div>`:''}
-        ${media.media_status?mediaStatusBadge(media.media_status):''}
+        ${media.media_status?mediaStatusBadge(media.media_status, media.type):''}
         <div class="media-card-overlay">
           <div class="media-card-title">${esc(media.title)}</div>
         </div>
       </div>
       <div class="media-card-footer">
         <span class="media-card-type">${TYPE_META[media.type]?.singular || media.type}${media.year?' · '+media.year:''}</span>
-        <button class="btn-add-to-list${inList?' in-list':''}" title="${inList?'Bearbeiten':'Hinzufügen'}">
+        <button class="btn-add-to-list${inList?' in-list':''}" title="${inList?'Bearbeiten':'Hinzufügen'}"
+          tabindex="-1" aria-hidden="true">
           ${inList?IC.check:IC.plus}
         </button>
       </div>
@@ -247,7 +344,7 @@ export function renderMediaCardFromEntry(entry)
         ${coverImg(entry.image_url, entry.title)}
         ${entry.user_score != null?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
         <div class="media-card-badge">
-          <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
+          <span class="status-badge ${STATUS_CSS[entry.list_status]}">${statusLabel(entry.list_status, entry.type)}</span>
         </div>
         ${ownedBadgeHtml(entry)}
         <div class="media-card-overlay">
@@ -256,7 +353,8 @@ export function renderMediaCardFromEntry(entry)
       </div>
       <div class="media-card-footer">
         <span class="media-card-type">${progressText(entry)}</span>
-        <button class="btn-add-to-list in-list" title="Bearbeiten">${IC.edit}</button>
+        <button class="btn-add-to-list in-list" title="Bearbeiten"
+          tabindex="-1" aria-hidden="true">${IC.edit}</button>
       </div>
       ${pct>0 ? `<div class="progress-bar"
         style="margin:-1px 0 0;border-radius:0 0 var(--r) var(--r)">
@@ -287,7 +385,7 @@ export async function openEntryTrackModal(entry)
 
 export function bindMediaCard(card)
 {
-  card.addEventListener('click', async () =>
+  bindActivate(card, async () =>
   {
     const entryId = card.dataset.entryId;
     const malId = card.dataset.malId;
@@ -307,9 +405,10 @@ export function bindMediaCard(card)
       return;
     }
 
-    // TMDB-Suchergebnisse enthalten keine Episoden/Staffeln — für movie/tv immer Details holen
+    // TMDB-/IGDB-Suchergebnisse sind unvollständig (Episoden, Staffeln, Beschreibung)
+    // — für diese Typen immer die Details nachladen (TYPE_META.needsDetail)
     let media = findMediaInCache(malId, type);
-    if (!media || type === 'movie' || type === 'tv')
+    if (!media || TYPE_META[type]?.needsDetail)
     {
       try
       {

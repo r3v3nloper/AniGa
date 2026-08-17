@@ -1,8 +1,8 @@
 # AniGa 🌸
 
-> **Anime & Manga Tracker** — Eine selbst gehostete Progressive Web App zum Verfolgen deiner Anime- und Manga-Liste.
+> **Anime, Manga, Filme, Serien & Spiele Tracker** — Eine selbst gehostete Progressive Web App zum Verfolgen deiner Listen.
 
-[![Build & Push Docker Image](https://github.com/actions/workflows/badge.svg)](../../actions/workflows/docker.yml)
+[![Build & Push Docker Image](../../actions/workflows/docker.yml/badge.svg)](../../actions/workflows/docker.yml)
 ![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
@@ -20,18 +20,21 @@
 | 🎬 **Anime tracken** | Status, aktuelle Episode, Bewertung (1–5 Sterne), Notizen |
 | 📚 **Manga tracken** | Status, aktuelles Kapitel + Seite, Bewertung, Notizen |
 | 🎥 **Filme & Serien tracken** | Eigener Bereich mit Umschalter in der Sidebar — Serien mit **Staffel + Episode** (wie beim Streaming-Dienst angezeigt, z.B. „S12 · E5"), Filme ohne Fortschritt; Daten via TMDB (deutsch) |
+| 🎮 **Spiele tracken** | Eigener Bereich „🎮 Spiele" — Status mit eigenen Bezeichnungen (**Am Spielen**, **Will spielen**, **Durchgespielt**, Pausiert, Abgebrochen), Bewertung, Notizen, Besitz; wie Filme **ohne Fortschrittszähler**; Daten via IGDB |
+| ⏱️ **Spielzeit** | Eigene Spielzeit in Stunden erfassen (wird auf Karten und in der Listenansicht angezeigt) und daneben der **Durchschnitt bis zum Durchspielen** aus IGDB — sofern dort Daten vorliegen |
 | 📦 **Physischer Besitz** | Pro Eintrag markieren, ob man ihn physisch besitzt; bei Manga inkl. Bände-Zähler (y / x); Badge auf den Karten |
-| 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback |
+| 🔍 **Suche** | Anime & Manga über Jikan (MyAnimeList) suchen, 20 Ergebnisse pro Seite; AniList als automatischer Fallback; Filme/Serien über TMDB, Spiele über IGDB |
 | 📋 **Listen-Ansicht** | Statusfilter, Textfilter, Collection-Filter, Grid- oder Listenansicht |
-| 📂 **Collections** | Eigene Sammlungen (z.B. „ReWatch") — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend (Anime + Manga gemischt); Zuordnung per Chips im Track-Modal |
-| ✏️ **Manueller Eintrag** | Eigene Einträge ohne MAL-Verknüpfung anlegen |
+| 📂 **Collections** | Eigene Sammlungen (z.B. „ReWatch") — ein Eintrag kann in beliebig vielen Collections sein, typ-übergreifend (Anime, Manga, Filme, Serien und Spiele gemischt); Zuordnung per Chips im Track-Modal |
+| ✏️ **Manueller Eintrag** | Eigene Einträge ohne API-Verknüpfung anlegen — für alle fünf Medientypen |
 
 ### Entdecken & Empfehlungen
 | Funktion | Beschreibung |
 |---|---|
-| 🏆 **Top Anime/Manga** | Bestbewertete Titel auf der Startseite |
+| 🏆 **Top-Listen** | Bestbewertete Anime/Manga, beliebte Filme/Serien und beliebte Spiele in der Suche |
 | 🌸 **Saisonal** | Aktuell laufende Anime der Season |
-| ✨ **Empfehlungen** | Personalisierte Vorschläge basierend auf deinen meistgeschauten Genres (gewichtet nach Bewertung) |
+| 🔥 **Trending** | Filme der Woche (TMDB) bzw. „Neu & angesagt" bei Spielen (IGDB, letzte 90 Tage) |
+| ✨ **Empfehlungen** | Personalisierte Vorschläge basierend auf deinen meistgeschauten Genres (gewichtet nach Bewertung) — für alle fünf Medientypen |
 | ▶️ **Streaming-Info** | Zeigt verfügbare Streaming-Dienste pro Anime (Crunchyroll, Netflix, etc.) |
 
 ### Soziale Funktionen
@@ -51,7 +54,7 @@
 |---|---|
 | 📱 **PWA** | Installierbar auf Mobilgeräten, Offline-fähig via Service Worker |
 | 🌙 **Dark Theme** | Durchgängiges dunkles Design mit CSS-Variablen |
-| 📐 **Responsiv** | Sidebar-Layout auf Desktop; mobile Bottom-Navigation mit 5 Kern-Items + „Mehr"-Bottom-Sheet (Collections, Nutzer, Profil, Admin) |
+| 📐 **Responsiv** | Sidebar-Layout auf Desktop (Bereichs-Switcher gestapelt); mobile Bottom-Navigation mit max. 5 Kern-Items + „Mehr"-Bottom-Sheet (Collections, Nutzer, Profil, Admin) |
 | 🔄 **API-Fallback** | Wenn Jikan/MyAnimeList nicht erreichbar ist, springt AniList (GraphQL) transparent ein |
 | 🐳 **Docker-ready** | Multi-Stage Dockerfile, docker-compose, GitHub Container Registry |
 
@@ -91,6 +94,27 @@
   - Deutsche Titel/Beschreibungen (`language=de-DE`); TMDB-Status wird auf die vorhandenen Badge-Strings gemappt
   - Die TMDB-ID wird im `mal_id`-Feld gespeichert, `source='tmdb'` unterscheidet die Provider
   - Ohne konfigurierten Token liefern die Film/Serien-Endpoints 503
+- **[IGDB](https://api-docs.igdb.com/)** — Spiele (kostenlose Twitch-Developer-App nötig)
+  - **Zweistufige Auth:** `IGDB_CLIENT_ID` + `IGDB_CLIENT_SECRET` in `.env`; daraus holt der
+    Server selbstständig ein OAuth-Token (Client-Credentials, ~60 Tage gültig), cacht es im
+    Speicher und erneuert es rechtzeitig. Bei einem 401 wird einmalig mit frischem Token wiederholt
+  - Abfragen laufen als `POST` mit **Apicalypse**-Body (`fields …; search "…"; limit 20;`),
+    nicht über Query-Parameter
+  - Genre-Slugs werden auf deutsche Namen gemappt (IGDB liefert nur englische Bezeichnungen)
+  - Wertung wird auf die App-Skala 0–10 normalisiert: Kritiker-Wertung vor kombinierter vor
+    Nutzer-Wertung, jeweils `/10` (IGDB rechnet auf 0–100)
+  - Die IGDB-ID wird im `mal_id`-Feld gespeichert, `source='igdb'` unterscheidet die Provider
+  - Gesucht wird nur in eigenständig spielbaren Titeln (`game_type = (0,4,8,9,10)`:
+    Hauptspiel, eigenständige Erweiterung, Remake, Remaster, erweitertes Spiel) — ohne
+    diesen Filter stehen Mods, Bundles und DLC vor dem eigentlichen Spiel.
+    **Hinweis:** das früher übliche Feld `category` liefert inzwischen durchgehend NULL
+  - Empfehlungen sortieren nach Wertung, verlangen aber mindestens 300 Stimmen —
+    sonst landen Titel mit 30 Bewertungen vor den Klassikern
+  - Durchschnittliche Spieldauer kommt aus dem separaten Endpunkt `game_time_to_beats`
+    (Werte in Sekunden, Feld `normally`) — er wird nur beim Detail-Abruf mitgeholt und
+    ist optional: fehlt der Datensatz, bleibt das Feld leer
+  - Rate Limit: 250 ms zwischen Anfragen (IGDB erlaubt 4/Sekunde), 8 s Timeout
+  - Ohne konfigurierte Zugangsdaten liefern die Spiele-Endpoints 503
 
 ---
 
@@ -173,6 +197,19 @@ docker run -d \
 > **Wichtig:**
 > - `-e JWT_SECRET=...` ist **Pflicht** — ohne diese Variable startet der Server nicht (Exit mit Fehler).
 > - `-e DATA_DIR=/data` muss gesetzt sein, damit die Datenbank im Volume-Verzeichnis liegt und bei Neustarts erhalten bleibt.
+> - Der Container läuft als **non-root** (`USER node`, UID 1000). Das Datenverzeichnis muss
+>   ihm gehören, sonst startet der Server mit der Meldung „Datenbank ist nicht beschreibbar".
+>
+>   **Bind-Mount** (`-v /srv/aniga/data:/data`) — es gelten die Rechte des Host-Verzeichnisses:
+>   ```bash
+>   sudo chown -R 1000:1000 /srv/aniga/data
+>   ```
+>   **Named Volume** (wie in `docker-compose.yml`) — nur ein *frisch angelegtes, leeres* Volume
+>   übernimmt die Rechte aus dem Image. Ein Volume mit Daten aus der Zeit, als der Container
+>   noch als root lief, bleibt `root:root` und muss einmalig übereignet werden:
+>   ```bash
+>   docker run --rm -v aniga-data:/data alpine chown -R 1000:1000 /data
+>   ```
 
 ### Update (Synology / NAS)
 
@@ -187,6 +224,11 @@ Das Script führt `docker compose down && docker compose build --no-cache && doc
 ---
 
 ## CI/CD (GitHub Actions)
+
+> ⚠️ **Aktuell inaktiv:** `.gitignore` schließt `.github/workflows/` aus, der Workflow
+> liegt also nur lokal und wird von GitHub nie ausgeführt. Damit die CI greift, muss
+> der Eintrag aus `.gitignore` entfernt und `.github/workflows/docker.yml` eingecheckt
+> werden — danach pusht jeder Commit auf `main` ein Image in die GHCR.
 
 Bei jedem Push auf `main` wird automatisch:
 1. Das Docker-Image gebaut (Multi-Stage Build)
@@ -215,7 +257,10 @@ docker pull ghcr.io/DEIN-USERNAME/aniga:latest
 | `ADMIN_EMAIL` | Nein | `admin@aniga.local` | E-Mail des Admin-Kontos (nur beim ersten Start relevant) |
 | `ADMIN_PASSWORD` | Nein | — | Passwort des Admin-Kontos. Wird nur gesetzt, wenn noch kein Admin existiert |
 | `CORS_ORIGIN` | Nein | `http://localhost:PORT` | Erlaubte Origin für CORS-Anfragen |
+| `TRUST_PROXY` | Nein | — | Anzahl vertrauenswürdiger Proxy-Hops (z.B. `1` hinter nginx/Traefik/Synology-Reverse-Proxy). **Ohne diese Variable sehen hinter einem Proxy alle Clients wie eine einzige IP aus — das Login-Rate-Limit wird dann global und ein Angreifer kann alle Nutzer aussperren.** Nur setzen, wenn wirklich ein Proxy davorsteht: sonst lässt sich das Limit per gefälschtem `X-Forwarded-For` umgehen |
 | `TMDB_API_TOKEN` | Nein | — | TMDB-Token für Filme & Serien (v4-Lesezugriffstoken oder v3-Schlüssel). Ohne Token liefern die Film/Serien-Endpoints 503 |
+| `IGDB_CLIENT_ID` | Nein | — | Client-ID der Twitch-Developer-App (für IGDB/Spiele) |
+| `IGDB_CLIENT_SECRET` | Nein | — | Client-Secret derselben App. Ohne beide Werte liefern die Spiele-Endpoints 503 |
 
 `.env.example`:
 ```env
@@ -224,7 +269,19 @@ JWT_SECRET=your-super-secret-key-change-this
 ADMIN_EMAIL=admin@aniga.local
 ADMIN_PASSWORD=MeinSicheresPasswort123
 TMDB_API_TOKEN=eyJ...
+IGDB_CLIENT_ID=...
+IGDB_CLIENT_SECRET=...
+TRUST_PROXY=1
 ```
+
+> Die Anbieter-Zugangsdaten werden in `docker-compose.yml` durchgereicht (`TMDB_API_TOKEN`,
+> `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`) und stammen aus der `.env` bzw. dem `--env-file`
+> des Update-Scripts.
+>
+> **IGDB-Zugangsdaten anlegen:** auf [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps)
+> eine Anwendung registrieren (OAuth Redirect URL: `http://localhost`, Kategorie beliebig),
+> danach Client-ID und Client-Secret übernehmen. Ein Twitch-Konto mit Zwei-Faktor-Authentifizierung
+> ist Voraussetzung. Das eigentliche API-Token holt sich der Server damit selbst.
 
 ---
 
@@ -239,24 +296,33 @@ aniga/
 │   ├── auth.js                # JWT-Verifikation → req.userId
 │   └── admin.js               # Admin-Check → req.userId + is_admin
 ├── public/
-│   ├── css/
-│   │   └── style.css          # Dark Theme, CSS Custom Properties
+│   ├── css/                   # Dark Theme in Partials — Reihenfolge = Kaskade!
+│   │   ├── base.css           # Variablen, Reset, Grundlayout
+│   │   ├── shell.css          # Sidebar, Mobile-Header, Bottom-Nav, Breakpoints
+│   │   ├── forms.css          # Auth-Ansicht, Formularfelder, Buttons
+│   │   ├── layout.css         # Seitenkopf, Kennzahlen, Sektionen, Raster
+│   │   ├── cards.css          # Medien-Karten, Collections, Bereichs-Switcher
+│   │   ├── controls.css       # Status-Tabs, Filterleiste, Suche, Genre-Tags
+│   │   ├── modal.css          # Modal, Detail-Ansicht, Streaming, Zahlenfelder
+│   │   ├── feedback.css       # Toasts, Ladeanzeige, Leerzustände
+│   │   └── views.css          # Profil, Admin, Nutzer, Vergleich, Empfehlungen
 │   ├── icons/                 # App-Icons (192px, 512px, Logo)
 │   ├── js/                    # Frontend als ES-Module (kein Framework)
 │   │   ├── main.js            # Einstiegspunkt: Boot, App-Shell, Logout, PWA-Install
 │   │   ├── api.js             # HTTP-Client (exportiert API-Objekt)
-│   │   ├── state.js           # Zentraler App-State (S)
+│   │   ├── state.js           # Zentraler App-State (S) — Defaults aus TYPE_META abgeleitet
+│   │   ├── types.js           # Typ-Abstraktion: AREAS, TYPE_META, Status-Tabellen (Leaf-Modul)
 │   │   ├── icons.js           # Inline-SVG-Icons (IC)
 │   │   ├── dom.js             # DOM-Helfer, esc(), coverImg(), Toast
 │   │   ├── modal.js           # Generisches Modal-Overlay
-│   │   ├── media.js           # Status-Mappings, Medien-Helfer, Karten-Komponenten
+│   │   ├── media.js           # Medien-Helfer, Karten-Komponenten (re-exportiert types.js)
 │   │   ├── shell.js           # Sidebar, Mobile-Header, Bottom-Nav
 │   │   ├── router.js          # View-Navigation + Daten-Laden pro View
 │   │   ├── views/             # Eine Datei pro Ansicht
 │   │   │   ├── auth.js        # Login/Registrierung
 │   │   │   ├── home.js        # Dashboard + Empfehlungen
 │   │   │   ├── search.js      # Suche, Top-Listen, Seasonal
-│   │   │   ├── lists.js       # Eigene Anime-/Manga-Liste
+│   │   │   ├── lists.js       # Eigene Liste je Medientyp
 │   │   │   ├── profile.js     # Profil + Bearbeiten-Modal
 │   │   │   ├── admin.js       # Admin-Panel
 │   │   │   ├── users.js       # Nutzerliste, Folgen, fremde Listen
@@ -280,20 +346,33 @@ aniga/
 │   ├── anilist.js             # AniList GraphQL-Client (Fallback-Provider)
 │   ├── jikan.js               # Jikan-Client mit Rate-Limiter + formatMedia()
 │   ├── mediaStore.js          # Persistenz für media_entries (Upsert-Logik)
+│   ├── listRows.js            # Aufbereitung von user_list-Zeilen (Collections, JSON-Spalten)
+│   ├── mediaTypes.js          # Erlaubte Medientypen (Backend-Whitelist)
+│   ├── rateLimitedFetch.js    # Geteilte Request-Queue + Timeout für alle API-Clients
+│   ├── igdb.js                # IGDB-Client für Spiele (OAuth-Token-Cache)
 │   ├── sql.js                 # Wiederverwendbare SQL-Subqueries
 │   └── tmdb.js                # TMDB-Client für Filme & Serien (de-DE)
 ├── tests/                     # Testsuite (node:test, keine Extra-Dependency)
 │   ├── helpers/
 │   │   └── setup.js           # Temp-DB + Testserver auf ephemerem Port
+│   ├── public/
+│   │   └── types.test.js      # Typ-Abstraktion des Frontends (ESM-Import in Node)
 │   ├── routes/                # Integrationstests gegen die echte App
+│   │   ├── app.test.js        # API-404 als JSON, Fehler-Handler, SPA-Fallback
 │   │   ├── auth.test.js       # Register/Login/Token-Invalidierung
-│   │   ├── list.test.js       # Listen-CRUD inkl. Besitz-Feldern
+│   │   ├── recommendations.test.js # Genre-Gewichtung, 503, Limits (Provider gestubbt)
+│   │   ├── search.test.js     # Provider-Routing, 503, Validierung (Provider gestubbt)
+│   │   ├── collections.test.js# Collections-CRUD + Items
+│   │   ├── list.test.js       # Listen-CRUD inkl. Besitz-Feldern und allen Typen
 │   │   └── users.test.js      # Follow, Vergleich, Notes-Privacy-Regression
 │   └── utils/                 # Unit-Tests der puren Funktionen
 │       ├── anilist.test.js    # AniList-Mapping + withFallback
 │       ├── jikan.test.js      # Jikan-Mapping
+│       ├── listRows.test.js   # JSON-Spalten-Parsing + Rückfallwerte
 │       ├── mediaStore.test.js # Media-Upsert-Pfade
-│       └── sql.test.js        # parseIntParam
+│       ├── igdb.test.js       # IGDB-Mapping (Score-Normalisierung, Genres, Status)
+│       ├── sql.test.js        # parseIntParam
+│       └── tmdb.test.js       # TMDB-Mapping
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
@@ -345,7 +424,10 @@ aniga/
 | `GET` | `/tv/:id` | ✅ | Serien-Details (inkl. Episoden + Staffeln) |
 | `GET` | `/top/movie` | ✅ | Beliebte Filme |
 | `GET` | `/top/tv` | ✅ | Beliebte Serien |
-| `GET` | `/trending` | ✅ | Trending der Woche (`?type=movie\|tv`) |
+| `GET` | `/game` | ✅ | Spiele suchen via IGDB (`?q=...&page=1`) |
+| `GET` | `/game/:id` | ✅ | Spiel-Details (IGDB-ID, inkl. Beschreibung) |
+| `GET` | `/top/game` | ✅ | Beliebte Spiele |
+| `GET` | `/trending` | ✅ | Trending (`?type=movie\|tv\|game`) |
 
 ### Collections (`/api/collections`)
 | Methode | Pfad | Auth | Beschreibung |
@@ -372,7 +454,7 @@ aniga/
 ### Empfehlungen (`/api/recommendations`)
 | Methode | Pfad | Auth | Beschreibung |
 |---|---|---|---|
-| `GET` | `/` | ✅ | Empfehlungen (`?type=anime\|manga`) |
+| `GET` | `/` | ✅ | Empfehlungen (`?type=anime\|manga\|movie\|tv\|game`) |
 
 ### Admin (`/api/admin`)
 | Methode | Pfad | Auth | Beschreibung |
@@ -397,14 +479,14 @@ aniga/
 | `created_at` | DATETIME | Registrierungsdatum |
 
 ### `media_entries`
-Zentrale Mediendatenbank (anime + manga aus Jikan oder manuell).
+Zentrale Mediendatenbank (alle Typen aus Jikan/AniList, TMDB, IGDB oder manuell).
 
 | Spalte | Typ | Beschreibung |
 |---|---|---|
 | `id` | INTEGER PK | |
-| `mal_id` | INTEGER | MyAnimeList-ID (NULL bei manuell) |
-| `source` | TEXT | `jikan` oder `manual` |
-| `type` | TEXT | `anime` oder `manga` |
+| `mal_id` | INTEGER | Externe ID: MAL-, TMDB- oder IGDB-ID (NULL bei manuell) |
+| `source` | TEXT | `jikan`, `tmdb`, `igdb` oder `manual` |
+| `type` | TEXT | `anime`, `manga`, `movie`, `tv` oder `game` |
 | `title` | TEXT | Haupttitel |
 | `title_german` / `title_english` / `title_japanese` | TEXT | Weitere Titel |
 | `image_url` | TEXT | Cover-Bild-URL |
@@ -414,6 +496,7 @@ Zentrale Mediendatenbank (anime + manga aus Jikan oder manuell).
 | `api_score` | REAL | MAL-Bewertung |
 | `genres` | TEXT | JSON-Array als String |
 | `year` / `season` | | Erscheinungsjahr/Saison |
+| `avg_play_minutes` | INTEGER | Durchschnittliche Spieldauer in Minuten (nur Spiele, aus IGDB) |
 | `is_manual` | INTEGER | `1` = manueller Eintrag |
 
 > **UNIQUE-Constraint:** `(mal_id, type, source)` — verhindert Duplikate.
@@ -433,6 +516,7 @@ Verknüpft Nutzer mit Medien.
 | `notes` | TEXT | Eigene Notizen |
 | `owned` | INTEGER | 1 = physisch im Besitz |
 | `owned_volumes` | INTEGER | Anzahl besessener Bände (nur Manga relevant) |
+| `play_minutes` | INTEGER | Eigene Spielzeit in Minuten (nur Spiele relevant) |
 | `started_at` / `completed_at` / `updated_at` | DATETIME | |
 
 > **UNIQUE-Constraint:** `(user_id, media_id)`.
@@ -485,11 +569,14 @@ Beim ersten Start wird ein Admin-Konto angelegt, sofern `ADMIN_PASSWORD` gesetzt
 Die Empfehlungen funktionieren ohne ML:
 
 1. Genres aus der Nutzerliste werden gezählt (Gewicht = Nutzerbewertung oder 3 als Standard)
-2. Die **Top 3 Genres** werden als MAL-Genre-IDs übersetzt
-3. Jikan wird mit `?genres=X,Y,Z&order_by=score&sort=desc` abgefragt
-4. Bereits getrackte Titel werden herausgefiltert
-5. Es werden maximal **12 Empfehlungen** zurückgegeben
-6. **Fallback:** Hat der Nutzer noch keine Liste, werden die populärsten Anime/Manga angezeigt
+2. Die **Top 3 Genres** werden pro Anbieter übersetzt:
+   - Anime/Manga → MAL-Genre-IDs, Jikan mit `?genres=X,Y,Z&order_by=score&sort=desc`
+   - Filme/Serien → TMDB-Genre-IDs, `discover` mit `sort_by=vote_average.desc`
+   - Spiele → IGDB-Genre-Slugs, `sort total_rating desc` mit mindestens 300 Wertungen
+3. Bereits getrackte Titel werden herausgefiltert
+4. Es werden maximal **12 Empfehlungen** zurückgegeben
+5. **Fallback:** Hat der Nutzer noch keine Liste (oder greift kein Genre), werden die
+   populärsten Titel des jeweiligen Typs angezeigt
 
 ---
 
@@ -542,6 +629,16 @@ CMD ["node", "server.js"]
 | 2.1 | Mobile UX: Bottom-Navigation auf 5 Kern-Items reduziert (Start, Suche, Anime, Manga, Mehr) — „Mehr" öffnet ein Bottom-Sheet mit Collections, Nutzer, Profil und Admin; Collection-Karten im Media-Card-Design mit adaptivem Cover-Mosaik (keine leeren Kacheln) |
 | 2.2 | TMDB-Backend für Filme & Serien: `utils/tmdb.js` (deutsche Texte, beide Token-Formate, Genre-/Status-Mapping auf vorhandene Badges), Search-/Detail-/Top-/Trending-Endpoints, `user_list` akzeptiert `movie`/`tv`, Serien speichern Episoden + Staffeln; 5 neue Tests (43 gesamt). Frontend-Bereich folgt in Etappe 3 |
 | 2.3 | Bereichs-Switcher „🌸 Anime & Manga \| 🎬 Filme & Serien" (Sidebar + Mehr-Sheet, persistiert): Navigation, Home-Dashboard, Suche (Trending + Beliebte), Empfehlungen (TMDB-Discover nach Genres), Listen-Views und Track-Modal sind bereichs-/typabhängig — Filme ohne Fortschritts-Inputs, Serien mit Episoden + Staffel-Chip; Nutzerlisten & Vergleich mit 4 Typ-Tabs; manuelle Einträge für Filme/Serien; Stats-Endpoint liefert alle 4 Typen; Modal-Speichern refresht Media-Metadaten (POST-Upsert statt PUT bei API-Einträgen) |
+| 2.5 | Spiele-Suche schärfer: nur noch eigenständig spielbare Titel (IGDB `game_type`) — vorher standen bei „breath of the wild" ein Mod und ein Bundle vor dem eigentlichen Spiel. Empfehlungen verlangen jetzt mindestens 300 Wertungen, dadurch Klassiker statt Nischentitel mit 30 Stimmen |
+| 2.5 | **Spielzeit für Spiele**: eigene Spielzeit im Track-Modal in Stunden erfassen (gespeichert in Minuten als `user_list.play_minutes`), Anzeige auf Karten und in der Listenansicht („Spiel · 2017 · 42,5 Std"). Dazu die **Durchschnittsdauer bis zum Durchspielen** aus IGDBs `game_time_to_beats`-Endpunkt (`media_entries.avg_play_minutes`) als Chip im Modal plus Hinweis am Eingabefeld. Gesteuert über `TYPE_META.playtime` — andere Medientypen bleiben unberührt |
+| 2.5 | Bugfix Deployment: Der Server startete auf einer **nicht beschreibbaren Datenbank** klaglos durch (Docker-Volume gehörte noch root aus der Zeit vor `USER node`) und scheiterte erst beim Speichern mit `SQLITE_READONLY` — `addColumnIfMissing()` hatte den Fehler per `catch {}` verschluckt. `db.js` prüft die Schreibbarkeit jetzt explizit beim Start und bricht mit klarer Anleitung ab. README-Korrektur: auch ein **Named Volume** braucht den einmaligen `chown`, wenn es Daten aus der Root-Zeit enthält — nur frisch angelegte, leere Volumes übernehmen die Rechte aus dem Image |
+| 2.5 | **Spiele-Anbieter von RAWG auf IGDB gewechselt**: RAWG war über den gesamten Entwicklungszeitraum nicht erreichbar (Cloudflare 522, auch die Website selbst) und hat nie einen Datensatz geliefert — in der Datenbank stand kein einziger RAWG-Eintrag, der Wechsel war daher migrationsfrei. IGDB (Twitch/Amazon) braucht eine zweistufige Auth: `IGDB_CLIENT_ID` + `IGDB_CLIENT_SECRET` → OAuth-Token, das der Client cacht, rechtzeitig erneuert und bei 401 einmalig frisch holt. Abfragen laufen als POST mit Apicalypse-Body. Bewusst **kein** Fallback auf RAWG: anders als bei Jikan→AniList (gemeinsame MAL-ID) haben beide Spiele-Anbieter keinen gemeinsamen ID-Raum, ein Wechsel mitten im Betrieb würde Doppel-Einträge erzeugen |
+| 2.5 | **Dritter Bereich „🎮 Spiele"**: Spiele-Client (`utils/igdb.js`) mit Rate-Limiter, 8 s Timeout, deutschen Genre-Namen und auf 0–10 normalisierter Wertung; Suche mit „Neu & angesagt"- und „Beliebte Spiele"-Sektion, genre-gewichtete Empfehlungen über RAWG-Discover, eigene Spiele-Liste, manuelle Einträge, Besitz und Collections (typ-übergreifend). Spiele werden wie Filme **ohne Fortschrittszähler** getrackt, die Stati heißen „Am Spielen / Will spielen / Durchgespielt / Pausiert / Abgebrochen" |
+| 2.5 | Typ-Abstraktion refactored: `AREAS`/`TYPE_META`/Status-Tabellen nach `public/js/types.js` (importfreies Leaf-Modul) — `state.js` leitet alle Per-Typ-Defaults daraus ab (`S.lists`/`S.top`/`S.highlight` statt `animeList`/`topAnime`/…), `STATUS_LABELS` und die Badge-Map haben eine **Typ-Dimension** (`statusLabel(status, type)`), `progressText`/`progressPct`/`kindOf` lesen `TYPE_META.progress`, Such- und Home-View sind bereichs-generisch, Backend-Typ-Whitelist in `utils/mediaTypes.js`, TMDB-/RAWG-Routen teilen sich generische Provider-Handler |
+| 2.5 | Tests & Aufräumen (Refactor Rank 14–18): Integrationstests für Suche und Empfehlungen mit gestubbten Providern (`stubProvider()` in den Test-Helfern; die Test-Umgebung leert die TMDB-/IGDB-Zugangsdaten, damit kein Test nach außen telefoniert) — geprüft werden Provider-Routing, 503-Pfade, Eingabe-Validierung, Seiten-Limits und die **Genre-Gewichtung** der Empfehlungen; `style.css` (2140 Zeilen) in 9 Partials zerlegt, per einzelnen `<link>`-Tags parallel geladen (Kaskade nachweislich unverändert); PWA-Metadaten und README-Badge aktualisiert; `/list/stats` braucht statt fünf Queries mit interpoliertem Spaltennamen nur noch eine; `renderEmptyState()` escapt selbst; tote API-Methoden entfernt; 15 neue Tests (79 gesamt) |
+| 2.5 | Accessibility & Struktur (Refactor Rank 8–13): Profil, Nutzerkarten und Admin-Panel zeigen **alle fünf Medientypen** statt nur Anime/Manga (Zählspalten aus `MEDIA_TYPES` generiert, Profil-Blöcke pro Typ mit typgerechten Status-Labels); Modal mit `role="dialog"`, Fokus-Falle und Fokus-Rückgabe; alle Karten per Tastatur bedienbar (`role="button"`, Enter/Leertaste, sichtbarer Fokus-Ring); native `prompt()`/`confirm()` durch eigene Dialoge ersetzt (im offenen Track-Modal als Inline-Eingabe bzw. Inline-Bestätigung, da Modals sich bewusst nicht stapeln); `renderInto()`/`renderMain()`/`showSpinner()` ersetzen 39 lose Render-und-Bind-Paare; `renderTrackModalBody` von 183 auf 57 Zeilen zerlegt, Hero/Meta-Chips/Synopsis nach `media.js` geteilt (Info-Modal fremder Einträge nutzt sie mit) |
+| 2.5 | Härtung & Aufräumen (Refactor Rank 1–7): `TRUST_PROXY` konfigurierbar — ohne diese Einstellung wäre das Login-Rate-Limit hinter einem Reverse-Proxy ein **globaler** Zähler gewesen; Container läuft als non-root (`USER node`); Zoom auf Mobilgeräten nicht mehr blockiert (WCAG 1.4.4); unbekannte `/api`-Pfade liefern JSON-404 statt der SPA-HTML-Seite, plus zentraler Fehler-Handler (kaputter JSON-Body → 400); Rate-Limiter-Queue aus 4 API-Clients nach `utils/rateLimitedFetch.js` extrahiert; Listen-Zeilen-Aufbereitung aus 3 Routen nach `utils/listRows.js`; Service-Worker cached nur noch die App-Shell vor (keine manuell gepflegte Dateiliste mehr); 7 neue Tests (64 gesamt) |
+| 2.5 | Bereichs-Switcher gestapelt (3 Bereiche passen ohne Überlauf in die Sidebar), Typ-Tabs umbrechen bei 5 Typen; Suche zeigt bei Anbieter-Ausfall einen Hinweis statt Endlos-Spinner; 14 neue Tests (57 gesamt) |
 | 2.4 | Staffel-Tracking für Serien: Eingabe als **Staffel + Episode innerhalb der Staffel** (wie bei Streaming-Diensten) statt absoluter Episodennummer — TMDB liefert Episodenzahlen pro Staffel (`seasons_data`), das Episoden-Maximum passt sich der gewählten Staffel an, „Abgeschlossen" springt auf letzte Staffel/Episode, Fortschrittsbalken rechnet absolut über alle Staffeln; Alt-Einträge mit absoluter Zählung werden beim Öffnen automatisch umgerechnet (`user_list.current_season`, `media_entries.seasons_data`) |
 
 ---

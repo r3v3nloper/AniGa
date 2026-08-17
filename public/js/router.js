@@ -3,9 +3,9 @@
    View-Navigation und zentrales Daten-Laden pro View
    ===================================================== */
 import { S } from './state.js';
-import { $, esc, renderEmptyState } from './dom.js';
+import { $, esc, renderEmptyState, renderInto, showSpinner } from './dom.js';
 import { API } from './api.js';
-import { AREAS, setUserList } from './media.js';
+import { AREAS, TYPE_META, setUserList } from './media.js';
 import { updateNav, closeSidebar } from './shell.js';
 import { renderHome, bindHome, loadRecommendations } from './views/home.js';
 import { renderSearch, bindSearch, loadTopContent } from './views/search.js';
@@ -25,49 +25,38 @@ export async function navigate(view)
   {
     return;
   }
-  main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  showSpinner(main);
 
   try
   {
+    // Listen-Views heißen wie ihr Medientyp — generisch, damit neue Typen nichts brauchen
+    if (TYPE_META[view])
+    {
+      await showTypeListView(view, main);
+      return;
+    }
     switch (view)
     {
       case 'home':
         await Promise.all([loadAllLists(), loadStats()]);
-        main.innerHTML = renderHome();
-        bindHome();
+        renderInto(main, renderHome(), bindHome);
         if (!S.recommendations)
         {
           loadRecommendations();
         }
         break;
       case 'search': {
-        main.innerHTML = renderSearch();
-        bindSearch();
-        const topCache = S.area === 'screen' ? S.topMovie : S.topAnime;
-        if (!topCache.length)
+        renderInto(main, renderSearch(), bindSearch);
+        const loaded = AREAS[S.area].types.some(t => S.top[t].length);
+        if (!loaded)
         {
           loadTopContent();
         }
         break;
       }
-      case 'anime':
-      case 'manga':
-      case 'movie':
-      case 'tv': {
-        const [list, collections] = await Promise.all([
-          API.list.getAll(view),
-          API.collections.getAll()
-        ]);
-        setUserList(view, list);
-        S.collections = collections;
-        main.innerHTML = renderList(view);
-        bindList(view);
-        break;
-      }
       case 'profile':
         S.stats = await API.list.getStats();
-        main.innerHTML = renderProfile();
-        bindProfile();
+        renderInto(main, renderProfile(), bindProfile);
         break;
       case 'admin':
         if (!S.user?.is_admin)
@@ -76,14 +65,12 @@ export async function navigate(view)
           return;
         }
         S.adminUsers = await API.admin.getUsers();
-        main.innerHTML = renderAdminView();
-        bindAdminView();
+        renderInto(main, renderAdminView(), bindAdminView);
         break;
       case 'collections':
         S.collections = await API.collections.getAll();
         S.viewingCollection = null;
-        main.innerHTML = renderCollectionsView();
-        bindCollectionsView();
+        renderInto(main, renderCollectionsView(), bindCollectionsView);
         break;
       case 'users':
         [S.allUsers, S.following] = await Promise.all([
@@ -92,18 +79,29 @@ export async function navigate(view)
         ]);
         S.viewingUser = null;
         S.userListFilter = '';
-        main.innerHTML = renderUsersView();
-        bindUsersView();
+        renderInto(main, renderUsersView(), bindUsersView);
         break;
     }
   }
   catch (e)
   {
-    main.innerHTML = renderEmptyState(
-      '⚠️', 'Fehler beim Laden', esc(e.message),
+    renderInto(main, renderEmptyState(
+      '⚠️', 'Fehler beim Laden', e.message,
       `<button class="btn btn-primary" data-nav="${view}">Nochmal versuchen</button>`
-    );
+    ));
   }
+}
+
+/* Eigene Liste eines Medientyps (anime/manga/movie/tv/game) */
+async function showTypeListView(type, main)
+{
+  const [list, collections] = await Promise.all([
+    API.list.getAll(type),
+    API.collections.getAll()
+  ]);
+  setUserList(type, list);
+  S.collections = collections;
+  renderInto(main, renderList(type), () => bindList(type));
 }
 
 async function loadAllLists()

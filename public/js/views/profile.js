@@ -9,14 +9,74 @@ import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
 import { navigate } from '../router.js';
 import { logout } from '../main.js';
+import { MEDIA_TYPES, TYPE_META, statusesFor, statusLabel } from '../media.js';
+
+/* Farbcode je Listen-Status (typ-übergreifend, die Werte sind für alle Typen gleich) */
+const STATUS_COLORS = {
+  watching: '#00e5ff', reading: '#00e5ff',
+  completed: '#4caf50',
+  plan_to_watch: '#7c4dff', plan_to_read: '#7c4dff',
+  on_hold: '#ff9800', dropped: '#ef5350',
+};
+
+/* Zeigt nur Typen, zu denen es auch Einträge gibt — sonst als Startpunkt Anime & Manga */
+function typesToShow()
+{
+  const tracked = MEDIA_TYPES.filter(t => (S.stats?.[t]?.total || 0) > 0);
+  return tracked.length ? tracked : ['anime', 'manga'];
+}
+
+function statCardsFor(type)
+{
+  const s = S.stats?.[type] || {};
+  const meta = TYPE_META[type];
+  const cards = [{ num: s.total || 0, label: 'Gesamt' }];
+  if (meta.progress === 'episodes')
+  {
+    cards.push({ num: s.total_episodes || 0, label: 'Episoden' });
+  }
+  if (meta.progress === 'chapters')
+  {
+    cards.push({ num: s.total_chapters || 0, label: 'Kapitel' });
+  }
+  cards.push({ num: s.completed || 0, label: statusLabel('completed', type) });
+  return cards;
+}
+
+/* Ein Block je Medientyp: Kennzahlen + Aufschlüsselung nach Status */
+function typeStatsBlock(type)
+{
+  const s = S.stats?.[type] || {};
+  const meta = TYPE_META[type];
+  return `
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">${IC[meta.icon]} ${meta.plural}</div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:12px">
+        ${statCardsFor(type).map(c => `
+          <div class="stat-card">
+            <div class="stat-num">${c.num}</div>
+            <div class="stat-label">${c.label}</div>
+          </div>`).join('')}
+      </div>
+      <div class="stats-detail">
+        <div class="stats-row">
+          ${statusesFor(type).map(st => `
+            <div class="stats-item">
+              <span class="stats-item-label">
+                <span class="stats-dot" style="background:${STATUS_COLORS[st.val] || 'var(--accent)'}"></span>${st.label}
+              </span>
+              <span class="stats-item-val">${s[st.val] || 0}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
 
 export function renderProfile()
 {
   const u = S.user || {};
-  const a = S.stats?.anime || {};
-  const m = S.stats?.manga || {};
-  const mo = S.stats?.movie || {};
-  const tv = S.stats?.tv || {};
   const joined = u.created_at
     ? new Date(u.created_at).toLocaleDateString('de-DE', {
         day:'2-digit', month:'2-digit', year:'numeric'
@@ -40,81 +100,9 @@ export function renderProfile()
       </div>
     </div>
 
-    <div class="stats-grid" style="margin-bottom:20px">
-      <div class="stat-card">
-        <div class="stat-num">${a.total||0}</div>
-        <div class="stat-label">Anime gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${a.total_episodes||0}</div>
-        <div class="stat-label">Episoden gesehen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${a.completed||0}</div>
-        <div class="stat-label">Anime abgeschlossen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${m.total||0}</div>
-        <div class="stat-label">Manga gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${m.total_chapters||0}</div>
-        <div class="stat-label">Kapitel gelesen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${m.completed||0}</div>
-        <div class="stat-label">Manga abgeschlossen</div>
-      </div>
-    </div>
+    ${typesToShow().map(typeStatsBlock).join('')}
 
-    ${(mo.total || tv.total) ? `
-    <div class="stats-grid" style="margin-bottom:20px">
-      <div class="stat-card">
-        <div class="stat-num">${mo.total||0}</div>
-        <div class="stat-label">Filme gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${mo.completed||0}</div>
-        <div class="stat-label">Filme gesehen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${tv.total||0}</div>
-        <div class="stat-label">Serien gesamt</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">${tv.completed||0}</div>
-        <div class="stat-label">Serien abgeschlossen</div>
-      </div>
-    </div>` : ''}
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-      <div class="stats-detail">
-        <h3>${IC.tv} Anime</h3>
-        <div class="stats-row">
-          ${[['Schaut gerade',a.watching||0,'#00e5ff'],['Abgeschlossen',a.completed||0,'#4caf50'],
-             ['Geplant',a.plan_to_watch||0,'#7c4dff'],['Pausiert',a.on_hold||0,'#ff9800'],
-             ['Abgebrochen',a.dropped||0,'#ef5350']].map(([l,v,c])=>`
-            <div class="stats-item">
-              <span class="stats-item-label"><span class="stats-dot" style="background:${c}"></span>${l}</span>
-              <span class="stats-item-val">${v}</span>
-            </div>`).join('')}
-        </div>
-      </div>
-      <div class="stats-detail">
-        <h3>${IC.book} Manga</h3>
-        <div class="stats-row">
-          ${[['Liest gerade',m.reading||0,'#00e5ff'],['Abgeschlossen',m.completed||0,'#4caf50'],
-             ['Geplant',m.plan_to_read||0,'#7c4dff'],['Pausiert',m.on_hold||0,'#ff9800'],
-             ['Abgebrochen',m.dropped||0,'#ef5350']].map(([l,v,c])=>`
-            <div class="stats-item">
-              <span class="stats-item-label"><span class="stats-dot" style="background:${c}"></span>${l}</span>
-              <span class="stats-item-val">${v}</span>
-            </div>`).join('')}
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px">
       <button class="btn btn-primary" id="btn-edit-profile">${IC.edit} Profil bearbeiten</button>
       <button class="btn btn-danger" id="btn-logout-profile">${IC.logout} Abmelden</button>
     </div>`;

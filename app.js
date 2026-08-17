@@ -17,6 +17,18 @@ const collectionsRoutes = require('./routes/collections');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+/* Hinter einem Reverse-Proxy (oder Dockers Userland-Proxy) ist die Socket-IP für alle
+   Clients dieselbe — das Rate-Limiting auf den Auth-Routen würde damit zu einem
+   GLOBALEN Zähler und ein einzelner Angreifer könnte alle Nutzer aussperren.
+   Bewusst als Hop-Anzahl konfigurierbar: ein pauschales `true` würde erlauben, sich
+   über einen gefälschten X-Forwarded-For-Header eine beliebige IP zu geben. */
+const TRUST_PROXY = process.env.TRUST_PROXY;
+if (TRUST_PROXY)
+{
+  const hops = Number(TRUST_PROXY);
+  app.set('trust proxy', Number.isInteger(hops) ? hops : TRUST_PROXY);
+}
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -46,10 +58,39 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/recommendations', recommendRoutes);
 app.use('/api/collections', collectionsRoutes);
 
+/* Unbekannte API-Pfade dürfen NICHT im SPA-Fallback landen — der Client würde
+   sonst HTML mit Status 200 bekommen und beim res.json() an „Unexpected token '<'"
+   scheitern statt eine verständliche Fehlermeldung zu zeigen. */
+app.use('/api', (req, res) =>
+{
+  res.status(404).json({ error: 'Endpunkt nicht gefunden' });
+});
+
 // SPA fallback
 app.get('*', (req, res) =>
 {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+/* Zentraler Fehler-Handler: hält die JSON-Fehlerform durch (statt Express'
+   HTML-Standardseite) und protokolliert unerwartete Fehler serverseitig. */
+// eslint-disable-next-line no-unused-vars — Express erkennt Error-Handler an der Signatur
+app.use((err, req, res, next) =>
+{
+  if (err.type === 'entity.parse.failed')
+  {
+    return res.status(400).json({ error: 'Ungültiger JSON-Body' });
+  }
+  if (err.type === 'entity.too.large')
+  {
+    return res.status(413).json({ error: 'Anfrage zu groß' });
+  }
+  console.error(err);
+  if (res.headersSent)
+  {
+    return next(err);
+  }
+  res.status(500).json({ error: 'Serverfehler' });
 });
 
 module.exports = app;

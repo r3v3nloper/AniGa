@@ -138,6 +138,116 @@ test('POST /list akzeptiert Filme und Serien (TMDB-Typen)', async () =>
   assert.equal(bad.status, 400);
 });
 
+test('POST /list akzeptiert Spiele (IGDB-Typ) ohne Fortschrittszähler', async () =>
+{
+  // Act — IGDB-ID im mal_id-Feld, source igdb
+  const res = await srv.req('POST', '/api/list', {
+    mediaData: { mal_id: 3498, type: 'game', title: 'Grand Theft Auto V', source: 'igdb',
+      year: 2013, genres: ['Action', 'Abenteuer'] },
+    listStatus: 'completed', userScore: 5, owned: true,
+  }, token);
+
+  // Assert
+  assert.equal(res.status, 200);
+  const games = await srv.req('GET', '/api/list?type=game', undefined, token);
+  assert.equal(games.data.length, 1);
+  assert.equal(games.data[0].source, 'igdb');
+  assert.equal(games.data[0].list_status, 'completed');
+  assert.equal(games.data[0].owned, 1);
+  assert.equal(games.data[0].episodes, null, 'Spiele haben keine Episoden');
+  assert.deepEqual(games.data[0].genres, ['Action', 'Abenteuer']);
+
+  // Stats kennen den Typ game
+  const stats = await srv.req('GET', '/api/list/stats', undefined, token);
+  assert.equal(stats.data.game.total, 1);
+  assert.equal(stats.data.game.completed, 1);
+
+  // check findet den Eintrag über (malId, type)
+  const check = await srv.req('GET', '/api/list/check?malId=3498&type=game', undefined, token);
+  assert.ok(check.data, 'Eintrag muss über /check auffindbar sein');
+});
+
+test('Spielzeit: eigene Angabe und Anbieter-Durchschnitt werden gespeichert', async () =>
+{
+  // Arrange — 42,5 Stunden eigene Spielzeit, 92,3 Std Durchschnitt vom Anbieter
+  const GAME = { mal_id: 7346, type: 'game', title: 'Breath of the Wild', source: 'igdb',
+    avg_play_minutes: 5536 };
+
+  // Act
+  const res = await srv.req('POST', '/api/list', {
+    mediaData: GAME, listStatus: 'completed', playMinutes: 2550,
+  }, token);
+
+  // Assert
+  assert.equal(res.status, 200);
+  const entry = (await srv.req('GET', '/api/list?type=game', undefined, token))
+    .data.find(e => e.mal_id === 7346);
+  assert.equal(entry.play_minutes, 2550, 'eigene Spielzeit in Minuten');
+  assert.equal(entry.avg_play_minutes, 5536, 'Durchschnitt kommt aus media_entries');
+});
+
+test('Spielzeit lässt sich per POST überschreiben und leeren', async () =>
+{
+  // Arrange
+  const GAME = { mal_id: 7346, type: 'game', title: 'Breath of the Wild', source: 'igdb' };
+
+  // Act — anderer Wert
+  await srv.req('POST', '/api/list', { mediaData: GAME, listStatus: 'completed',
+    playMinutes: 3000 }, token);
+  const geaendert = (await srv.req('GET', '/api/list?type=game', undefined, token))
+    .data.find(e => e.mal_id === 7346);
+
+  // Act — ohne Angabe (Full-Replace leert das Feld)
+  await srv.req('POST', '/api/list', { mediaData: GAME, listStatus: 'completed' }, token);
+  const geleert = (await srv.req('GET', '/api/list?type=game', undefined, token))
+    .data.find(e => e.mal_id === 7346);
+
+  // Assert
+  assert.equal(geaendert.play_minutes, 3000);
+  assert.equal(geleert.play_minutes, null, 'POST hat Full-Replace-Semantik');
+  assert.equal(geleert.avg_play_minutes, 5536,
+    'der Anbieter-Durchschnitt bleibt erhalten (COALESCE), auch wenn die Suche ihn nicht mitliefert');
+});
+
+test('PUT /list/:id aktualisiert die Spielzeit als Teilupdate', async () =>
+{
+  // Arrange
+  const entry = (await srv.req('GET', '/api/list?type=game', undefined, token))
+    .data.find(e => e.mal_id === 7346);
+
+  // Act
+  const res = await srv.req('PUT', `/api/list/${entry.id}`, { playMinutes: 1800 }, token);
+
+  // Assert
+  assert.equal(res.status, 200);
+  const after = (await srv.req('GET', '/api/list?type=game', undefined, token))
+    .data.find(e => e.mal_id === 7346);
+  assert.equal(after.play_minutes, 1800);
+  assert.equal(after.list_status, 'completed', 'andere Felder bleiben unangetastet');
+});
+
+test('Collections nehmen Spiele typ-übergreifend auf', async () =>
+{
+  // Arrange — Collection anlegen und den Spiele-Eintrag zuordnen
+  const col = await srv.req('POST', '/api/collections', { name: 'Backlog', emoji: '🎮' }, token);
+  const games = await srv.req('GET', '/api/list?type=game', undefined, token);
+  const gameEntry = games.data[0];
+
+  // Act
+  const add = await srv.req('POST', `/api/collections/${col.data.id}/items`,
+    { listEntryId: gameEntry.id }, token);
+
+  // Assert
+  assert.equal(add.status, 200);
+  const detail = await srv.req('GET', `/api/collections/${col.data.id}`, undefined, token);
+  assert.equal(detail.data.items.length, 1);
+  assert.equal(detail.data.items[0].type, 'game');
+
+  // GET /list hängt die Collection-Zugehörigkeit an (Chips im Track-Modal)
+  const after = await srv.req('GET', '/api/list?type=game', undefined, token);
+  assert.deepEqual(after.data[0].collections.map(c => c.name), ['Backlog']);
+});
+
 test('DELETE /list/:id entfernt den Eintrag — aber nur den eigenen', async () =>
 {
   // Arrange: zweiter Nutzer darf fremde Einträge nicht löschen

@@ -2,31 +2,39 @@
    AniGa – state.js
    Zentraler, veränderlicher App-State (Single Source of Truth)
    ===================================================== */
+import { AREAS, MEDIA_TYPES } from './types.js';
+
+/* Ein Eintrag pro Medientyp — der Factory-Aufruf verhindert geteilte Referenzen */
+function perType(factory)
+{
+  return Object.fromEntries(MEDIA_TYPES.map(t => [t, factory()]));
+}
+
+const storedArea = localStorage.getItem('aniga_area');
+const area = AREAS[storedArea] ? storedArea : 'otaku';
+const firstType = AREAS[area].types[0];
+
 export const S = {
   user: null,
   token: localStorage.getItem('aniga_token'),
   view: 'home',
-  area: localStorage.getItem('aniga_area') === 'screen' ? 'screen' : 'otaku',
-  animeList: [],
-  mangaList: [],
-  movieList: [],
-  tvList: [],
+  area,
+  lists: perType(() => []),
   stats: null,
-  searchType: localStorage.getItem('aniga_area') === 'screen' ? 'movie' : 'anime',
+  searchType: firstType,
   searchQ: '',
   searchPage: 1,
   searchResults: [],
   searchPagination: null,
-  topAnime: [],
-  topManga: [],
-  seasonal: [],
-  topMovie: [],
-  topTv: [],
-  trendingMovie: [],
-  listStatus: { anime: 'all', manga: 'all', movie: 'all', tv: 'all' },
-  listView: { anime: 'grid', manga: 'grid', movie: 'grid', tv: 'grid' },
-  listFilter: { anime: '', manga: '', movie: '', tv: '' },
-  listCollection: { anime: 'all', manga: 'all', movie: 'all', tv: 'all' },
+  /* Entdecken-Sektionen der Suche: top = „Beliebte/Top",
+     highlight = optionale Sektion darüber (Seasonal bzw. Trending) */
+  top: perType(() => []),
+  highlight: perType(() => []),
+  topError: null,
+  listStatus: perType(() => 'all'),
+  listView: perType(() => 'grid'),
+  listFilter: perType(() => ''),
+  listCollection: perType(() => 'all'),
   collections: [],
   viewingCollection: null,
   allUsers: [],
@@ -42,6 +50,6 @@ export const S = {
   compareType: 'anime',
   compareTab: 'both',
   recommendations: null,
-  recommendType: localStorage.getItem('aniga_area') === 'screen' ? 'movie' : 'anime',
+  recommendType: firstType,
   recommendPage: 1,
 };

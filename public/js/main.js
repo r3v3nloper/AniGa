@@ -28,6 +28,7 @@ export function switchArea(area)
   S.recommendType = firstType;
   S.recommendations = null;
   S.recommendPage = 1;
+  S.topError = null;
   document.getElementById('app').innerHTML = renderShell();
   navigate('home');
 }
@@ -95,17 +96,13 @@ export function logout()
   localStorage.removeItem('aniga_token');
   S.token = null;
   S.user = null;
-  S.animeList = [];
-  S.mangaList = [];
-  S.movieList = [];
-  S.tvList = [];
+  Object.keys(S.lists).forEach(type =>
+  {
+    S.lists[type] = [];
+    S.top[type] = [];
+    S.highlight[type] = [];
+  });
   S.stats = null;
-  S.topAnime = [];
-  S.topManga = [];
-  S.seasonal = [];
-  S.topMovie = [];
-  S.topTv = [];
-  S.trendingMovie = [];
   S.allUsers = [];
   S.following = [];
   S.viewingUser = null;

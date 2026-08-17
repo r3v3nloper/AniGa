@@ -23,7 +23,17 @@ ENV NODE_ENV=production \
 
 EXPOSE 3000
 
+# Datenverzeichnis dem node-User übereignen, damit der Container nicht als root laufen muss.
+# MUSS vor VOLUME stehen — Änderungen an einem bereits deklarierten Volume-Pfad
+# werden von Docker verworfen. Named Volumes übernehmen diese Rechte beim ersten Mount.
+# ACHTUNG bei Bind-Mounts (-v /srv/aniga/data:/data): dort gelten die Rechte des
+# Host-Verzeichnisses — dieses einmalig `chown -R 1000:1000` setzen.
+RUN mkdir -p /data && chown -R node:node /data /app
+
 # Datenbank-Volume (wird von außen gemountet)
 VOLUME ["/data"]
+
+# Nicht als root laufen (der node-User ist im Basisimage bereits vorhanden)
+USER node
 
 CMD ["node", "server.js"]

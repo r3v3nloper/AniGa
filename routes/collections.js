@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 const { parseIntParam } = require('../utils/sql');
+const { prepareOwnListRows } = require('../utils/listRows');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -66,10 +67,10 @@ router.get('/:id', (req, res) =>
   const items = db.prepare(`
     SELECT ul.id, ul.list_status, ul.current_episode, ul.current_chapter, ul.current_page,
            ul.current_season, ul.user_score, ul.notes, ul.started_at, ul.completed_at,
-           ul.owned, ul.owned_volumes, ul.updated_at,
+           ul.owned, ul.owned_volumes, ul.play_minutes, ul.updated_at,
            me.title, me.title_english, me.image_url, me.synopsis, me.media_status,
            me.episodes, me.chapters, me.volumes, me.seasons_data, me.api_score, me.genres,
-           me.type, me.mal_id, me.year, me.season, me.is_manual, me.source
+           me.type, me.mal_id, me.year, me.season, me.is_manual, me.source, me.avg_play_minutes
     FROM collection_items ci
     JOIN user_list ul ON ul.id = ci.list_entry_id
     JOIN media_entries me ON me.id = ul.media_id
@@ -77,51 +78,8 @@ router.get('/:id', (req, res) =>
     ORDER BY ci.created_at DESC
   `).all(id);
 
-  // Zugehörigkeiten aller Items (für korrekte Chip-Anzeige im Track-Modal)
-  const memberships = db.prepare(`
-    SELECT ci.list_entry_id, c.id, c.name, c.emoji
-    FROM collection_items ci
-    JOIN collections c ON c.id = ci.collection_id
-    WHERE c.user_id = ?
-  `).all(req.userId);
-  const byEntry = new Map();
-  memberships.forEach(m =>
-  {
-    if (!byEntry.has(m.list_entry_id))
-    {
-      byEntry.set(m.list_entry_id, []);
-    }
-    byEntry.get(m.list_entry_id).push({ id: m.id, name: m.name, emoji: m.emoji });
-  });
-
-  items.forEach(i =>
-  {
-    i.collections = byEntry.get(i.id) || [];
-    if (i.genres)
-    {
-      try
-      {
-        i.genres = JSON.parse(i.genres);
-      }
-      catch
-      {
-        i.genres = [];
-      }
-    }
-    if (i.seasons_data)
-    {
-      try
-      {
-        i.seasons_data = JSON.parse(i.seasons_data);
-      }
-      catch
-      {
-        i.seasons_data = null;
-      }
-    }
-  });
-
-  res.json({ ...collection, items });
+  // Zugehörigkeiten aller Items werden mit angehängt (Chip-Anzeige im Track-Modal)
+  res.json({ ...collection, items: prepareOwnListRows(items, req.userId) });
 });
 
 /* ── POST /api/collections — anlegen ── */

@@ -3,10 +3,11 @@
    - v4 "API-Lesezugriffstoken" (beginnt mit eyJ…) → Authorization: Bearer
    - v3 "API-Schlüssel" (kurzer Hex-String)        → ?api_key=…
    Liefert Medien im App-internen Format (wie utils/jikan.js formatMedia). */
+const { createRateLimitedFetch } = require('./rateLimitedFetch');
+
 const TMDB = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const MIN_INTERVAL = 150;
-const TIMEOUT_MS = 8000;
 
 const TOKEN = process.env.TMDB_API_TOKEN || '';
 const IS_BEARER = TOKEN.startsWith('eyJ');
@@ -16,50 +17,25 @@ function isConfigured()
   return TOKEN.length > 0;
 }
 
-let pending = Promise.resolve();
+const limitedFetch = createRateLimitedFetch({ name: 'TMDB', minInterval: MIN_INTERVAL });
 
 async function tFetch(path, params = {})
 {
-  const execute = async () =>
+  const url = new URL(TMDB + path);
+  url.searchParams.set('language', 'de-DE');
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  const headers = { 'Accept': 'application/json' };
+  if (IS_BEARER)
   {
-    const url = new URL(TMDB + path);
-    url.searchParams.set('language', 'de-DE');
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    headers.Authorization = `Bearer ${TOKEN}`;
+  }
+  else
+  {
+    url.searchParams.set('api_key', TOKEN);
+  }
 
-    const headers = { 'Accept': 'application/json' };
-    if (IS_BEARER)
-    {
-      headers.Authorization = `Bearer ${TOKEN}`;
-    }
-    else
-    {
-      url.searchParams.set('api_key', TOKEN);
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try
-    {
-      const res = await fetch(url, { headers, signal: controller.signal });
-      if (!res.ok)
-      {
-        throw new Error(`TMDB ${res.status}`);
-      }
-      return res.json();
-    }
-    finally
-    {
-      clearTimeout(timer);
-    }
-  };
-
-  // Serialisierung mit Abstand — gleiches Muster wie jikan.js/anilist.js
-  pending = pending
-    .catch(() => {})
-    .then(() => new Promise(r => setTimeout(r, MIN_INTERVAL)))
-    .then(execute);
-
-  return pending;
+  return limitedFetch(url, { headers });
 }
 
 /* TMDB-Genre-IDs → deutsche Namen (statisch, TMDB-Genrelisten sind stabil) */

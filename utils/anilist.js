@@ -1,10 +1,11 @@
 /* AniList GraphQL fallback provider – used when Jikan/MyAnimeList is unreachable.
    Returns media in the same app-internal format as utils/jikan.js formatMedia(). */
+const { createRateLimitedFetch } = require('./rateLimitedFetch');
+
 const ANILIST = 'https://graphql.anilist.co';
 const MIN_INTERVAL = 700;
-const TIMEOUT_MS = 8000;
 
-let pending = Promise.resolve();
+const limitedFetch = createRateLimitedFetch({ name: 'AniList', minInterval: MIN_INTERVAL });
 
 /* AniList status → Jikan-style status strings (frontend badge map expects these) */
 const STATUS_MAP = {
@@ -66,20 +67,18 @@ const SINGLE_QUERY = `
     }
   }`;
 
+/* GraphQL meldet Fehler auch mit HTTP 200 im Body — daher eigene Auswertung */
 async function alFetch(query, variables)
 {
-  const execute = async () =>
-  {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try
+  return limitedFetch(
+    ANILIST,
     {
-      const res = await fetch(ANILIST, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ query, variables }),
-        signal: controller.signal,
-      });
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    },
+    async res =>
+    {
       const json = await res.json();
       if (!res.ok || json.errors)
       {
@@ -87,19 +86,7 @@ async function alFetch(query, variables)
       }
       return json.data;
     }
-    finally
-    {
-      clearTimeout(timer);
-    }
-  };
-
-  // Serialize all AniList requests with rate-limit spacing (same pattern as jikan.js)
-  pending = pending
-    .catch(() => {})
-    .then(() => new Promise(r => setTimeout(r, MIN_INTERVAL)))
-    .then(execute);
-
-  return pending;
+  );
 }
 
 function stripHtml(text)

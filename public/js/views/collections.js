@@ -4,7 +4,9 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, toast, renderEmptyState } from '../dom.js';
+import { $, $$, esc, toast, renderEmptyState, renderMain, showSpinner,
+  bindActivate } from '../dom.js';
+import { confirmModal, promptModal } from '../modal.js';
 import { API } from '../api.js';
 import { renderMediaCardFromEntry, openEntryTrackModal } from '../media.js';
 
@@ -23,6 +25,18 @@ export function bindCollectionsView()
   {
     bindOverview();
   }
+}
+
+/* Die beiden Ansichten dieser View immer über diese Helfer neu zeichnen —
+   so bleiben Markup und Listener zwangsläufig zusammen. */
+function showOverview()
+{
+  renderMain(renderOverview(), bindOverview);
+}
+
+function showDetail()
+{
+  renderMain(renderCollectionDetail(), bindCollectionDetail);
 }
 
 /* Nach Modal-Speichern aufgerufen (aus refreshAfterSave), um die
@@ -46,8 +60,7 @@ export async function refreshCollectionsAfterSave()
       S.viewingCollection = null;
     }
   }
-  main.innerHTML = renderCollectionsView();
-  bindCollectionsView();
+  renderMain(renderCollectionsView(), bindCollectionsView);
 }
 
 /* ---- ÜBERSICHT ---- */
@@ -103,49 +116,62 @@ function bindOverview()
 
   $$('.collection-card').forEach(card =>
   {
-    card.addEventListener('click', () => showCollection(+card.dataset.collectionId));
+    bindActivate(card, () => showCollection(+card.dataset.collectionId));
   });
 }
 
-async function createCollectionPrompt()
+/* Legt eine Collection an und pflegt sie sortiert in den State ein.
+   Einzige Stelle dafür — das Track-Modal nutzt sie ebenfalls (vorher dupliziert).
+   Liefert die neue Collection oder null (bei Fehler wird bereits ein Toast gezeigt). */
+export async function createCollection(name)
 {
-  const name = prompt('Name der neuen Collection (z.B. "ReWatch"):');
-  if (!name || !name.trim())
-  {
-    return;
-  }
   try
   {
     const created = await API.collections.create(name.trim());
     S.collections.push(created);
     S.collections.sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
-    toast(`Collection „${created.name}" erstellt`, 'success');
-    const main = $('#main-content');
-    main.innerHTML = renderOverview();
-    bindOverview();
+    return created;
   }
   catch (e)
   {
     toast(e.message, 'error');
+    return null;
+  }
+}
+
+async function createCollectionPrompt()
+{
+  const name = await promptModal({
+    title: 'Neue Collection',
+    label: 'Name',
+    placeholder: 'z.B. ReWatch',
+    confirmLabel: 'Erstellen',
+  });
+  if (!name)
+  {
+    return;
+  }
+  const created = await createCollection(name);
+  if (created)
+  {
+    toast(`Collection „${created.name}" erstellt`, 'success');
+    showOverview();
   }
 }
 
 async function showCollection(id)
 {
-  const main = $('#main-content');
-  main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  showSpinner();
   try
   {
     S.viewingCollection = await API.collections.get(id);
-    main.innerHTML = renderCollectionDetail();
-    bindCollectionDetail();
+    showDetail();
   }
   catch (e)
   {
     toast(e.message, 'error');
     S.viewingCollection = null;
-    main.innerHTML = renderOverview();
-    bindOverview();
+    showOverview();
   }
 }
 
@@ -183,27 +209,25 @@ function bindCollectionDetail()
   $('#btn-back-collections')?.addEventListener('click', () =>
   {
     S.viewingCollection = null;
-    const main = $('#main-content');
-    main.innerHTML = renderOverview();
-    bindOverview();
+    showOverview();
   });
 
   $('#btn-rename-collection')?.addEventListener('click', async () =>
   {
     const c = S.viewingCollection;
-    const name = prompt('Neuer Name:', c.name);
-    if (!name || !name.trim() || name.trim() === c.name)
+    const name = await promptModal({
+      title: 'Collection umbenennen', label: 'Name', value: c.name,
+    });
+    if (!name || name === c.name)
     {
       return;
     }
     try
     {
-      await API.collections.rename(c.id, name.trim(), c.emoji);
-      c.name = name.trim();
+      await API.collections.rename(c.id, name, c.emoji);
+      c.name = name;
       toast('Collection umbenannt', 'success');
-      const main = $('#main-content');
-      main.innerHTML = renderCollectionDetail();
-      bindCollectionDetail();
+      showDetail();
     }
     catch (e)
     {
@@ -214,7 +238,12 @@ function bindCollectionDetail()
   $('#btn-delete-collection')?.addEventListener('click', async () =>
   {
     const c = S.viewingCollection;
-    if (!confirm(`Collection „${c.name}" löschen?\n\nDie Einträge selbst bleiben in deinen Listen erhalten.`))
+    const ok = await confirmModal({
+      title: 'Collection löschen',
+      message: `Collection „${c.name}" wirklich löschen?\n\nDie Einträge selbst bleiben in deinen Listen erhalten.`,
+      confirmLabel: 'Löschen', danger: true,
+    });
+    if (!ok)
     {
       return;
     }
@@ -224,9 +253,7 @@ function bindCollectionDetail()
       toast(`Collection „${c.name}" gelöscht`, 'success');
       S.viewingCollection = null;
       S.collections = await API.collections.getAll();
-      const main = $('#main-content');
-      main.innerHTML = renderOverview();
-      bindOverview();
+      showOverview();
     }
     catch (e)
     {
@@ -237,7 +264,7 @@ function bindCollectionDetail()
   // Karte öffnet das Track-Modal des eigenen Eintrags
   $$('.collection-item-wrap .media-card').forEach(card =>
   {
-    card.addEventListener('click', () =>
+    bindActivate(card, () =>
     {
       const entryId = +card.dataset.entryId;
       const entry = S.viewingCollection.items.find(e => e.id === entryId);
@@ -260,9 +287,7 @@ function bindCollectionDetail()
         await API.collections.removeItem(S.viewingCollection.id, entryId);
         S.viewingCollection.items = S.viewingCollection.items.filter(i => i.id !== entryId);
         toast('Aus Collection entfernt', 'success');
-        const main = $('#main-content');
-        main.innerHTML = renderCollectionDetail();
-        bindCollectionDetail();
+        showDetail();
       }
       catch (err)
       {

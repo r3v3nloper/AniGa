@@ -4,12 +4,14 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, debounce, toast, renderEmptyState, bindStatusTabs, bindViewToggle } from '../dom.js';
+import { $, $$, esc, coverImg, debounce, toast, renderEmptyState, bindStatusTabs, bindViewToggle,
+  renderInto, renderMain, showSpinner, bindActivate } from '../dom.js';
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
 import {
-  STATUS_LABELS, STATUS_CSS, TYPE_META, statusesFor,
-  starsHtml, progressText, progressPct, ownedBadgeHtml, ownedChipHtml
+  statusLabel, STATUS_CSS, TYPE_META, statusesFor, typeCountsText,
+  starsHtml, progressText, progressPct, ownedBadgeHtml, ownedChipHtml,
+  mediaHeroHtml, mediaMetaChipsHtml, genreTagsHtml, synopsisHtml, bindSynopsisToggle
 } from '../media.js';
 import { navigate } from '../router.js';
 import { showCompareView } from './compare.js';
@@ -53,7 +55,7 @@ function renderUserCard(u)
       <div class="user-avatar">${(u.username||'?').substring(0,2).toUpperCase()}</div>
       <div class="user-card-info">
         <div class="user-card-name">${esc(u.username)}</div>
-        <div class="user-card-counts">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
+        <div class="user-card-counts">${typeCountsText(u)}</div>
       </div>
       <button class="btn-follow${u.isFollowing?' following':''}" data-uid="${u.id}">
         ${u.isFollowing ? 'Entfolgen' : 'Folgen'}
@@ -79,12 +81,7 @@ export function bindUsersView()
     }
     else
     {
-      const main = $('#main-content');
-      if (main)
-      {
-        main.innerHTML = renderUsersView();
-        bindUsersView();
-      }
+      renderMain(renderUsersView(), bindUsersView);
     }
   }, 200));
   bindUserCards();
@@ -94,9 +91,10 @@ function bindUserCards()
 {
   $$('.user-card').forEach(card =>
   {
-    card.addEventListener('click', e =>
+    // Der Folgen-Button in der Karte bleibt ein eigener Fokus-/Klickpunkt
+    bindActivate(card, e =>
     {
-      if (e.target.closest('.btn-follow'))
+      if (e.target?.closest?.('.btn-follow'))
       {
         return;
       }
@@ -158,20 +156,18 @@ export async function showUserList(user)
   S.userListType = 'anime';
   S.userListStatus = 'all';
   S.userListView = 'grid';
-  const main = $('#main-content');
-  main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  showSpinner();
   try
   {
     S.viewingUserList = await API.users.getList(user.id, 'anime');
-    main.innerHTML = renderUserListView();
-    bindUserListView();
+    showUserListView();
   }
   catch (e)
   {
-    main.innerHTML = renderEmptyState(
-      '⚠️', 'Fehler beim Laden', esc(e.message),
+    renderMain(renderEmptyState(
+      '⚠️', 'Fehler beim Laden', e.message,
       `<button class="btn btn-primary" data-nav="users">Zurück</button>`
-    );
+    ));
   }
 }
 
@@ -204,7 +200,7 @@ function renderUserListView()
       </div>
       <div class="user-list-header-info">
         <div class="user-list-header-name">${esc(u.username)}</div>
-        <div class="user-list-header-sub">${u.animeCount} Anime · ${u.mangaCount} Manga</div>
+        <div class="user-list-header-sub">${typeCountsText(u)}</div>
       </div>
       <button class="btn btn-primary btn-sm" id="btn-compare-user"
         style="margin-left:auto;flex-shrink:0">⚖️ Vergleichen</button>
@@ -257,7 +253,7 @@ function renderUserMediaCard(entry)
         ${coverImg(entry.image_url, entry.title)}
         ${entry.user_score != null?`<div class="media-card-score">${IC.star}${entry.user_score}.0</div>`:''}
         <div class="media-card-badge">
-          <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
+          <span class="status-badge ${STATUS_CSS[entry.list_status]}">${statusLabel(entry.list_status, entry.type)}</span>
         </div>
         ${ownedBadgeHtml(entry)}
         <div class="media-card-overlay">
@@ -283,7 +279,7 @@ function renderUserListCard(e)
       <div class="list-card-body">
         <div class="list-card-title" title="${esc(e.title)}">${esc(e.title)}</div>
         <div class="list-card-row">
-          <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
+          <span class="status-badge ${STATUS_CSS[e.list_status]}">${statusLabel(e.list_status, e.type)}</span>
           ${ownedChipHtml(e)}
           ${e.user_score != null?starsHtml(e.user_score,true):''}
         </div>
@@ -305,15 +301,13 @@ export function bindUserListView()
     {
       S.userListType = b.dataset.utype;
       S.userListStatus = 'all';
-      const main = $('#main-content');
-      main.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+      showSpinner();
       try
       {
         S.viewingUserList = await API.users.getList(
           S.viewingUser.id, S.userListType
         );
-        main.innerHTML = renderUserListView();
-        bindUserListView();
+        showUserListView();
       }
       catch (e)
       {
@@ -336,11 +330,10 @@ export function bindUserListView()
   bindUserEntryCards();
 }
 
-/* Wird vom Vergleichs-View für den Zurück-Button gebraucht */
-export function renderAndBindUserListView(main)
+/* Zeichnet die Liste eines fremden Nutzers — auch vom Vergleichs-View (Zurück) genutzt */
+export function showUserListView()
 {
-  main.innerHTML = renderUserListView();
-  bindUserListView();
+  renderMain(renderUserListView(), bindUserListView);
 }
 
 function refreshUserListContent()
@@ -351,19 +344,14 @@ function refreshUserListContent()
   const filtered = curStatus==='all'
     ? list
     : list.filter(e=>e.list_status===curStatus);
-  const content = $('#user-list-content');
-  if (content)
-  {
-    content.innerHTML = renderUserListContent(filtered, curView);
-    bindUserEntryCards();
-  }
+  renderInto($('#user-list-content'), renderUserListContent(filtered, curView), bindUserEntryCards);
 }
 
 function bindUserEntryCards()
 {
   $$('.user-entry-card').forEach(card =>
   {
-    card.addEventListener('click', () =>
+    bindActivate(card, () =>
     {
       const entryId = +card.dataset.entryId;
       const entry = S.viewingUserList.find(e => e.id === entryId);
@@ -377,57 +365,23 @@ function bindUserEntryCards()
 
 function showUserInfoModal(entry)
 {
-  const isAnime = entry.type === 'anime';
-  const synopsis = entry.synopsis || '';
-
   const html = `
     <div class="modal-head">
       <h2>${esc(entry.title)}</h2>
       <button class="btn-modal-close" id="modal-close" aria-label="Schließen">${IC.x}</button>
     </div>
     <div class="modal-body">
-      <div class="media-detail-hero">
-        ${entry.image_url
-          ? `<img class="media-detail-bg" src="${esc(entry.image_url)}" alt=""/>`
-          : '<div style="height:130px;background:var(--bg3)"></div>'}
-        <div class="media-detail-info">
-          <div class="media-detail-cover">${coverImg(entry.image_url,entry.title)}</div>
-          <div class="media-detail-titles">
-            <div class="media-detail-title">${esc(entry.title)}</div>
-            ${entry.title_english&&entry.title_english!==entry.title
-              ?`<div class="media-detail-title-alt">${esc(entry.title_english)}</div>`:''}
-          </div>
-        </div>
-      </div>
-
-      <div class="media-meta">
-        ${entry.api_score
-          ? `<div class="meta-chip">${IC.star}` +
-            `<span style="color:var(--star)">${Number(entry.api_score).toFixed(1)}</span> MAL</div>`
-          : ''}
-        ${isAnime&&entry.episodes?`<div class="meta-chip">${IC.play} ${entry.episodes} Folgen</div>`:''}
-        ${!isAnime&&entry.chapters?`<div class="meta-chip">${IC.book} ${entry.chapters} Kapitel</div>`:''}
-        ${!isAnime&&entry.volumes?`<div class="meta-chip">📦 ${entry.volumes} Bände</div>`:''}
-        ${entry.year?`<div class="meta-chip">${IC.calendar} ${entry.year}</div>`:''}
-      </div>
-
-      ${entry.genres&&entry.genres.length?`
-        <div class="genre-tags" style="margin-bottom:12px">
-          ${entry.genres.slice(0,8).map(g=>`<span class="genre-tag">${esc(g)}</span>`).join('')}
-        </div>`:''}
-
-      ${synopsis?`
-        <div style="margin-bottom:14px">
-          <p class="synopsis-text" id="syn-text">${esc(synopsis)}</p>
-          ${synopsis.length>220?`<button class="btn-synopsis" id="btn-expand">Mehr anzeigen</button>`:''}
-        </div>`:''}
+      ${mediaHeroHtml(entry)}
+      ${mediaMetaChipsHtml(entry)}
+      ${genreTagsHtml(entry.genres)}
+      ${synopsisHtml(entry.synopsis)}
 
       <div class="divider"></div>
       <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">
         ${esc(S.viewingUser?.username||'')}'s Eintrag
       </h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
-        <span class="status-badge ${STATUS_CSS[entry.list_status]}">${STATUS_LABELS[entry.list_status]||''}</span>
+        <span class="status-badge ${STATUS_CSS[entry.list_status]}">${statusLabel(entry.list_status, entry.type)}</span>
         ${entry.user_score != null
           ? starsHtml(entry.user_score)
           : '<span style="color:var(--text3);font-size:.8rem">Keine Bewertung</span>'}
@@ -448,13 +402,6 @@ function showUserInfoModal(entry)
   {
     $('#modal-close')?.addEventListener('click', closeModal);
     $('#modal-cancel')?.addEventListener('click', closeModal);
-    $('#btn-expand')?.addEventListener('click', () =>
-    {
-      const st = $('#syn-text');
-      const exp = st.classList.toggle('expanded');
-      $('#btn-expand').textContent = exp
-        ? 'Weniger anzeigen'
-        : 'Mehr anzeigen';
-    });
+    bindSynopsisToggle();
   });
 }

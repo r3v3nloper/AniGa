@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const adminMiddleware = require('../middleware/admin');
-const { ANIME_COUNT_COL, MANGA_COUNT_COL, parseIntParam } = require('../utils/sql');
+const { TYPE_COUNT_COLUMNS, parseIntParam } = require('../utils/sql');
 
 const router = express.Router();
 router.use(adminMiddleware);
@@ -12,8 +12,7 @@ router.get('/users', (req, res) =>
 {
   const users = db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at,
-      ${ANIME_COUNT_COL},
-      ${MANGA_COUNT_COL}
+      ${TYPE_COUNT_COLUMNS}
     FROM users u
     WHERE u.is_admin = 0
     ORDER BY u.created_at DESC

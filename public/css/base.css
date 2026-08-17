@@ -1,0 +1,100 @@
+/* =====================================================
+   AniGa – base.css
+   Variablen, Reset, Grundlayout
+   Teil von style.css — Reihenfolge der <link>-Tags in index.html
+   entspricht der Kaskade und darf nicht vertauscht werden.
+   ===================================================== */
+/* =====================================================
+   AniGa – Anime & Manga Tracker  |  style.css
+   ===================================================== */
+
+/* ===== GLOBAL ===== */
+*
+{
+  touch-action: manipulation;
+}
+
+/* ===== VARIABLES ===== */
+:root
+{
+  --bg:          #0d0d1a;
+  --bg2:         #12122a;
+  --bg3:         #1a1a35;
+  --bg-hover:    #22224a;
+  --accent:      #7c4dff;
+  --accent2:     #5c35cc;
+  --accent-glow: rgba(124,77,255,.18);
+  --cyan:        #00e5ff;
+  --cyan-dim:    rgba(0,229,255,.12);
+  --text:        #e8eaf6;
+  --text2:       #9fa8da;
+  --text3:       #5c6bc0;
+  --border:      #2a2a5a;
+  --success:     #4caf50;
+  --warning:     #ff9800;
+  --error:       #ef5350;
+  --star:        #ffd740;
+  --sidebar-w:   260px;
+  --header-h:    60px;
+  --nav-h:       64px;
+  --r:           12px;
+  --r-sm:        8px;
+  --shadow:      0 4px 24px rgba(0,0,0,.45);
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after
+{
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+html
+{
+  font-size: 16px; scroll-behavior: smooth; overflow-x: hidden;
+}
+body
+{
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+a
+{
+  color: var(--accent); text-decoration: none;
+}
+a:hover
+{
+  color: var(--cyan);
+}
+img
+{
+  display: block; max-width: 100%;
+}
+button
+{
+  font-family: inherit; cursor: pointer;
+}
+input, select, textarea
+{
+  font-family: inherit;
+}
+::-webkit-scrollbar
+{
+  width: 5px; height: 5px;
+}
+::-webkit-scrollbar-track
+{
+  background: var(--bg2);
+}
+::-webkit-scrollbar-thumb
+{
+  background: var(--border); border-radius: 3px;
+}
+
+/* ===== LAYOUT ===== */
+#app
+{
+  display: flex; min-height: 100vh;
+}

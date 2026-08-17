@@ -7,21 +7,15 @@ import { S } from '../state.js';
 import { $, $$, toast } from '../dom.js';
 import { openModal, closeModal } from '../modal.js';
 import { API } from '../api.js';
-import { AREAS, TYPE_META } from '../media.js';
+import { AREAS, TYPE_META, planStatusFor } from '../media.js';
 import { refreshAfterSave } from './track.js';
-
-/* Beschriftung der Zähl-Felder pro Typ (movie hat keine) */
-const COUNT_LABELS = {
-  anime: { count: 'Episoden', vol: 'Staffeln' },
-  manga: { count: 'Kapitel', vol: 'Bände' },
-  tv:    { count: 'Episoden', vol: 'Staffeln' },
-  movie: null,
-};
 
 export function showManualModal(type = 'anime')
 {
   let curType = type;
   const types = AREAS[S.area].types;
+  // Zählfelder (Episoden/Kapitel + Staffeln/Bände) kommen aus TYPE_META — null = keine
+  const countsOf = (t) => TYPE_META[t].manualCounts;
 
   const html = `
     <div class="modal-head">
@@ -43,13 +37,13 @@ export function showManualModal(type = 'anime')
         <label class="form-label">Englischer Titel</label>
         <input class="form-input" id="m-title-en" type="text" placeholder="Englischer Titel (optional)"/>
       </div>
-      <div class="form-row" id="m-counts-row" style="display:${COUNT_LABELS[type]?'':'none'}">
+      <div class="form-row" id="m-counts-row" style="display:${countsOf(type)?'':'none'}">
         <div class="form-group">
-          <label class="form-label" id="m-count-label">${COUNT_LABELS[type]?.count||''}</label>
+          <label class="form-label" id="m-count-label">${countsOf(type)?.countLabel||''}</label>
           <input class="form-input" id="m-count" type="number" min="0" placeholder="?"/>
         </div>
         <div class="form-group">
-          <label class="form-label" id="m-vol-label">${COUNT_LABELS[type]?.vol||''}</label>
+          <label class="form-label" id="m-vol-label">${countsOf(type)?.volLabel||''}</label>
           <input class="form-input" id="m-vol" type="number" min="0" placeholder="?"/>
         </div>
       </div>
@@ -95,12 +89,12 @@ export function showManualModal(type = 'anime')
       {
         curType = btn.dataset.mtype;
         $$('[data-mtype]').forEach(b => b.classList.toggle('active', b===btn));
-        const labels = COUNT_LABELS[curType];
-        $('#m-counts-row').style.display = labels ? '' : 'none';
-        if (labels)
+        const counts = countsOf(curType);
+        $('#m-counts-row').style.display = counts ? '' : 'none';
+        if (counts)
         {
-          $('#m-count-label').textContent = labels.count;
-          $('#m-vol-label').textContent = labels.vol;
+          $('#m-count-label').textContent = counts.countLabel;
+          $('#m-vol-label').textContent = counts.volLabel;
         }
       });
     });
@@ -118,23 +112,25 @@ export function showManualModal(type = 'anime')
       const btn = $('#btn-save-manual');
       btn.disabled = true;
       btn.textContent = 'Speichern…';
+      const counts = countsOf(curType);
       const mediaData = {
         is_manual: true, type: curType, title,
         title_english: $('#m-title-en').value.trim()||null,
         image_url: $('#m-img').value.trim()||null,
         synopsis: $('#m-synopsis').value.trim()||null,
         media_status: $('#m-status').value||null,
-        episodes: (curType==='anime'||curType==='tv') ? +$('#m-count').value||null : null,
-        chapters: curType==='manga' ? +$('#m-count').value||null : null,
-        volumes: curType==='movie' ? null : +$('#m-vol').value||null,
+        episodes: null, chapters: null, volumes: null,
         year: +$('#m-year').value||null,
         genres: [],
       };
+      if (counts)
+      {
+        mediaData[counts.field] = +$('#m-count').value||null;
+        mediaData.volumes = +$('#m-vol').value||null;
+      }
       try
       {
-        await API.list.save(mediaData, {
-          listStatus: curType==='manga' ? 'plan_to_read' : 'plan_to_watch'
-        });
+        await API.list.save(mediaData, { listStatus: planStatusFor(curType) });
         toast(`„${title}" manuell hinzugefügt!`, 'success');
         closeModal();
         await refreshAfterSave(curType);

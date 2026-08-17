@@ -4,7 +4,7 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, renderEmptyState } from '../dom.js';
+import { $, $$, esc, renderEmptyState, renderInto, renderMain, spinnerHtml } from '../dom.js';
 import { API } from '../api.js';
 import { AREAS, TYPE_META, renderMediaCard, bindMediaCards } from '../media.js';
 import { showManualModal } from '../modals/manual.js';
@@ -24,7 +24,7 @@ export function renderSearch()
         <div class="page-icon">${IC.search}</div>
         <div>
           <div class="page-title">Suche</div>
-          <div class="page-sub">${S.area==='screen' ? 'Filme &amp; Serien entdecken' : 'Anime &amp; Manga entdecken'}</div>
+          <div class="page-sub">${esc(AREAS[S.area].discover)}</div>
         </div>
       </div>
     </div>
@@ -43,67 +43,42 @@ export function renderSearch()
     <div id="search-results">${hasResults ? renderSearchResults() : renderSearchDefault()}</div>`;
 }
 
+/* Entdecken-Ansicht des aktiven Typs: optionale Highlight-Sektion (Seasonal/Trending)
+   über der Top-Sektion — beides beschrieben in TYPE_META. */
 function renderSearchDefault()
 {
-  if (S.area === 'screen')
+  const types = AREAS[S.area].types;
+  if (!types.some(t => S.top[t].length))
   {
-    return renderScreenDefault();
+    // Anbieter nicht erreichbar/konfiguriert: Hinweis statt Endlos-Spinner,
+    // manuelles Eintragen bleibt möglich
+    if (S.topError)
+    {
+      return renderEmptyState('⚠️', 'Entdecken gerade nicht verfügbar', S.topError)
+        + manualHintHtml();
+    }
+    return spinnerHtml();
   }
-  return renderOtakuDefault();
-}
-
-function renderOtakuDefault()
-{
-  const loading = !S.topAnime.length && !S.topManga.length;
-  if (loading)
-  {
-    return '<div class="loader-wrap"><div class="spinner"></div></div>';
-  }
-  const isAnime = S.searchType === 'anime';
-  const top = isAnime ? S.topAnime : S.topManga;
+  const meta = TYPE_META[S.searchType];
+  const highlight = S.highlight[S.searchType] || [];
 
   return `
-    ${isAnime && S.seasonal.length ? `
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">${IC.calendar} Aktuell laufende Anime</div>
-      </div>
-      <div class="media-grid">${S.seasonal.slice(0,10).map(renderMediaCard).join('')}</div>
-    </div>` : ''}
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">${IC.flame} ${isAnime?'Top Anime':'Top Manga'}</div>
-      </div>
-      <div class="media-grid">${top.slice(0,20).map(renderMediaCard).join('')}</div>
-    </div>
+    ${meta.highlight && highlight.length
+      ? sectionHtml(IC[meta.highlight.icon], meta.highlight.title, highlight.slice(0, 10))
+      : ''}
+    ${sectionHtml(IC[meta.top.icon], meta.top.title, S.top[S.searchType].slice(0, 20))}
     ${manualHintHtml()}`;
 }
 
-function renderScreenDefault()
+function sectionHtml(icon, title, items)
 {
-  const loading = !S.topMovie.length && !S.topTv.length;
-  if (loading)
-  {
-    return '<div class="loader-wrap"><div class="spinner"></div></div>';
-  }
-  const isMovie = S.searchType === 'movie';
-  const top = isMovie ? S.topMovie : S.topTv;
-
   return `
-    ${isMovie && S.trendingMovie.length ? `
     <div class="section">
       <div class="section-head">
-        <div class="section-title">${IC.flame} Trending diese Woche</div>
+        <div class="section-title">${icon} ${title}</div>
       </div>
-      <div class="media-grid">${S.trendingMovie.slice(0,10).map(renderMediaCard).join('')}</div>
-    </div>` : ''}
-    <div class="section">
-      <div class="section-head">
-        <div class="section-title">${IC.star} ${isMovie?'Beliebte Filme':'Beliebte Serien'}</div>
-      </div>
-      <div class="media-grid">${top.slice(0,20).map(renderMediaCard).join('')}</div>
-    </div>
-    ${manualHintHtml()}`;
+      <div class="media-grid">${items.map(renderMediaCard).join('')}</div>
+    </div>`;
 }
 
 function manualHintHtml()
@@ -165,8 +140,7 @@ export function bindSearch()
       {
         input.placeholder = searchPlaceholder();
       }
-      $('#search-results').innerHTML = renderSearchDefault();
-      bindSearchResults();
+      renderInto($('#search-results'), renderSearchDefault(), bindSearchResults);
     });
   });
   bindSearchResults();
@@ -199,20 +173,19 @@ async function doSearch()
   _searchLock = true;
   S.searchQ = q;
   const res = $('#search-results');
-  res.innerHTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+  renderInto(res, spinnerHtml());
   try
   {
     const data = await API.search.query(S.searchType, q, S.searchPage);
     S.searchResults = data.results || [];
     S.searchPagination = data.pagination || null;
-    res.innerHTML = renderSearchResults();
-    bindSearchResults();
+    renderInto(res, renderSearchResults(), bindSearchResults);
   }
   catch (e)
   {
-    res.innerHTML = renderEmptyState(
-      '⚠️', 'Suche fehlgeschlagen', esc(e.message)
-    );
+    renderInto(res, renderEmptyState(
+      '⚠️', 'Suche fehlgeschlagen', e.message
+    ));
   }
   finally
   {
@@ -220,41 +193,40 @@ async function doSearch()
   }
 }
 
+/* Quelle der Highlight-Sektion pro Typ (nur Typen mit TYPE_META.highlight) */
+const HIGHLIGHT_SOURCES = {
+  anime: () => API.search.seasonal(),
+  movie: () => API.search.trending('movie'),
+  game:  () => API.search.trending('game'),
+};
+
 export async function loadTopContent()
 {
   const area = S.area;
+  S.topError = null;
   try
   {
-    if (area === 'screen')
+    await Promise.all(AREAS[area].types.map(async type =>
     {
-      const [tm, tt, tr] = await Promise.all([
-        API.search.top('movie'), API.search.top('tv'), API.search.trending('movie')
+      const [top, highlight] = await Promise.all([
+        API.search.top(type),
+        HIGHLIGHT_SOURCES[type] ? HIGHLIGHT_SOURCES[type]() : null,
       ]);
-      S.topMovie = tm.results || [];
-      S.topTv = tt.results || [];
-      S.trendingMovie = tr.results || [];
-    }
-    else
-    {
-      const [ta, tm, sea] = await Promise.all([
-        API.search.top('anime'), API.search.top('manga'), API.search.seasonal()
-      ]);
-      S.topAnime = ta.results || [];
-      S.topManga = tm.results || [];
-      S.seasonal = sea.results || [];
-    }
-    if (S.view === 'search' && S.area === area)
-    {
-      const main = $('#main-content');
-      if (main && !S.searchQ)
+      S.top[type] = top.results || [];
+      if (highlight)
       {
-        main.innerHTML = renderSearch();
-        bindSearch();
+        S.highlight[type] = highlight.results || [];
       }
-    }
+    }));
   }
   catch (e)
   {
+    S.topError = e.message;
     console.warn('Top-Inhalte nicht geladen:', e.message);
+  }
+
+  if (S.view === 'search' && S.area === area && !S.searchQ)
+  {
+    renderMain(renderSearch(), bindSearch);
   }
 }

@@ -3,7 +3,7 @@
    Login-/Registrierungs-Ansicht
    ===================================================== */
 import { S } from '../state.js';
-import { $ } from '../dom.js';
+import { $, renderInto } from '../dom.js';
 import { API } from '../api.js';
 import { initApp } from '../main.js';
 
@@ -83,15 +83,13 @@ export function bindAuth()
   {
     $('#tab-login').classList.add('active');
     $('#tab-register').classList.remove('active');
-    $('#auth-form-wrap').innerHTML = loginFormHtml();
-    bindLoginForm();
+    renderInto($('#auth-form-wrap'), loginFormHtml(), bindLoginForm);
   });
   $('#tab-register').addEventListener('click', () =>
   {
     $('#tab-register').classList.add('active');
     $('#tab-login').classList.remove('active');
-    $('#auth-form-wrap').innerHTML = registerFormHtml();
-    bindRegisterForm();
+    renderInto($('#auth-form-wrap'), registerFormHtml(), bindRegisterForm);
   });
   bindLoginForm();
 }

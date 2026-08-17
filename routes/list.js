@@ -2,6 +2,8 @@ const express = require('express');
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 const { upsertMedia } = require('../utils/mediaStore');
+const { isMediaType } = require('../utils/mediaTypes');
+const { prepareOwnListRows } = require('../utils/listRows');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -13,10 +15,10 @@ router.get('/', (req, res) =>
   let query = `
     SELECT ul.id, ul.list_status, ul.current_episode, ul.current_chapter, ul.current_page,
            ul.current_season, ul.user_score, ul.notes, ul.started_at, ul.completed_at,
-           ul.updated_at, ul.owned, ul.owned_volumes,
+           ul.updated_at, ul.owned, ul.owned_volumes, ul.play_minutes,
            me.title, me.title_english, me.image_url, me.synopsis,
            me.media_status, me.episodes, me.chapters, me.volumes, me.seasons_data,
-           me.api_score, me.genres, me.year, me.season, me.type,
+           me.api_score, me.genres, me.year, me.season, me.type, me.avg_play_minutes,
            me.mal_id, me.is_manual, me.source, me.id as media_id
     FROM user_list ul
     JOIN media_entries me ON ul.media_id = me.id
@@ -36,65 +38,25 @@ router.get('/', (req, res) =>
   query += ' ORDER BY ul.updated_at DESC';
 
   const entries = db.prepare(query).all(...params);
-
-  // Collection-Zugehörigkeiten in einem Rutsch anhängen (für Chips & Filter im Frontend)
-  const memberships = db.prepare(`
-    SELECT ci.list_entry_id, c.id, c.name, c.emoji
-    FROM collection_items ci
-    JOIN collections c ON c.id = ci.collection_id
-    WHERE c.user_id = ?
-  `).all(req.userId);
-  const byEntry = new Map();
-  memberships.forEach(m =>
-  {
-    if (!byEntry.has(m.list_entry_id))
-    {
-      byEntry.set(m.list_entry_id, []);
-    }
-    byEntry.get(m.list_entry_id).push({ id: m.id, name: m.name, emoji: m.emoji });
-  });
-
-  entries.forEach(e =>
-  {
-    e.collections = byEntry.get(e.id) || [];
-    if (e.genres)
-    {
-      try
-      {
-        e.genres = JSON.parse(e.genres);
-      }
-      catch
-      {
-        e.genres = [];
-      }
-    }
-    if (e.seasons_data)
-    {
-      try
-      {
-        e.seasons_data = JSON.parse(e.seasons_data);
-      }
-      catch
-      {
-        e.seasons_data = null;
-      }
-    }
-  });
-  res.json(entries);
+  res.json(prepareOwnListRows(entries, req.userId));
 });
 
-// Get stats — pro Medientyp gruppiert (statische Konfiguration, keine User-Eingaben im SQL)
+/* Statistik-Konfiguration je Medientyp. sumFrom verweist auf einen Spalten-Alias
+   der Query unten — Typen ohne Zähler (movie, game) lassen ihn weg. */
+const WATCH_STATUSES = ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'];
+const READ_STATUSES = ['reading', 'completed', 'on_hold', 'dropped', 'plan_to_read'];
+
 const STATS_CONFIG = {
-  anime: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
-    sumCol: 'current_episode', sumKey: 'total_episodes' },
-  manga: { statuses: ['reading', 'completed', 'on_hold', 'dropped', 'plan_to_read'],
-    sumCol: 'current_chapter', sumKey: 'total_chapters' },
-  movie: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
-    sumCol: null, sumKey: null },
-  tv: { statuses: ['watching', 'completed', 'on_hold', 'dropped', 'plan_to_watch'],
-    sumCol: 'current_episode', sumKey: 'total_episodes' },
+  anime: { statuses: WATCH_STATUSES, sumFrom: 'episodes', sumKey: 'total_episodes' },
+  manga: { statuses: READ_STATUSES, sumFrom: 'chapters', sumKey: 'total_chapters' },
+  movie: { statuses: WATCH_STATUSES },
+  tv: { statuses: WATCH_STATUSES, sumFrom: 'episodes', sumKey: 'total_episodes' },
+  game: { statuses: WATCH_STATUSES },
 };
 
+/* Eine Query für alle Typen und Stati; die Summen werden pro Zeile mitgeliefert und
+   erst hier zugeordnet (vorher: fünf Queries mit interpoliertem Spaltennamen, der
+   bei movie/game sinnlos current_episode aufsummiert hat). */
 router.get('/stats', (req, res) =>
 {
   const stats = {};
@@ -109,28 +71,36 @@ router.get('/stats', (req, res) =>
     {
       s[cfg.sumKey] = 0;
     }
-
-    const rows = db.prepare(`
-      SELECT ul.list_status, COUNT(*) as cnt,
-             COALESCE(SUM(ul.${cfg.sumCol || 'current_episode'}), 0) as sum_val
-      FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
-      WHERE ul.user_id = ? AND me.type = ? GROUP BY ul.list_status
-    `).all(req.userId, type);
-
-    rows.forEach(r =>
-    {
-      if (r.list_status in s)
-      {
-        s[r.list_status] = r.cnt;
-      }
-      s.total += r.cnt;
-      if (cfg.sumKey)
-      {
-        s[cfg.sumKey] += r.sum_val;
-      }
-    });
     stats[type] = s;
   }
+
+  const rows = db.prepare(`
+    SELECT me.type, ul.list_status, COUNT(*) AS cnt,
+           COALESCE(SUM(ul.current_episode), 0) AS episodes,
+           COALESCE(SUM(ul.current_chapter), 0) AS chapters
+    FROM user_list ul JOIN media_entries me ON ul.media_id = me.id
+    WHERE ul.user_id = ?
+    GROUP BY me.type, ul.list_status
+  `).all(req.userId);
+
+  rows.forEach(r =>
+  {
+    const cfg = STATS_CONFIG[r.type];
+    const s = stats[r.type];
+    if (!s)
+    {
+      return;
+    }
+    if (r.list_status in s)
+    {
+      s[r.list_status] = r.cnt;
+    }
+    s.total += r.cnt;
+    if (cfg.sumKey)
+    {
+      s[cfg.sumKey] += r[cfg.sumFrom];
+    }
+  });
   res.json(stats);
 });
 
@@ -139,7 +109,7 @@ router.get('/check', (req, res) =>
 {
   const malId = parseInt(req.query.malId);
   const type = req.query.type;
-  if (!Number.isInteger(malId) || !['anime', 'manga', 'movie', 'tv'].includes(type))
+  if (!Number.isInteger(malId) || !isMediaType(type))
   {
     return res.json(null);
   }
@@ -166,9 +136,9 @@ router.post('/', (req, res) =>
   const {
     mediaData, listStatus, currentEpisode, currentChapter,
     currentPage, currentSeason, userScore, notes, startedAt, completedAt,
-    owned, ownedVolumes
+    owned, ownedVolumes, playMinutes
   } = req.body;
-  if (!mediaData || !['anime', 'manga', 'movie', 'tv'].includes(mediaData.type))
+  if (!mediaData || !isMediaType(mediaData.type))
   {
     return res.status(400).json({ error: 'Mediendaten erforderlich' });
   }
@@ -181,8 +151,9 @@ router.post('/', (req, res) =>
 
       db.prepare(`
         INSERT INTO user_list (user_id, media_id, list_status, current_episode, current_chapter,
-          current_page, current_season, user_score, notes, started_at, completed_at, owned, owned_volumes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          current_page, current_season, user_score, notes, started_at, completed_at, owned, owned_volumes,
+          play_minutes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id, media_id) DO UPDATE SET
           list_status = excluded.list_status,
           current_episode = excluded.current_episode,
@@ -195,12 +166,13 @@ router.post('/', (req, res) =>
           completed_at = excluded.completed_at,
           owned = excluded.owned,
           owned_volumes = excluded.owned_volumes,
+          play_minutes = excluded.play_minutes,
           updated_at = CURRENT_TIMESTAMP
       `).run(
         req.userId, mid, listStatus || (mediaData.type === 'manga' ? 'plan_to_read' : 'plan_to_watch'),
         currentEpisode || 0, currentChapter || 0, currentPage || 0, currentSeason || null,
         userScore || null, notes || null, startedAt || null, completedAt || null,
-        owned ? 1 : 0, ownedVolumes || 0
+        owned ? 1 : 0, ownedVolumes || 0, playMinutes || null
       );
 
       const ul = db.prepare('SELECT id FROM user_list WHERE user_id = ? AND media_id = ?')
@@ -229,7 +201,7 @@ router.put('/:id', (req, res) =>
   const {
     listStatus, currentEpisode, currentChapter,
     currentPage, currentSeason, userScore, notes, startedAt, completedAt,
-    owned, ownedVolumes
+    owned, ownedVolumes, playMinutes
   } = req.body;
   try
   {
@@ -246,6 +218,7 @@ router.put('/:id', (req, res) =>
         completed_at = COALESCE(?, completed_at),
         owned = COALESCE(?, owned),
         owned_volumes = COALESCE(?, owned_volumes),
+        play_minutes = COALESCE(?, play_minutes),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND user_id = ?
     `).run(listStatus, currentEpisode, currentChapter, currentPage,
@@ -254,6 +227,7 @@ router.put('/:id', (req, res) =>
       notes, startedAt, completedAt,
       owned !== undefined ? (owned ? 1 : 0) : null,
       ownedVolumes !== undefined ? ownedVolumes : null,
+      playMinutes !== undefined ? playMinutes : null,
       id, req.userId);
 
     if (result.changes === 0)

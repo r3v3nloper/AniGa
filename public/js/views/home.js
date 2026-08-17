@@ -4,50 +4,60 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, coverImg, timeAgo, toast, renderEmptyState } from '../dom.js';
+import { $, $$, esc, coverImg, timeAgo, toast, renderEmptyState, renderInto,
+  bindActivate } from '../dom.js';
 import { API } from '../api.js';
 import {
-  STATUS_LABELS, STATUS_CSS, AREAS, TYPE_META, getUserList,
+  statusLabel, STATUS_CSS, AREAS, TYPE_META, getUserList, mediaSubtitle,
   starsHtml, progressText, renderMediaCardFromEntry, bindMediaCards, openEntryTrackModal
 } from '../media.js';
 import { showTrackModal } from '../modals/track.js';
 import { navigate } from '../router.js';
 
-/* Bereichsspezifische Dashboard-Konfiguration */
-function areaConfig()
-{
-  if (S.area === 'screen')
-  {
-    return {
-      statCards: [
-        { num: () => S.stats?.movie?.total || 0, label: 'Filme gesamt' },
-        { num: () => S.stats?.movie?.completed || 0, label: 'Filme gesehen' },
-        { num: () => S.stats?.tv?.total || 0, label: 'Serien gesamt' },
-        { num: () => S.stats?.tv?.completed || 0, label: 'Serien abgeschlossen' },
-      ],
-      sections: [
-        { type: 'tv', status: 'watching', icon: IC.monitor, title: 'Serien am Schauen' },
-        { type: 'movie', status: 'plan_to_watch', icon: IC.film, title: 'Film-Watchlist' },
-      ],
-    };
-  }
-  return {
+/* Dashboard-Konfiguration pro Bereich: Kennzahlen-Kacheln + „Weiter dran"-Sektionen.
+   stat: [Typ, Feld aus /list/stats, Beschriftung] */
+const AREA_DASHBOARDS = {
+  otaku: {
     statCards: [
-      { num: () => S.stats?.anime?.total || 0, label: 'Anime gesamt' },
-      { num: () => S.stats?.anime?.total_episodes || 0, label: 'Episoden gesehen' },
-      { num: () => S.stats?.manga?.total || 0, label: 'Manga gesamt' },
-      { num: () => S.stats?.manga?.total_chapters || 0, label: 'Kapitel gelesen' },
+      ['anime', 'total', 'Anime gesamt'],
+      ['anime', 'total_episodes', 'Episoden gesehen'],
+      ['manga', 'total', 'Manga gesamt'],
+      ['manga', 'total_chapters', 'Kapitel gelesen'],
     ],
     sections: [
-      { type: 'anime', status: 'watching', icon: IC.tv, title: 'Aktuell am Schauen' },
-      { type: 'manga', status: 'reading', icon: IC.book, title: 'Aktuell am Lesen' },
+      { type: 'anime', status: 'watching', icon: 'tv', title: 'Aktuell am Schauen' },
+      { type: 'manga', status: 'reading', icon: 'book', title: 'Aktuell am Lesen' },
     ],
-  };
-}
+  },
+  screen: {
+    statCards: [
+      ['movie', 'total', 'Filme gesamt'],
+      ['movie', 'completed', 'Filme gesehen'],
+      ['tv', 'total', 'Serien gesamt'],
+      ['tv', 'completed', 'Serien abgeschlossen'],
+    ],
+    sections: [
+      { type: 'tv', status: 'watching', icon: 'monitor', title: 'Serien am Schauen' },
+      { type: 'movie', status: 'plan_to_watch', icon: 'film', title: 'Film-Watchlist' },
+    ],
+  },
+  games: {
+    statCards: [
+      ['game', 'total', 'Spiele gesamt'],
+      ['game', 'watching', 'Am Spielen'],
+      ['game', 'completed', 'Durchgespielt'],
+      ['game', 'plan_to_watch', 'Will spielen'],
+    ],
+    sections: [
+      { type: 'game', status: 'watching', icon: 'gamepad', title: 'Aktuell am Spielen' },
+      { type: 'game', status: 'plan_to_watch', icon: 'star', title: 'Spiele-Wunschliste' },
+    ],
+  },
+};
 
 export function renderHome()
 {
-  const cfg = areaConfig();
+  const cfg = AREA_DASHBOARDS[S.area];
   const types = AREAS[S.area].types;
   const recent = types.flatMap(t => getUserList(t))
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 8);
@@ -65,10 +75,10 @@ export function renderHome()
     </div>
 
     <div class="stats-grid">
-      ${cfg.statCards.map(c => `
+      ${cfg.statCards.map(([type, field, label]) => `
         <div class="stat-card">
-          <div class="stat-num">${c.num()}</div>
-          <div class="stat-label">${c.label}</div>
+          <div class="stat-num">${S.stats?.[type]?.[field] || 0}</div>
+          <div class="stat-label">${label}</div>
         </div>`).join('')}
     </div>
 
@@ -82,7 +92,7 @@ export function renderHome()
       return `
       <div class="section">
         <div class="section-head">
-          <div class="section-title">${sec.icon} ${sec.title}</div>
+          <div class="section-title">${IC[sec.icon]} ${sec.title}</div>
           <button class="btn btn-ghost btn-sm" data-nav="${sec.type}">Alle ansehen ${IC.chevR}</button>
         </div>
         <div class="media-grid">${items.map(e=>renderMediaCardFromEntry(e)).join('')}</div>
@@ -117,7 +127,7 @@ export function renderHome()
               <div class="recent-info">
                 <div class="recent-title">${esc(e.title)}</div>
                 <div class="recent-meta">
-                  <span class="status-badge ${STATUS_CSS[e.list_status]}">${STATUS_LABELS[e.list_status]||''}</span>
+                  <span class="status-badge ${STATUS_CSS[e.list_status]}">${statusLabel(e.list_status, e.type)}</span>
                   &nbsp;·&nbsp;${progressText(e)}
                   ${e.user_score != null?` &nbsp;·&nbsp;${starsHtml(e.user_score,true)}`:''}
                 </div>
@@ -166,14 +176,8 @@ function renderRecommendCard(m)
         <div class="media-card-overlay"><div class="media-card-title">${esc(m.title)}</div></div>
       </div>
       <div class="media-card-footer">
-        <span class="media-card-type">${
-          m.type==='manga'
-            ? (m.chapters ? `${m.chapters} Kap.` : 'Manga')
-            : m.type==='movie'
-              ? (m.year || 'Film')
-              : (m.episodes ? `${m.episodes} Ep.` : TYPE_META[m.type].singular)
-        }</span>
-        <button class="btn-add-rec" title="Hinzufügen">${IC.plus}</button>
+        <span class="media-card-type">${mediaSubtitle(m)}</span>
+        <button class="btn-add-rec" title="Hinzufügen" tabindex="-1" aria-hidden="true">${IC.plus}</button>
       </div>
     </div>`;
 }
@@ -183,7 +187,7 @@ export function bindHome()
   $$('[data-nav]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.nav)));
   $$('.recent-item').forEach(el =>
   {
-    el.addEventListener('click', () =>
+    bindActivate(el, () =>
     {
       const entry = getUserList(el.dataset.type).find(e=>e.id==el.dataset.entryId);
       if (entry)
@@ -208,7 +212,7 @@ export function bindHome()
       S.recommendations = null;
       S.recommendPage = 1;
       $$('[data-rectype]').forEach(x => x.classList.toggle('active', x === b));
-      $('#rec-content').innerHTML = renderRecommendationContent();
+      renderInto($('#rec-content'), renderRecommendationContent());
       loadRecommendations();
     });
   });
@@ -216,7 +220,7 @@ export function bindHome()
   {
     S.recommendations = null;
     S.recommendPage = (S.recommendPage % 5) + 1;
-    $('#rec-content').innerHTML = renderRecommendationContent();
+    renderInto($('#rec-content'), renderRecommendationContent());
     loadRecommendations();
   });
 
@@ -227,7 +231,7 @@ function bindRecCards()
 {
   $$('.rec-card').forEach(card =>
   {
-    card.addEventListener('click', async () =>
+    bindActivate(card, async () =>
     {
       const malId = +card.dataset.malId;
       const type  = card.dataset.type;
@@ -258,11 +262,9 @@ export async function loadRecommendations()
     {
       return;
     }
-    const content = $('#rec-content');
-    if (content && S.view === 'home')
+    if (S.view === 'home')
     {
-      content.innerHTML = renderRecommendationContent();
-      bindRecCards();
+      renderInto($('#rec-content'), renderRecommendationContent(), bindRecCards);
     }
   }
   catch (e)
@@ -271,12 +273,11 @@ export async function loadRecommendations()
     {
       return;
     }
-    const content = $('#rec-content');
-    if (content && S.view === 'home')
+    if (S.view === 'home')
     {
-      content.innerHTML = renderEmptyState(
-        '⚠️', '', esc(e.message), '', 'padding:20px 0'
-      );
+      renderInto($('#rec-content'), renderEmptyState(
+        '⚠️', '', e.message, '', 'padding:20px 0'
+      ));
     }
   }
 }

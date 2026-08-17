@@ -1,28 +1,14 @@
-const CACHE = 'aniga-v13';
+const CACHE = 'aniga-v16';
+
+/* Nur das Grundgerüst wird beim Install vorgeladen. CSS-Partials und ES-Module holt
+   der Stale-While-Revalidate-Zweig unten beim ersten Seitenaufruf automatisch in den
+   Cache — dadurch muss beim Anlegen neuer Dateien hier nichts gepflegt werden.
+   Wichtig: addAll() schlägt komplett fehl, sobald EIN Eintrag 404 liefert — deshalb
+   stehen hier nur Pfade, die es garantiert gibt. */
 const STATIC = [
   '/',
   '/index.html',
-  '/css/style.css',
   '/js/main.js',
-  '/js/api.js',
-  '/js/icons.js',
-  '/js/state.js',
-  '/js/dom.js',
-  '/js/modal.js',
-  '/js/media.js',
-  '/js/shell.js',
-  '/js/router.js',
-  '/js/views/auth.js',
-  '/js/views/home.js',
-  '/js/views/search.js',
-  '/js/views/lists.js',
-  '/js/views/profile.js',
-  '/js/views/admin.js',
-  '/js/views/users.js',
-  '/js/views/compare.js',
-  '/js/views/collections.js',
-  '/js/modals/track.js',
-  '/js/modals/manual.js',
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
 ];

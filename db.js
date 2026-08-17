@@ -2,10 +2,36 @@ const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
-const db = new Database(path.join(process.env.DATA_DIR || __dirname, 'aniga.db'));
+const dbPath = path.join(process.env.DATA_DIR || __dirname, 'aniga.db');
+const db = new Database(dbPath);
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+/* Früh und mit klarer Meldung scheitern statt später bei jedem Speichern:
+   Gehört die Datenbank einem anderen User (typisch bei einem Bind-Mount oder einem
+   Volume, das noch aus der Zeit als Root-Container stammt), öffnet SQLite die Datei
+   trotzdem. Je nach Zustand schlägt dann erst das WAL-Pragma fehl — oder, wenn die DB
+   bereits im WAL-Modus ist, sogar erst der erste INSERT (`SQLITE_READONLY`). Lesen
+   funktioniert die ganze Zeit, der Server wirkt also gesund, bis jemand speichert.
+   Deshalb hier ein expliziter Schreibtest über beide Stolperstellen. */
+function initAndAssertWritable()
+{
+  try
+  {
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    db.exec('CREATE TABLE IF NOT EXISTS _write_check (id INTEGER); DROP TABLE _write_check;');
+  }
+  catch (err)
+  {
+    console.error(`FATAL: Datenbank ist nicht beschreibbar — ${dbPath}`);
+    console.error(`       ${err.message}`);
+    console.error('       Im Container läuft AniGa als User "node" (UID 1000).');
+    console.error('       Bind-Mount:   sudo chown -R 1000:1000 <host-verzeichnis>');
+    console.error('       Named Volume: docker run --rm -v <volume>:/data alpine chown -R 1000:1000 /data');
+    process.exit(1);
+  }
+}
+
+initAndAssertWritable();
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -119,6 +145,9 @@ addColumnIfMissing('user_list', 'owned INTEGER DEFAULT 0');
 addColumnIfMissing('user_list', 'owned_volumes INTEGER DEFAULT 0');
 addColumnIfMissing('user_list', 'current_season INTEGER');
 addColumnIfMissing('media_entries', 'seasons_data TEXT');
+// Spielzeit in Minuten: eigene (user_list) und die durchschnittliche des Anbieters (media_entries)
+addColumnIfMissing('user_list', 'play_minutes INTEGER');
+addColumnIfMissing('media_entries', 'avg_play_minutes INTEGER');
 
 // Seed admin user if not exists
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@aniga.local';

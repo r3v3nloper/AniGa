@@ -4,4 +4,11 @@ node_modules
 *.db-shm
 .env
 .git
+.gitignore
+.github
 .claude
+tests
+*.md
+update.sh
+docker-compose.yml
+Dockerfile

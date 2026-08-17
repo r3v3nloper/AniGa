@@ -4,9 +4,10 @@
    ===================================================== */
 import { IC } from '../icons.js';
 import { S } from '../state.js';
-import { $, $$, esc, toast, renderEmptyState } from '../dom.js';
-import { openModal, closeModal } from '../modal.js';
+import { $, $$, esc, toast, renderEmptyState, renderMain } from '../dom.js';
+import { openModal, closeModal, confirmModal } from '../modal.js';
 import { API } from '../api.js';
+import { MEDIA_TYPES, TYPE_META } from '../media.js';
 
 export function renderAdminView()
 {
@@ -29,8 +30,7 @@ export function renderAdminView()
             <tr>
               <th>Benutzer</th>
               <th>E-Mail</th>
-              <th>Anime</th>
-              <th>Manga</th>
+              ${MEDIA_TYPES.map(t => `<th title="${TYPE_META[t].plural}">${TYPE_META[t].short}</th>`).join('')}
               <th>Registriert</th>
               <th>Aktionen</th>
             </tr>
@@ -48,8 +48,7 @@ export function renderAdminView()
                   </div>
                 </td>
                 <td class="admin-email">${esc(u.email)}</td>
-                <td class="admin-count">${u.animeCount}</td>
-                <td class="admin-count">${u.mangaCount}</td>
+                ${MEDIA_TYPES.map(t => `<td class="admin-count">${u[`${t}Count`] || 0}</td>`).join('')}
                 <td class="admin-date">${new Date(u.created_at).toLocaleDateString('de-DE')}</td>
                 <td>
                   <div class="admin-actions">
@@ -166,9 +165,13 @@ function showAdminPasswordModal(uid, username)
 
 async function confirmAdminDelete(uid, username)
 {
-  const msg = `Benutzer „${username}" wirklich löschen?\n\n` +
-    `Dadurch werden auch alle Listen-Einträge und Follows unwiderruflich entfernt.`;
-  if (!confirm(msg))
+  const ok = await confirmModal({
+    title: 'Benutzer löschen',
+    message: `Benutzer „${username}" wirklich löschen?\n\n`
+      + 'Dadurch werden auch alle Listen-Einträge und Follows unwiderruflich entfernt.',
+    confirmLabel: 'Löschen', danger: true,
+  });
+  if (!ok)
   {
     return;
   }
@@ -177,12 +180,7 @@ async function confirmAdminDelete(uid, username)
     await API.admin.deleteUser(uid);
     S.adminUsers = S.adminUsers.filter(u => u.id !== uid);
     toast(`Benutzer „${username}" gelöscht`, 'success');
-    const main = $('#main-content');
-    if (main)
-    {
-      main.innerHTML = renderAdminView();
-      bindAdminView();
-    }
+    renderMain(renderAdminView(), bindAdminView);
   }
   catch (e)
   {

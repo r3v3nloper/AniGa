@@ -112,9 +112,7 @@ export const API = (() =>
         req('GET', `/search/${type}?q=${encodeURIComponent(q)}&page=${page || 1}`),
       getDetail: (type, id) => req('GET', `/search/${type}/${id}`),
       top: (type) => req('GET', `/search/top/${type}`),
-      getAnime: (id) => req('GET', `/search/anime/${id}`),
       getStreaming: (id) => req('GET', `/search/anime/${id}/streaming`),
-      getManga: (id) => req('GET', `/search/manga/${id}`),
       seasonal: () => req('GET', '/search/seasonal'),
       trending: (type) => req('GET', `/search/trending?type=${type || 'movie'}`)
     }

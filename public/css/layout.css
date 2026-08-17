@@ -1,0 +1,99 @@
+/* =====================================================
+   AniGa – layout.css
+   Seitenkopf, Kennzahlen, Sektionen, Raster
+   Teil von style.css — Reihenfolge der <link>-Tags in index.html
+   entspricht der Kaskade und darf nicht vertauscht werden.
+   ===================================================== */
+/* ===== PAGE HEADER ===== */
+.page-header
+{
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+}
+.page-title-row
+{
+  display: flex; align-items: center; gap: 12px;
+}
+.page-icon
+{
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--accent-glow);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.page-icon svg
+{
+  width: 22px; height: 22px; color: var(--accent);
+}
+.page-title
+{
+  font-size: 1.45rem; font-weight: 700;
+}
+.page-sub
+{
+  color: var(--text2); font-size: .83rem; margin-top: 2px;
+}
+
+/* ===== STATS GRID ===== */
+.stats-grid
+{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.stat-card
+{
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 16px; text-align: center;
+  transition: border-color .2s, transform .2s;
+}
+.stat-card:hover
+{
+  border-color: var(--accent); transform: translateY(-2px);
+}
+.stat-num
+{
+  font-size: 2rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+.stat-label
+{
+  font-size: .75rem; color: var(--text2); margin-top: 5px; font-weight: 500;
+}
+
+/* ===== SECTION ===== */
+.section
+{
+  margin-bottom: 32px;
+}
+.section-head
+{
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title
+{
+  display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700;
+}
+.section-title svg
+{
+  width: 18px; height: 18px; color: var(--accent);
+}
+
+/* ===== MEDIA GRID ===== */
+.media-grid
+{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 14px;
+}
+@media (max-width: 768px)
+{
+  .media-grid
+  {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
+  }
+}

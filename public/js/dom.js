@@ -87,14 +87,72 @@ document.addEventListener('error', e =>
   img.replaceWith(fallback);
 }, true);
 
+/* Rendert Markup in ein Element und hängt die zugehörigen Listener direkt an.
+   Render und Bind gehören immer zusammen — als getrenntes Anweisungspaar liefen
+   sie an 39 Stellen Gefahr, auseinanderzulaufen. */
+export function renderInto(el, html, bind)
+{
+  if (!el)
+  {
+    return;
+  }
+  el.innerHTML = html;
+  if (bind)
+  {
+    bind();
+  }
+}
+
+/* Kurzform für den Haupt-Content-Bereich */
+export function renderMain(html, bind)
+{
+  renderInto($('#main-content'), html, bind);
+}
+
+const SPINNER_HTML = '<div class="loader-wrap"><div class="spinner"></div></div>';
+
+export function showSpinner(el = $('#main-content'))
+{
+  renderInto(el, SPINNER_HTML);
+}
+
+export function spinnerHtml()
+{
+  return SPINNER_HTML;
+}
+
+/* emoji/title/msg werden hier escapt — Aufrufer dürfen (und sollen) Fehlermeldungen
+   und Nutzernamen roh übergeben. Nur `btn` ist bewusst rohes HTML. */
 export function renderEmptyState(emoji, title, msg, btn = '', wrapStyle = '')
 {
   return `<div class="empty-state"${wrapStyle ? ` style="${wrapStyle}"` : ''}>
-    <div class="empty-state-emoji">${emoji}</div>
-    ${title ? `<h3>${title}</h3>` : ''}
-    ${msg ? `<p>${msg}</p>` : ''}
+    <div class="empty-state-emoji">${esc(emoji)}</div>
+    ${title ? `<h3>${esc(title)}</h3>` : ''}
+    ${msg ? `<p>${esc(msg)}</p>` : ''}
     ${btn}
   </div>`;
+}
+
+/* Macht ein nicht-interaktives Element (Karte, Listenzeile) wie einen Button bedienbar:
+   per Maus, per Tab-Fokus und per Enter/Leertaste. Ohne das sind die Karten für
+   Tastatur- und Screenreader-Nutzer unerreichbar. */
+export function bindActivate(el, handler)
+{
+  if (!el)
+  {
+    return;
+  }
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.addEventListener('click', handler);
+  el.addEventListener('keydown', e =>
+  {
+    if (e.key === 'Enter' || e.key === ' ')
+    {
+      e.preventDefault();
+      handler(e);
+    }
+  });
 }
 
 export function bindStatusTabs(selector, dataKey, onChange)

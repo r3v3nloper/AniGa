@@ -1,7 +1,7 @@
 {
-  "name": "AniGa – Anime & Manga Tracker",
+  "name": "AniGa – Anime, Manga, Filme, Serien & Spiele Tracker",
   "short_name": "AniGa",
-  "description": "Tracke deine Animes und Mangas",
+  "description": "Tracke deine Anime, Manga, Filme, Serien und Spiele",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d0d1a",
@@ -21,6 +21,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["entertainment", "lifestyle"],
+  "categories": ["entertainment", "lifestyle", "games"],
   "lang": "de"
 }
