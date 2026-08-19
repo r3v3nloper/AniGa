@@ -3,10 +3,10 @@
    View-Navigation und zentrales Daten-Laden pro View
    ===================================================== */
 import { S } from './state.js';
-import { $, esc, renderEmptyState, renderInto, showSpinner } from './dom.js';
+import { $, renderEmptyState, renderInto, showSpinner } from './dom.js';
 import { API } from './api.js';
 import { AREAS, TYPE_META, setUserList } from './media.js';
-import { updateNav, closeSidebar } from './shell.js';
+import { updateNav } from './shell.js';
 import { renderHome, bindHome, loadRecommendations } from './views/home.js';
 import { renderSearch, bindSearch, loadTopContent } from './views/search.js';
 import { renderList, bindList } from './views/lists.js';
@@ -19,7 +19,6 @@ export async function navigate(view)
 {
   S.view = view;
   updateNav();
-  closeSidebar();
   const main = $('#main-content');
   if (!main)
   {

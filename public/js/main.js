@@ -6,7 +6,7 @@ import { IC } from './icons.js';
 import { S } from './state.js';
 import { $, toast } from './dom.js';
 import { API } from './api.js';
-import { renderShell, closeSidebar, openMoreSheet } from './shell.js';
+import { renderShell, openMoreSheet } from './shell.js';
 import { AREAS } from './media.js';
 import { navigate } from './router.js';
 import { bindAuth } from './views/auth.js';
@@ -67,17 +67,6 @@ function bindGlobalDelegation()
     if (e.target.closest('#btn-more-nav'))
     {
       openMoreSheet();
-      return;
-    }
-    if (e.target.closest('#btn-menu'))
-    {
-      $('#sidebar')?.classList.toggle('open');
-      $('#sidebar-overlay')?.classList.toggle('open');
-      return;
-    }
-    if (e.target.id === 'sidebar-overlay')
-    {
-      closeSidebar();
       return;
     }
   });

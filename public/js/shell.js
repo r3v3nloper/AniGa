@@ -68,15 +68,6 @@ export function renderShell()
         <button class="btn-logout" id="btn-logout" title="Abmelden">${IC.logout}</button>
       </div>
     </aside>
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-    <header class="mobile-header">
-      <button class="btn-menu" id="btn-menu">${IC.menu}</button>
-      <div class="mobile-logo">
-        <img src="/icons/logo.jpeg" class="logo-img logo-img-sm" alt="AniGa Logo"/>
-        <span class="logo-text">AniGa</span>
-      </div>
-      <div style="width:34px"></div>
-    </header>
     <main class="main-content" id="main-content"></main>
     <nav class="bottom-nav">
       <div class="bottom-nav-inner">
@@ -129,10 +120,4 @@ export function openMoreSheet()
 export function closeMoreSheet()
 {
   document.getElementById('more-sheet-overlay')?.remove();
-}
-
-export function closeSidebar()
-{
-  $('#sidebar')?.classList.remove('open');
-  $('#sidebar-overlay')?.classList.remove('open');
 }

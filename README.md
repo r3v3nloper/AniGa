@@ -298,7 +298,7 @@ aniga/
 ├── public/
 │   ├── css/                   # Dark Theme in Partials — Reihenfolge = Kaskade!
 │   │   ├── base.css           # Variablen, Reset, Grundlayout
-│   │   ├── shell.css          # Sidebar, Mobile-Header, Bottom-Nav, Breakpoints
+│   │   ├── shell.css          # Sidebar, Bottom-Nav, Breakpoints
 │   │   ├── forms.css          # Auth-Ansicht, Formularfelder, Buttons
 │   │   ├── layout.css         # Seitenkopf, Kennzahlen, Sektionen, Raster
 │   │   ├── cards.css          # Medien-Karten, Collections, Bereichs-Switcher
@@ -316,7 +316,7 @@ aniga/
 │   │   ├── dom.js             # DOM-Helfer, esc(), coverImg(), Toast
 │   │   ├── modal.js           # Generisches Modal-Overlay
 │   │   ├── media.js           # Medien-Helfer, Karten-Komponenten (re-exportiert types.js)
-│   │   ├── shell.js           # Sidebar, Mobile-Header, Bottom-Nav
+│   │   ├── shell.js           # Sidebar, Bottom-Nav, „Mehr"-Sheet
 │   │   ├── router.js          # View-Navigation + Daten-Laden pro View
 │   │   ├── views/             # Eine Datei pro Ansicht
 │   │   │   ├── auth.js        # Login/Registrierung
@@ -629,6 +629,7 @@ CMD ["node", "server.js"]
 | 2.1 | Mobile UX: Bottom-Navigation auf 5 Kern-Items reduziert (Start, Suche, Anime, Manga, Mehr) — „Mehr" öffnet ein Bottom-Sheet mit Collections, Nutzer, Profil und Admin; Collection-Karten im Media-Card-Design mit adaptivem Cover-Mosaik (keine leeren Kacheln) |
 | 2.2 | TMDB-Backend für Filme & Serien: `utils/tmdb.js` (deutsche Texte, beide Token-Formate, Genre-/Status-Mapping auf vorhandene Badges), Search-/Detail-/Top-/Trending-Endpoints, `user_list` akzeptiert `movie`/`tv`, Serien speichern Episoden + Staffeln; 5 neue Tests (43 gesamt). Frontend-Bereich folgt in Etappe 3 |
 | 2.3 | Bereichs-Switcher „🌸 Anime & Manga \| 🎬 Filme & Serien" (Sidebar + Mehr-Sheet, persistiert): Navigation, Home-Dashboard, Suche (Trending + Beliebte), Empfehlungen (TMDB-Discover nach Genres), Listen-Views und Track-Modal sind bereichs-/typabhängig — Filme ohne Fortschritts-Inputs, Serien mit Episoden + Staffel-Chip; Nutzerlisten & Vergleich mit 4 Typ-Tabs; manuelle Einträge für Filme/Serien; Stats-Endpoint liefert alle 4 Typen; Modal-Speichern refresht Media-Metadaten (POST-Upsert statt PUT bei API-Einträgen) |
+| 2.5 | Aufräumen: Der mobile Header samt Burger-Menü war seit Einführung der Bottom-Navigation per CSS auf allen Breiten `display: none` — also toter Code. Header, Sidebar-Overlay, `closeSidebar()`, die zugehörigen Klick-Handler, das Burger-Icon und die CSS-Regeln (`.mobile-header`, `.btn-menu`, `.mobile-logo`, `.logo-img-sm`, `.sidebar.open`, `.sidebar-overlay`, `--header-h`) sind entfernt — 82 Zeilen weniger, mobile Navigation läuft unverändert über Bottom-Nav und „Mehr"-Sheet |
 | 2.5 | Spiele-Suche schärfer: nur noch eigenständig spielbare Titel (IGDB `game_type`) — vorher standen bei „breath of the wild" ein Mod und ein Bundle vor dem eigentlichen Spiel. Empfehlungen verlangen jetzt mindestens 300 Wertungen, dadurch Klassiker statt Nischentitel mit 30 Stimmen |
 | 2.5 | **Spielzeit für Spiele**: eigene Spielzeit im Track-Modal in Stunden erfassen (gespeichert in Minuten als `user_list.play_minutes`), Anzeige auf Karten und in der Listenansicht („Spiel · 2017 · 42,5 Std"). Dazu die **Durchschnittsdauer bis zum Durchspielen** aus IGDBs `game_time_to_beats`-Endpunkt (`media_entries.avg_play_minutes`) als Chip im Modal plus Hinweis am Eingabefeld. Gesteuert über `TYPE_META.playtime` — andere Medientypen bleiben unberührt |
 | 2.5 | Bugfix Deployment: Der Server startete auf einer **nicht beschreibbaren Datenbank** klaglos durch (Docker-Volume gehörte noch root aus der Zeit vor `USER node`) und scheiterte erst beim Speichern mit `SQLITE_READONLY` — `addColumnIfMissing()` hatte den Fehler per `catch {}` verschluckt. `db.js` prüft die Schreibbarkeit jetzt explizit beim Start und bricht mit klarer Anleitung ab. README-Korrektur: auch ein **Named Volume** braucht den einmaligen `chown`, wenn es Daten aus der Root-Zeit enthält — nur frisch angelegte, leere Volumes übernehmen die Rechte aus dem Image |
