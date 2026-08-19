@@ -24,6 +24,3 @@ nul
 
 # Claude Code (lokale IDE-Konfiguration)
 .claude/
-
-# GitHub Actions (lokal nicht benötigt)
-.github/workflows/

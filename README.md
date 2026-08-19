@@ -7,6 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-installierbar-5A0FC8?logo=pwa&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
@@ -641,6 +642,15 @@ CMD ["node", "server.js"]
 | 2.5 | Härtung & Aufräumen (Refactor Rank 1–7): `TRUST_PROXY` konfigurierbar — ohne diese Einstellung wäre das Login-Rate-Limit hinter einem Reverse-Proxy ein **globaler** Zähler gewesen; Container läuft als non-root (`USER node`); Zoom auf Mobilgeräten nicht mehr blockiert (WCAG 1.4.4); unbekannte `/api`-Pfade liefern JSON-404 statt der SPA-HTML-Seite, plus zentraler Fehler-Handler (kaputter JSON-Body → 400); Rate-Limiter-Queue aus 4 API-Clients nach `utils/rateLimitedFetch.js` extrahiert; Listen-Zeilen-Aufbereitung aus 3 Routen nach `utils/listRows.js`; Service-Worker cached nur noch die App-Shell vor (keine manuell gepflegte Dateiliste mehr); 7 neue Tests (64 gesamt) |
 | 2.5 | Bereichs-Switcher gestapelt (3 Bereiche passen ohne Überlauf in die Sidebar), Typ-Tabs umbrechen bei 5 Typen; Suche zeigt bei Anbieter-Ausfall einen Hinweis statt Endlos-Spinner; 14 neue Tests (57 gesamt) |
 | 2.4 | Staffel-Tracking für Serien: Eingabe als **Staffel + Episode innerhalb der Staffel** (wie bei Streaming-Diensten) statt absoluter Episodennummer — TMDB liefert Episodenzahlen pro Staffel (`seasons_data`), das Episoden-Maximum passt sich der gewählten Staffel an, „Abgeschlossen" springt auf letzte Staffel/Episode, Fortschrittsbalken rechnet absolut über alle Staffeln; Alt-Einträge mit absoluter Zählung werden beim Öffnen automatisch umgerechnet (`user_list.current_season`, `media_entries.seasons_data`) |
+| 2.5.1 | Repository-Hygiene: MIT-Lizenz ergänzt, `package.json` mit Version, Lizenz, Autor, Repository und `engines: node >=20` versehen, `.github/workflows/` nicht mehr per `.gitignore` ausgeschlossen (der Docker-Build-Workflow lag nur lokal, dadurch lief die Action auf GitHub nie und der Badge blieb leer)
+
+---
+
+## Lizenz
+
+[MIT](LICENSE) © r3v3nloper
+
+Die Mediendaten stammen von [MyAnimeList](https://myanimelist.net/) (via [Jikan](https://jikan.moe/)), [AniList](https://anilist.co/), [TMDB](https://www.themoviedb.org/) und [IGDB](https://www.igdb.com/) und unterliegen deren jeweiligen Nutzungsbedingungen. Dieses Projekt wird von keinem der Anbieter unterstützt oder zertifiziert.
 
 ---
 

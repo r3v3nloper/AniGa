@@ -1,8 +1,21 @@
 {
   "name": "aniga",
-  "version": "1.0.0",
-  "description": "Anime & Manga Tracker PWA",
+  "version": "2.5.0",
+  "description": "Anime, Manga, Filme, Serien & Spiele Tracker als selbst gehostete PWA",
+  "author": "r3v3nloper",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r3v3nloper/AniGa.git"
+  },
+  "homepage": "https://github.com/r3v3nloper/AniGa#readme",
+  "bugs": {
+    "url": "https://github.com/r3v3nloper/AniGa/issues"
+  },
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
